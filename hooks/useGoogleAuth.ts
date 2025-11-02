@@ -13,13 +13,35 @@ const API_KEY = 'AIzaSyDiSMwt9hwZrE0Jvt_OGDnxyxWdADupvj8';
 const CLIENT_ID: string = '998744714177-bvvgdulte02cjkg5ijtm19udthuvcjm8.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 const FILENAME = 'montanha_bilhar_data.json';
+const API_TIMEOUT_MS = 8000; // 8 seconds
+
+// --- Timeout Helper ---
+const promiseWithTimeout = <T>(promise: Promise<T>, ms: number, timeoutError = new Error('Promise timed out')): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            reject(timeoutError);
+        }, ms);
+
+        promise.then(
+            (res) => {
+                clearTimeout(timeoutId);
+                resolve(res);
+            },
+            (err) => {
+                clearTimeout(timeoutId);
+                reject(err);
+            }
+        );
+    });
+};
+
 
 export const useGoogleAuth = () => {
     const [gapi, setGapi] = useState<any>(null);
     const [tokenClient, setTokenClient] = useState<any>(null);
     const [authStatus, setAuthStatus] = useState<AuthStatus>(AuthStatus.LOADING);
     const [userProfile, setUserProfile] = useState<any>(null);
-    const isInitialized = useRef(false); // Ref to prevent re-initialization
+    const isInitialized = useRef(false);
 
     const isConfigured = !!(CLIENT_ID && API_KEY && !CLIENT_ID.startsWith('YOUR'));
 
@@ -95,12 +117,11 @@ export const useGoogleAuth = () => {
             setTokenClient(client);
             client.requestAccessToken({ prompt: 'none' });
 
-            // Set a timeout as a fallback in case silent sign-in fails without a callback
             setTimeout(() => {
                 setAuthStatus(currentStatus => 
                     currentStatus === AuthStatus.LOADING ? AuthStatus.UNAUTHENTICATED : currentStatus
                 );
-            }, 3000); // 3-second timeout
+            }, 3500); // 3.5-second timeout
         };
 
         init().catch(e => {
@@ -134,18 +155,18 @@ export const useGoogleAuth = () => {
     const findFile = useCallback(async (): Promise<string | null> => {
         if (!gapi || authStatus !== AuthStatus.AUTHENTICATED) return null;
         try {
-            const response = await gapi.client.drive.files.list({
+            const request = gapi.client.drive.files.list({
                 q: `name='${FILENAME}' and trashed=false`,
                 spaces: 'appDataFolder',
                 fields: 'files(id, name)',
             });
-            const files = response.result.files;
+            const response = await promiseWithTimeout(request, API_TIMEOUT_MS);
+            // Fix: Cast the unknown response type to access the 'result' property.
+            const files = (response as { result: { files: { id: string }[] } }).result.files;
             return files.length > 0 ? files[0].id : null;
         } catch (error: any) {
             console.error("Error finding file:", error);
-            if (error?.result?.error?.code === 401) {
-                signOut();
-            }
+            signOut();
             return null;
         }
     }, [gapi, authStatus, signOut]);
@@ -155,13 +176,13 @@ export const useGoogleAuth = () => {
         if (!fileId) return null;
 
         try {
-            const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
-            return JSON.parse(response.body);
+            const request = gapi.client.drive.files.get({ fileId, alt: 'media' });
+            const response = await promiseWithTimeout(request, API_TIMEOUT_MS);
+            // Fix: Cast the unknown response type to access the 'body' property.
+            return JSON.parse((response as { body: string }).body);
         } catch (error: any) {
             console.error("Error loading file:", error);
-             if (error?.result?.error?.code === 401) {
-                signOut();
-            }
+            signOut();
             return null;
         }
     }, [findFile, gapi, signOut]);
@@ -196,19 +217,19 @@ export const useGoogleAuth = () => {
                 : '/upload/drive/v3/files';
             const method = fileId ? 'PATCH' : 'POST';
 
-            await gapi.client.request({
+            const request = gapi.client.request({
                 path: path,
                 method: method,
                 params: { uploadType: 'multipart', fields: 'id' },
                 headers: { 'Content-Type': `multipart/related; boundary="${boundary}"` },
                 body: multipartRequestBody,
             });
+
+            await promiseWithTimeout(request, API_TIMEOUT_MS);
             return true;
         } catch (error: any) {
             console.error("Error saving file:", error);
-            if (error?.result?.error?.code === 401) {
-                signOut();
-            }
+            signOut();
             return false;
         }
     }, [gapi, authStatus, findFile, signOut]);
