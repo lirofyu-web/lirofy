@@ -10,7 +10,7 @@ export enum AuthStatus {
 }
 
 const API_KEY = 'AIzaSyDiSMwt9hwZrE0Jvt_OGDnxyxWdADupvj8';
-const CLIENT_ID: string = '9987447177-bvvgdulte02cjkg5ijtm19udthuvcjm8.apps.googleusercontent.com';
+const CLIENT_ID: string = '998744714177-bvvgdulte02cjkg5ijtm19udthuvcjm8.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 const FILENAME = 'montanha_bilhar_data.json';
 
@@ -22,26 +22,32 @@ export const useGoogleAuth = () => {
 
     const isConfigured = !!(CLIENT_ID && API_KEY && !CLIENT_ID.startsWith('YOUR'));
 
+    // Load GAPI and GIS scripts once on mount
     useEffect(() => {
-        const loadGapi = async () => {
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js';
-            script.async = true;
-            script.defer = true;
-            document.body.appendChild(script);
-            await new Promise(resolve => { script.onload = resolve; });
-            (window as any).gapi.load('client', () => setGapi((window as any).gapi));
+        const loadScripts = async () => {
+            const gapiScript = document.createElement('script');
+            gapiScript.src = 'https://apis.google.com/js/api.js';
+            gapiScript.async = true;
+            gapiScript.defer = true;
+            document.body.appendChild(gapiScript);
+            
+            const gisScript = document.createElement('script');
+            gisScript.src = 'https://accounts.google.com/gsi/client';
+            gisScript.async = true;
+            gisScript.defer = true;
+            document.body.appendChild(gisScript);
+
+            await Promise.all([
+                new Promise(resolve => { gapiScript.onload = resolve; }),
+                new Promise(resolve => { gisScript.onload = resolve; })
+            ]);
+
+            (window as any).gapi.load('client', () => {
+                setGapi((window as any).gapi);
+            });
         };
-        const loadGis = async () => {
-            const script = document.createElement('script');
-            script.src = 'https://accounts.google.com/gsi/client';
-            script.async = true;
-            script.defer = true;
-            document.body.appendChild(script);
-            await new Promise(resolve => { script.onload = resolve; });
-        };
-        Promise.all([loadGapi(), loadGis()]).catch(console.error);
-    }, []);
+        loadScripts().catch(console.error);
+    }, []); // Empty array ensures this runs only once
 
     const fetchUserProfile = useCallback(async (gapiInstance: any) => {
         try {
@@ -54,13 +60,15 @@ export const useGoogleAuth = () => {
         }
     }, []);
 
+    // Initialize clients and attempt silent sign-in once GAPI is ready
     useEffect(() => {
-        if (!gapi || !isConfigured) {
+        if (!gapi || !isConfigured || tokenClient) {
             if (!isConfigured) setAuthStatus(AuthStatus.UNAUTHENTICATED);
             return;
         }
 
-        const initClient = async () => {
+        let isMounted = true;
+        const init = async () => {
             await gapi.client.init({
                 apiKey: API_KEY,
                 discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
@@ -70,31 +78,43 @@ export const useGoogleAuth = () => {
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: (tokenResponse: any) => {
+                    if (!isMounted) return;
                     if (tokenResponse && tokenResponse.access_token) {
                         gapi.client.setToken(tokenResponse);
                         fetchUserProfile(gapi);
                     }
                 },
-            });
-            setTokenClient(client);
-            // Attempt silent sign-in
-            client.requestAccessToken({ prompt: '', hint: userProfile?.emailAddress });
-            
-            // If silent sign-in doesn't work after a short delay, assume unauthenticated
-            setTimeout(() => {
-                if(authStatus === AuthStatus.LOADING) {
-                    setAuthStatus(AuthStatus.UNAUTHENTICATED);
+                error_callback: () => {
+                    if (isMounted) setAuthStatus(AuthStatus.UNAUTHENTICATED);
                 }
-            }, 2000);
-        };
-        initClient().catch(() => setAuthStatus(AuthStatus.ERROR));
+            });
 
-    }, [gapi, isConfigured, fetchUserProfile, authStatus]);
+            if (isMounted) {
+                setTokenClient(client);
+                client.requestAccessToken({ prompt: 'none' });
+                setTimeout(() => {
+                    if (isMounted && authStatus === AuthStatus.LOADING) {
+                        setAuthStatus(AuthStatus.UNAUTHENTICATED);
+                    }
+                }, 2500);
+            }
+        };
+
+        init().catch(e => {
+            console.error("Error initializing Google clients:", e);
+            if (isMounted) setAuthStatus(AuthStatus.ERROR);
+        });
+        
+        return () => { isMounted = false; }
+
+    }, [gapi, isConfigured, tokenClient, fetchUserProfile, authStatus]);
 
 
     const signIn = useCallback(() => {
         if (tokenClient) {
             tokenClient.requestAccessToken({ prompt: 'consent' });
+        } else {
+            console.error("Sign-in called before token client was ready.");
         }
     }, [tokenClient]);
 
@@ -143,24 +163,37 @@ export const useGoogleAuth = () => {
         if (!gapi || authStatus !== AuthStatus.AUTHENTICATED) return false;
 
         const fileId = await findFile();
+        
         const boundary = '-------314159265358979323846';
         const delimiter = `\r\n--${boundary}\r\n`;
         const close_delim = `\r\n--${boundary}--`;
         
-        const metadata = { name: FILENAME, mimeType: 'application/json' };
+        const metadata = { 
+            name: FILENAME, 
+            mimeType: 'application/json',
+            ...( !fileId && { parents: ['appDataFolder'] })
+        };
+        
         const multipartRequestBody =
-            `${delimiter}Content-Type: application/json\r\n\r\n${JSON.stringify(metadata)}` +
-            `${delimiter}Content-Type: application/json\r\n\r\n${JSON.stringify(content, null, 2)}` +
+            delimiter +
+            'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+            JSON.stringify(metadata) +
+            delimiter +
+            'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+            JSON.stringify(content) +
             close_delim;
         
         try {
+            const path = fileId 
+                ? `/upload/drive/v3/files/${fileId}` 
+                : '/upload/drive/v3/files';
+            const method = fileId ? 'PATCH' : 'POST';
+
             await gapi.client.request({
-                path: fileId ? `/upload/drive/v3/files/${fileId}` : '/upload/drive/v3/files',
-                method: fileId ? 'PATCH' : 'POST',
+                path: path,
+                method: method,
                 params: { uploadType: 'multipart', fields: 'id' },
                 headers: { 'Content-Type': `multipart/related; boundary="${boundary}"` },
-                // Add parent folder if creating a new file
-                ...( !fileId && { body: JSON.stringify({ name: FILENAME, parents: ['appDataFolder'] }) }),
                 body: multipartRequestBody,
             });
             return true;
