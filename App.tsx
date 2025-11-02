@@ -20,157 +20,21 @@ const geocodeAddress = async (address: string): Promise<{ lat: number; lon: numb
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
     try {
         const response = await fetch(url);
+        // Fail silently if not ok, as it might be a network block
         if (!response.ok) {
-            console.error(`Geocoding request failed with status: ${response.status}`);
             return null;
         }
         const data = await response.json();
         if (data && data.length > 0) {
             return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
         }
-        console.warn(`Geocoding failed for address: "${address}". No results found.`);
         return null;
     } catch (error) {
-        console.error("Geocoding network error:", error);
+        // Silently fail on fetch error, likely due to environment restrictions
         return null;
     }
 };
 
-// --- Start of Mock Data Generation ---
-const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-const randomItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-const randomDate = (start: Date, end: Date) => new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-
-const generateInitialMockData = () => {
-    const newCustomers: Customer[] = [];
-    const newBillings: Billing[] = [];
-    const now = new Date();
-    const oneYearAgo = new Date(new Date().setFullYear(now.getFullYear() - 1));
-
-    // Define 20 customers with valid, geocodable addresses for the "Rotas" view demo
-    const customerAddresses = [
-        { name: "Café Paulista", endereco: "Avenida Paulista, 1578", cidade: "São Paulo, SP" },
-        { name: "Bar da Sé", endereco: "Praça da Sé, 10", cidade: "São Paulo, SP" },
-        { name: "Copacabana Sinuca", endereco: "Avenida Atlântica, 1702", cidade: "Rio de Janeiro, RJ" },
-        { name: "Lapa Jukebox", endereco: "Rua do Lavradio, 20", cidade: "Rio de Janeiro, RJ" },
-        { name: "Bar Sete de Setembro", endereco: "Praça Sete de Setembro, 50", cidade: "Belo Horizonte, MG" },
-        { name: "Clube Afonso Pena", endereco: "Avenida Afonso Pena, 1212", cidade: "Belo Horizonte, MG" },
-        { name: "Bar Elevador", endereco: "Praça Tomé de Souza, 5", cidade: "Salvador, BA" },
-        { name: "Pelourinho Games", endereco: "Largo do Pelourinho, 12", cidade: "Salvador, BA" },
-        { name: "Beira Mar Bilhar", endereco: "Avenida Beira Mar, 3620", cidade: "Fortaleza, CE" },
-        { name: "Tabosa Jukebox Club", endereco: "Rua Monsenhor Tabosa, 1315", cidade: "Fortaleza, CE" },
-        { name: "Boca Maldita Bar", endereco: "Rua XV de Novembro, 1", cidade: "Curitiba, PR" },
-        { name: "Estação Snooker", endereco: "Avenida Sete de Setembro, 2775", cidade: "Curitiba, PR" },
-        { name: "Teatro do Bilhar", endereco: "Avenida Eduardo Ribeiro, 660", cidade: "Manaus, AM" },
-        { name: "Bar do Antony", endereco: "Rua Henrique Antony, 220", cidade: "Manaus, AM" },
-        { name: "Aurora Bar", endereco: "Rua da Aurora, 1633", cidade: "Recife, PE" },
-        { name: "Marco Zero Sinuca", endereco: "Praça do Marco Zero, 20", cidade: "Recife, PE" },
-        { name: "Bar Praça Cívica", endereco: "Praça Cívica, 30", cidade: "Goiânia, GO" },
-        { name: "Goiás Jukebox", endereco: "Avenida Goiás, 600", cidade: "Goiânia, GO" },
-        { name: "Vargas Snooker Club", endereco: "Avenida Presidente Vargas, 1", cidade: "Belém, PA" },
-        { name: "Estação das Docas Bar", endereco: "Avenida Boulevard Castilhos França, 770", cidade: "Belém, PA" }
-    ];
-
-    for (let i = 0; i < customerAddresses.length; i++) {
-        const addr = customerAddresses[i];
-        const customerCreatedAt = randomDate(oneYearAgo, now);
-        const customer: Customer = {
-            id: `cust_route_${Date.now()}_${i}`,
-            createdAt: customerCreatedAt,
-            name: addr.name,
-            cpfRg: `${randomInt(100, 999)}.${randomInt(100, 999)}.${randomInt(100, 999)}-${randomInt(10, 99)}`,
-            cidade: addr.cidade,
-            endereco: addr.endereco,
-            telefone: `(${randomInt(11, 99)}) 9${randomInt(1000, 9999)}-${randomInt(1000, 9999)}`,
-            latitude: null, // To be geocoded
-            longitude: null, // To be geocoded
-            mesaNumero: `M${randomInt(1, 20)}`,
-            relogioMesaNumero: `${randomInt(10000, 99999)}`,
-            relogioMesaAnterior: randomInt(1000, 5000),
-            valorFicha: randomItem([2, 2.5, 3, 3.5]),
-            parteFirma: 50,
-            parteCliente: 50,
-            jukeboxNumero: `J${randomInt(1, 5)}`,
-            relogioJukeboxNumero: `${randomInt(10000, 99999)}`,
-            relogioJukeboxAnterior: randomInt(10000, 20000),
-            porcentagemJukeboxFirma: 50,
-            porcentagemJukeboxCliente: 50,
-            linhaNumero: `${randomInt(1, 100)}`,
-            assinaturaFirma: '',
-            assinaturaCliente: '',
-            debtAmount: 0,
-            lastVisitedAt: null,
-        };
-        newCustomers.push(customer);
-    }
-    
-    for (const customer of newCustomers) {
-        const equipment = randomItem<'mesa' | 'jukebox'>(['mesa', 'jukebox']);
-        const settledAt = randomDate(customer.createdAt, now);
-        const paymentMethod = randomItem<'pix' | 'dinheiro' | 'fiado'>(['pix', 'dinheiro', 'fiado']);
-        
-        let billing: Billing;
-
-        if (equipment === 'mesa') {
-            const relogioAnterior = customer.relogioMesaAnterior;
-            const relogioAtual = relogioAnterior + randomInt(10, 100);
-            const partidasJogadas = relogioAtual - relogioAnterior;
-            const descontoPartidas = randomInt(0, 5);
-            const partidasCobradas = partidasJogadas - descontoPartidas;
-            const valorTotal = partidasCobradas * customer.valorFicha;
-
-            billing = {
-                id: `bill_${Date.now()}_${customer.id}`,
-                customerId: customer.id,
-                customerName: customer.name,
-                equipment: 'mesa',
-                relogioAnterior,
-                relogioAtual,
-                partidasJogadas,
-                descontoPartidas,
-                partidasCobradas,
-                valorFicha: customer.valorFicha,
-                valorTotal,
-                parteFirma: valorTotal * (customer.parteFirma / 100),
-                parteCliente: valorTotal * (customer.parteCliente / 100),
-                settledAt,
-                paymentMethod,
-            };
-        } else { // jukebox
-            const relogioAnterior = customer.relogioJukeboxAnterior;
-            const relogioAtual = relogioAnterior + randomInt(50, 500);
-            const valorTotal = relogioAtual - relogioAnterior;
-
-            billing = {
-                id: `bill_${Date.now()}_${customer.id}`,
-                customerId: customer.id,
-                customerName: customer.name,
-                equipment: 'jukebox',
-                relogioAnterior,
-                relogioAtual,
-                partidasJogadas: 0,
-                descontoPartidas: 0,
-                partidasCobradas: valorTotal,
-                valorTotal: valorTotal,
-                parteFirma: valorTotal * (customer.porcentagemJukeboxFirma / 100),
-                parteCliente: valorTotal * (customer.porcentagemJukeboxCliente / 100),
-                settledAt,
-                paymentMethod,
-            };
-        }
-        
-        if (paymentMethod === 'fiado') {
-            customer.debtAmount += billing.valorTotal;
-        }
-        
-        newBillings.push(billing);
-    }
-    
-    return {
-        customers: newCustomers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
-        billings: newBillings.sort((a, b) => b.settledAt.getTime() - a.settledAt.getTime()),
-    };
-};
 
 const getInitialData = () => {
     const savedCustomers = localStorage.getItem('customers');
@@ -178,32 +42,22 @@ const getInitialData = () => {
     const savedExpenses = localStorage.getItem('expenses');
     const savedDebtPayments = localStorage.getItem('debtPayments');
 
-    let customers: Customer[] = [];
-    let billings: Billing[] = [];
+    const customers: Customer[] = savedCustomers ? JSON.parse(savedCustomers).map((c: any) => ({
+        ...c,
+        createdAt: new Date(c.createdAt),
+        latitude: c.latitude !== undefined ? c.latitude : null,
+        longitude: c.longitude !== undefined ? c.longitude : null,
+        lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null,
+    })) : [];
+
+    const billings: Billing[] = savedBillings ? JSON.parse(savedBillings).map((b: any) => ({...b, settledAt: new Date(b.settledAt)})) : [];
+    
     const expenses: Expense[] = savedExpenses ? JSON.parse(savedExpenses).map((e: any) => ({...e, date: new Date(e.date)})) : [];
+    
     const debtPayments: DebtPayment[] = savedDebtPayments ? JSON.parse(savedDebtPayments).map((p: any) => ({...p, paidAt: new Date(p.paidAt)})) : [];
-
-
-    if (savedCustomers && savedBillings) {
-        customers = JSON.parse(savedCustomers).map((c: any) => ({
-            ...c,
-            createdAt: new Date(c.createdAt),
-            latitude: c.latitude !== undefined ? c.latitude : null,
-            longitude: c.longitude !== undefined ? c.longitude : null,
-            lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null,
-        }));
-        billings = JSON.parse(savedBillings).map((b: any) => ({...b, settledAt: new Date(b.settledAt)}));
-    } else {
-        const mockData = generateInitialMockData();
-        customers = mockData.customers;
-        billings = mockData.billings;
-        localStorage.setItem('customers', JSON.stringify(customers));
-        localStorage.setItem('billings', JSON.stringify(billings));
-    }
     
     return { customers, billings, expenses, debtPayments };
-}
-// --- End of Mock Data Generation ---
+};
 
 const initialData = getInitialData();
 

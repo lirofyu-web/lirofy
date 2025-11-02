@@ -1,6 +1,2 @@
-import React from 'react';
-
-// This component is no longer used in the new dashboard layout.
-const Header: React.FC = () => null;
-
-export default Header;
+// This component is unused and has been cleared to prevent potential build errors.
+export {};
