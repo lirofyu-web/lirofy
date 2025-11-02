@@ -1,5 +1,5 @@
 // hooks/useGoogleAuth.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData } from '../App';
 
 export enum AuthStatus {
@@ -19,10 +19,11 @@ export const useGoogleAuth = () => {
     const [tokenClient, setTokenClient] = useState<any>(null);
     const [authStatus, setAuthStatus] = useState<AuthStatus>(AuthStatus.LOADING);
     const [userProfile, setUserProfile] = useState<any>(null);
+    const isInitialized = useRef(false); // Ref to prevent re-initialization
 
     const isConfigured = !!(CLIENT_ID && API_KEY && !CLIENT_ID.startsWith('YOUR'));
 
-    // Load GAPI and GIS scripts once on mount
+    // 1. Load GAPI and GIS scripts once on mount
     useEffect(() => {
         const loadScripts = async () => {
             const gapiScript = document.createElement('script');
@@ -47,7 +48,7 @@ export const useGoogleAuth = () => {
             });
         };
         loadScripts().catch(console.error);
-    }, []); // Empty array ensures this runs only once
+    }, []);
 
     const fetchUserProfile = useCallback(async (gapiInstance: any) => {
         try {
@@ -60,14 +61,17 @@ export const useGoogleAuth = () => {
         }
     }, []);
 
-    // Initialize clients and attempt silent sign-in once GAPI is ready
+    // 2. Initialize clients and attempt silent sign-in once GAPI is ready
     useEffect(() => {
-        if (!gapi || !isConfigured || tokenClient) {
-            if (!isConfigured) setAuthStatus(AuthStatus.UNAUTHENTICATED);
+        if (!gapi || !isConfigured || isInitialized.current) {
+            if (!isConfigured && !isInitialized.current) {
+                setAuthStatus(AuthStatus.UNAUTHENTICATED);
+            }
             return;
         }
 
-        let isMounted = true;
+        isInitialized.current = true;
+        
         const init = async () => {
             await gapi.client.init({
                 apiKey: API_KEY,
@@ -78,36 +82,33 @@ export const useGoogleAuth = () => {
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: (tokenResponse: any) => {
-                    if (!isMounted) return;
                     if (tokenResponse && tokenResponse.access_token) {
                         gapi.client.setToken(tokenResponse);
                         fetchUserProfile(gapi);
                     }
                 },
                 error_callback: () => {
-                    if (isMounted) setAuthStatus(AuthStatus.UNAUTHENTICATED);
+                    setAuthStatus(AuthStatus.UNAUTHENTICATED);
                 }
             });
 
-            if (isMounted) {
-                setTokenClient(client);
-                client.requestAccessToken({ prompt: 'none' });
-                setTimeout(() => {
-                    if (isMounted && authStatus === AuthStatus.LOADING) {
-                        setAuthStatus(AuthStatus.UNAUTHENTICATED);
-                    }
-                }, 2500);
-            }
+            setTokenClient(client);
+            client.requestAccessToken({ prompt: 'none' });
+
+            // Set a timeout as a fallback in case silent sign-in fails without a callback
+            setTimeout(() => {
+                setAuthStatus(currentStatus => 
+                    currentStatus === AuthStatus.LOADING ? AuthStatus.UNAUTHENTICATED : currentStatus
+                );
+            }, 3000); // 3-second timeout
         };
 
         init().catch(e => {
             console.error("Error initializing Google clients:", e);
-            if (isMounted) setAuthStatus(AuthStatus.ERROR);
+            setAuthStatus(AuthStatus.ERROR);
         });
-        
-        return () => { isMounted = false; }
 
-    }, [gapi, isConfigured, tokenClient, fetchUserProfile, authStatus]);
+    }, [gapi, isConfigured, fetchUserProfile]);
 
 
     const signIn = useCallback(() => {
@@ -140,11 +141,14 @@ export const useGoogleAuth = () => {
             });
             const files = response.result.files;
             return files.length > 0 ? files[0].id : null;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error finding file:", error);
+            if (error?.result?.error?.code === 401) {
+                signOut();
+            }
             return null;
         }
-    }, [gapi, authStatus]);
+    }, [gapi, authStatus, signOut]);
 
     const loadData = useCallback(async (): Promise<AppData | null> => {
         const fileId = await findFile();
@@ -153,11 +157,14 @@ export const useGoogleAuth = () => {
         try {
             const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
             return JSON.parse(response.body);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error loading file:", error);
+             if (error?.result?.error?.code === 401) {
+                signOut();
+            }
             return null;
         }
-    }, [findFile, gapi]);
+    }, [findFile, gapi, signOut]);
 
     const saveData = useCallback(async (content: AppData): Promise<boolean> => {
         if (!gapi || authStatus !== AuthStatus.AUTHENTICATED) return false;
@@ -197,11 +204,14 @@ export const useGoogleAuth = () => {
                 body: multipartRequestBody,
             });
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving file:", error);
+            if (error?.result?.error?.code === 401) {
+                signOut();
+            }
             return false;
         }
-    }, [gapi, authStatus, findFile]);
+    }, [gapi, authStatus, findFile, signOut]);
 
 
     return { signIn, signOut, loadData, saveData, authStatus, userProfile, isConfigured };
