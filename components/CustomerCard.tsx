@@ -1,6 +1,5 @@
-
 // components/CustomerCard.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Customer, Billing, DebtPayment } from '../types';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -9,13 +8,19 @@ import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 import { HistoryIcon } from './icons/HistoryIcon';
 import { AlertIcon } from './icons/AlertIcon';
-import { RulerIcon } from './icons/RulerIcon';
+import { VisitedIcon } from './icons/VisitedIcon';
+import { NotVisitedIcon } from './icons/NotVisitedIcon';
+import { ShareIcon } from './icons/ShareIcon';
+import { BilliardIcon } from './icons/BilliardIcon';
+import { JukeboxIcon } from './icons/JukeboxIcon';
+
 
 import BillingModal from './BillingModal';
 import DebtPaymentModal from './DebtPaymentModal';
-import ActionModal from './ActionModal';
 import EditCustomerModal from './EditCustomerModal';
 import HistoryModal from './HistoryModal';
+// FIX: Import ActionModal component to resolve 'Cannot find name' error.
+import ActionModal from './ActionModal';
 
 interface CustomerCardProps {
   customer: Customer & { distance?: number };
@@ -63,6 +68,9 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
 
   const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
   const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
+  const lastVisitedDate = customer.lastVisitedAt ? new Date(customer.lastVisitedAt).toLocaleDateString('pt-BR') : 'Nenhuma';
+
+  const hasHighDebt = customer.debtAmount > 50;
 
   const googleMapsUrl = customer.latitude && customer.longitude
     ? `https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`
@@ -72,33 +80,87 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
     ? `https://wa.me/55${customer.telefone.replace(/\D/g, '')}`
     : '';
 
+  const handleShare = () => {
+    const customerDataString = `
+--- INÍCIO DADOS CLIENTE ---
+Nome: ${customer.name}
+CPF/RG: ${customer.cpfRg}
+Cidade: ${customer.cidade}
+Endereço: ${customer.endereco}
+Telefone: ${customer.telefone}
+Linha/Rota: ${customer.linhaNumero}
+Nº Mesa: ${customer.mesaNumero}
+Nº Relógio Mesa: ${customer.relogioMesaNumero}
+Leitura Ant. Mesa: ${customer.relogioMesaAnterior}
+Valor Ficha: R$ ${customer.valorFicha.toFixed(2)}
+% Firma (Mesa): ${customer.parteFirma}
+% Cliente (Mesa): ${customer.parteCliente}
+Nº Jukebox: ${customer.jukeboxNumero}
+Nº Relógio Jukebox: ${customer.relogioJukeboxNumero}
+Leitura Ant. Jukebox: ${customer.relogioJukeboxAnterior}
+% Firma (Jukebox): ${customer.porcentagemJukeboxFirma}
+% Cliente (Jukebox): ${customer.porcentagemJukeboxCliente}
+--- FIM DADOS CLIENTE ---
+    `.trim();
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(customerDataString)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const ActionButton: React.FC<{onClick?: () => void; href?: string; title: string; children: React.ReactNode; isLink?: boolean; className?: string}> = 
+    ({onClick, href, title, children, isLink, className}) => {
+    const commonClasses = "p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-white transition-colors duration-200";
+    if (isLink) {
+        return <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`${commonClasses} ${className}`}>{children}</a>
+    }
+    return <button onClick={onClick} title={title} className={`${commonClasses} ${className}`}>{children}</button>;
+  };
+
   return (
     <>
       <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col h-full transition-shadow hover:shadow-emerald-500/10">
         <div className="p-5 flex-grow">
-          <div className="flex justify-between items-start">
-            <h3 className="text-xl font-bold text-white mb-1">{customer.name}</h3>
-            {visitIsPending && <div className="flex-shrink-0 ml-2" title="Visita pendente há mais de 25 dias"><AlertIcon className="w-6 h-6 text-amber-400" /></div>}
+          <div className="flex justify-between items-start gap-2">
+            <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+              <span title={visitIsPending ? 'Visita Pendente' : `Visitado em ${lastVisitedDate}`}>
+                {visitIsPending ? <NotVisitedIcon className="w-5 h-5" /> : <VisitedIcon className="w-5 h-5" />}
+              </span>
+              <span>{customer.name}</span>
+            </h3>
+            {hasHighDebt && (
+              <div className="flex-shrink-0" title={`Dívida pendente: R$ ${customer.debtAmount.toFixed(2)}`}>
+                <AlertIcon className="w-6 h-6 text-amber-400" />
+              </div>
+            )}
           </div>
           <p className="text-sm text-slate-400 mb-4">{customer.endereco}</p>
           
-          <div className="space-y-2 text-sm">
-            {customer.debtAmount > 0 && (
-              <div className="flex items-center gap-2 text-red-400 font-bold">
-                <CurrencyDollarIcon className="w-5 h-5" />
-                <span>Dívida: R$ {customer.debtAmount.toFixed(2)}</span>
-              </div>
+           {customer.distance !== undefined && customer.distance !== Infinity && (
+                 <p className="text-sm text-sky-400 font-medium mb-2">
+                    Aprox. {customer.distance.toFixed(1)} km de distância
+                </p>
             )}
-            {customer.distance !== Infinity && customer.distance !== undefined && (
-                 <div className="flex items-center gap-2 text-sky-400">
-                    <RulerIcon className="w-5 h-5" />
-                    <span>Distância: {customer.distance.toFixed(1)} km</span>
-                </div>
-            )}
-             <div className="text-xs text-slate-500 pt-2">
-                Última Visita: {customer.lastVisitedAt ? new Date(customer.lastVisitedAt).toLocaleDateString('pt-BR') : 'Nenhuma'}
+
+            <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-3 text-sm">
+                {customer.mesaNumero && (
+                    <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-2"><BilliardIcon className="w-4 h-4 text-cyan-400" /> Mesa {customer.mesaNumero}</span>
+                        <span className="font-mono">{customer.relogioMesaAnterior}</span>
+                    </div>
+                )}
+                {customer.jukeboxNumero && (
+                    <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-2"><JukeboxIcon className="w-4 h-4 text-cyan-400" /> Jukebox {customer.jukeboxNumero}</span>
+                        <span className="font-mono">{customer.relogioJukeboxAnterior}</span>
+                    </div>
+                )}
+                {customer.debtAmount > 0 && (
+                    <div className="flex items-center justify-between text-amber-400 font-semibold">
+                        <span className="flex items-center gap-2">Saldo Devedor</span>
+                        <span className="font-mono">R$ {customer.debtAmount.toFixed(2)}</span>
+                    </div>
+                )}
             </div>
-          </div>
+
         </div>
 
         <div className="bg-slate-800/50 p-3 flex flex-wrap gap-2 justify-center border-t border-slate-700">
@@ -108,12 +170,13 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
             )}
         </div>
         
-        <div className="bg-slate-900/40 p-2 flex justify-around items-center rounded-b-lg">
-          <button onClick={() => setIsHistoryModalOpen(true)} title="Histórico" className="text-slate-400 hover:text-white"><HistoryIcon className="w-5 h-5" /></button>
-          <button onClick={() => setIsEditModalOpen(true)} title="Editar" className="text-slate-400 hover:text-white"><PencilIcon className="w-5 h-5" /></button>
-          {whatsAppUrl && <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="text-slate-400 hover:text-white"><WhatsAppIcon className="w-5 h-5" /></a>}
-          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" title="Ver no Mapa" className="text-slate-400 hover:text-white"><LocationMarkerIcon className="w-5 h-5" /></a>
-          <button onClick={() => setIsDeleteModalOpen(true)} title="Excluir" className="text-slate-400 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
+        <div className="bg-slate-900/40 p-1 flex justify-around items-center rounded-b-lg">
+          <ActionButton onClick={() => setIsHistoryModalOpen(true)} title="Histórico"><HistoryIcon className="w-5 h-5" /></ActionButton>
+          {whatsAppUrl && <ActionButton href={whatsAppUrl} title="WhatsApp" isLink><WhatsAppIcon className="w-5 h-5" /></ActionButton>}
+          <ActionButton onClick={handleShare} title="Compartilhar Dados"><ShareIcon className="w-5 h-5" /></ActionButton>
+          <ActionButton href={googleMapsUrl} title="Ver no Mapa" isLink><LocationMarkerIcon className="w-5 h-5" /></ActionButton>
+          <ActionButton onClick={() => setIsEditModalOpen(true)} title="Editar"><PencilIcon className="w-5 h-5" /></ActionButton>
+          <ActionButton onClick={() => setIsDeleteModalOpen(true)} title="Excluir" className="hover:text-red-500"><TrashIcon className="w-5 h-5" /></ActionButton>
         </div>
       </div>
       
@@ -129,7 +192,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
         title="Confirmar Exclusão"
         confirmText="Excluir"
       >
-        <p>Tem certeza que deseja excluir o cliente <strong>{customer.name}</strong>? Esta ação não pode ser desfeita.</p>
+        <p>Tem certeza que deseja excluir o cliente <strong>{customer.name}</strong> e todo o seu histórico? Esta ação não pode ser desfeita.</p>
       </ActionModal>
     </>
   );
