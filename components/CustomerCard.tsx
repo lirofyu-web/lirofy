@@ -13,6 +13,9 @@ import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { VisitedIcon } from './icons/VisitedIcon';
+import { NotVisitedIcon } from './icons/NotVisitedIcon';
+
 
 interface CustomerCardProps {
   customer: Customer;
@@ -69,20 +72,23 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onSettleBill, onD
   };
   const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(customer.telefone)}`;
 
+  // --- Visited Status Logic ---
+  const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
+  const isVisitedRecently = customer.lastVisitedAt && (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) <= twentyFiveDaysInMs;
+  const visitedStatusTitle = isVisitedRecently 
+    ? `Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}` 
+    : "Visita pendente (mais de 25 dias)";
 
   return (
     <>
       <div className="bg-slate-800 rounded-lg shadow-xl border border-slate-700 overflow-hidden flex flex-col h-full">
         <div className="p-5 flex-grow">
             <div className="flex justify-between items-start">
-                <div>
+                <div className="flex items-center gap-2">
                     <h3 className="text-xl font-bold text-white">{customer.name}</h3>
-                     {customer.endereco && customer.cidade && (
-                        <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-400 hover:text-cyan-300 transition-colors inline-flex items-center gap-1.5 mt-1">
-                            <LocationMarkerIcon className="w-4 h-4" />
-                            <span>{fullAddress}</span>
-                        </a>
-                    )}
+                    <span title={visitedStatusTitle}>
+                      {isVisitedRecently ? <VisitedIcon className="w-5 h-5" /> : <NotVisitedIcon className="w-5 h-5" />}
+                    </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
@@ -101,6 +107,12 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onSettleBill, onD
                   </button>
                 </div>
             </div>
+            {customer.endereco && customer.cidade && (
+              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-400 hover:text-cyan-300 transition-colors inline-flex items-center gap-1.5 mt-1">
+                  <LocationMarkerIcon className="w-4 h-4" />
+                  <span>{fullAddress}</span>
+              </a>
+            )}
             
             {customer.debtAmount > 0 && (
                 <div className="mt-4 p-2.5 rounded-md bg-red-900/50 border border-red-700 text-center">

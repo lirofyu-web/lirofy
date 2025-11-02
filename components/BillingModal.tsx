@@ -28,7 +28,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       setRelogioAtual('');
       setDescontoPartidas('0');
       setPaymentMethod('dinheiro');
-      // Default to mesa if available, otherwise jukebox
       if (customer.mesaNumero && customer.relogioMesaNumero) {
         setEquipment('mesa');
       } else if (customer.jukeboxNumero && customer.relogioJukeboxNumero) {
@@ -45,9 +44,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   let relogioAnterior = 0;
   let partidasJogadas = 0;
   let partidasCobradas = 0;
-  let valorTotal = 0;
+  let valorBruto = 0;
   let parteFirma = 0;
   let parteCliente = 0;
+  let discountError = false;
   
   const canSettleMesa = !!(customer.mesaNumero && customer.relogioMesaNumero);
   const canSettleJukebox = !!(customer.jukeboxNumero && customer.relogioJukeboxNumero);
@@ -55,22 +55,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   if (equipment === 'mesa') {
     relogioAnterior = customer.relogioMesaAnterior;
     partidasJogadas = relogioAtualNum > relogioAnterior ? relogioAtualNum - relogioAnterior : 0;
-    partidasCobradas = partidasJogadas > descontoPartidasNum ? partidasJogadas - descontoPartidasNum : 0;
-    valorTotal = partidasCobradas * customer.valorFicha;
-    parteFirma = valorTotal * (customer.parteFirma / 100);
-    parteCliente = valorTotal * (customer.parteCliente / 100);
+    if (descontoPartidasNum > partidasJogadas) {
+      discountError = true;
+      partidasCobradas = 0;
+    } else {
+      partidasCobradas = partidasJogadas - descontoPartidasNum;
+    }
+    valorBruto = partidasCobradas * customer.valorFicha;
+    parteFirma = valorBruto * (customer.parteFirma / 100);
+    parteCliente = valorBruto * (customer.parteCliente / 100);
   } else {
     relogioAnterior = customer.relogioJukeboxAnterior;
-    valorTotal = relogioAtualNum > relogioAnterior ? relogioAtualNum - relogioAnterior : 0;
-    parteFirma = valorTotal * (customer.porcentagemJukeboxFirma / 100);
-    parteCliente = valorTotal * (customer.porcentagemJukeboxCliente / 100);
+    valorBruto = relogioAtualNum > relogioAnterior ? relogioAtualNum - relogioAnterior : 0;
+    parteFirma = valorBruto * (customer.porcentagemJukeboxFirma / 100);
+    parteCliente = valorBruto * (customer.porcentagemJukeboxCliente / 100);
   }
 
+  const isConfirmDisabled = relogioAtualNum <= relogioAnterior || discountError;
+
   const handleConfirm = () => {
-    if (relogioAtualNum <= relogioAnterior) {
-        alert('A leitura atual do relógio deve ser maior que a anterior.');
-        return;
-    }
+    if (isConfirmDisabled) return;
     onConfirm({
       equipment,
       relogioAtual: relogioAtualNum,
@@ -134,6 +138,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               <div className="col-span-2">
                 <label htmlFor="descontoPartidas" className="block text-sm font-medium text-slate-300 mb-1">Partidas de Desconto</label>
                 <input type="number" id="descontoPartidas" value={descontoPartidas} onChange={(e) => setDescontoPartidas(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                {discountError && <p className="text-red-400 text-xs mt-1">O desconto não pode ser maior que as partidas jogadas ({partidasJogadas}).</p>}
               </div>
             )}
           </div>
@@ -156,14 +161,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 <p className="flex justify-between text-sm text-slate-300"><span>Valor por Ficha:</span> <span className="font-mono">R$ {customer.valorFicha.toFixed(2)}</span></p>
               </>
             )}
-            <p className="flex justify-between text-lg text-white font-bold border-t border-slate-600 pt-2"><span>Valor Total:</span> <span className="font-mono text-emerald-400">R$ {valorTotal.toFixed(2)}</span></p>
-            <p className="flex justify-between text-sm text-slate-400"><span>Parte da Firma ({equipment === 'mesa' ? customer.parteFirma : customer.porcentagemJukeboxFirma}%):</span> <span className="font-mono">R$ {parteFirma.toFixed(2)}</span></p>
+            <p className="flex justify-between text-sm text-slate-300"><span>Valor Bruto Cobrado:</span> <span className="font-mono">R$ {valorBruto.toFixed(2)}</span></p>
             <p className="flex justify-between text-sm text-slate-400"><span>Parte do Cliente ({equipment === 'mesa' ? customer.parteCliente : customer.porcentagemJukeboxCliente}%):</span> <span className="font-mono">R$ {parteCliente.toFixed(2)}</span></p>
+            <p className="flex justify-between text-lg text-white font-bold border-t border-slate-600 pt-2"><span>Valor p/ Firma ({equipment === 'mesa' ? customer.parteFirma : customer.porcentagemJukeboxFirma}%):</span> <span className="font-mono text-emerald-400">R$ {parteFirma.toFixed(2)}</span></p>
           </div>
         </div>
         <div className="p-6 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Cancelar</button>
-          <button onClick={handleConfirm} disabled={relogioAtualNum <= relogioAnterior} className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed inline-flex items-center gap-2">
+          <button onClick={handleConfirm} disabled={isConfirmDisabled} className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed inline-flex items-center gap-2">
             <CurrencyDollarIcon className="w-5 h-5" />
             Confirmar Cobrança
           </button>

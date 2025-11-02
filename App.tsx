@@ -36,6 +36,77 @@ const geocodeAddress = async (address: string): Promise<{ lat: number; lon: numb
     }
 };
 
+// --- Sample Data for Testing ---
+const createSampleCustomers = (): Customer[] => {
+    const now = new Date();
+    return [
+        {
+            id: 'cust_1700000000001',
+            createdAt: now,
+            name: 'Bar do Zé',
+            cpfRg: '111.222.333-44',
+            cidade: 'São Paulo, SP',
+            endereco: 'Rua Augusta, 200',
+            telefone: '11987654321',
+            latitude: null, longitude: null, lastVisitedAt: null,
+            mesaNumero: '01', relogioMesaNumero: 'M-101', relogioMesaAnterior: 15420, valorFicha: 2, parteFirma: 50, parteCliente: 50,
+            jukeboxNumero: 'J-50', relogioJukeboxNumero: 'R-J50', relogioJukeboxAnterior: 8750, porcentagemJukeboxFirma: 60, porcentagemJukeboxCliente: 40,
+            linhaNumero: 'Rota A', assinaturaFirma: '', assinaturaCliente: '', debtAmount: 0,
+        },
+        {
+            id: 'cust_1700000000002',
+            createdAt: now,
+            name: 'Mercearia da Maria',
+            cpfRg: '222.333.444-55',
+            cidade: 'Rio de Janeiro, RJ',
+            endereco: 'Avenida Atlântica, 1702',
+            telefone: '21912345678',
+            latitude: null, longitude: null, lastVisitedAt: null,
+            mesaNumero: '02', relogioMesaNumero: 'M-102', relogioMesaAnterior: 21330, valorFicha: 2.5, parteFirma: 50, parteCliente: 50,
+            jukeboxNumero: '', relogioJukeboxNumero: '', relogioJukeboxAnterior: 0, porcentagemJukeboxFirma: 0, porcentagemJukeboxCliente: 0,
+            linhaNumero: 'Rota B', assinaturaFirma: '', assinaturaCliente: '', debtAmount: 150.50,
+        },
+        {
+            id: 'cust_1700000000003',
+            createdAt: now,
+            name: 'Restaurante Sabor do Nordeste',
+            cpfRg: '333.444.555-66',
+            cidade: 'Salvador, BA',
+            endereco: 'Largo do Pelourinho, 10',
+            telefone: '71988887777',
+            latitude: null, longitude: null, lastVisitedAt: null,
+            mesaNumero: '03', relogioMesaNumero: 'M-103', relogioMesaAnterior: 9850, valorFicha: 2, parteFirma: 50, parteCliente: 50,
+            jukeboxNumero: 'J-61', relogioJukeboxNumero: 'R-J61', relogioJukeboxAnterior: 12400, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50,
+            linhaNumero: 'Rota A', assinaturaFirma: '', assinaturaCliente: '', debtAmount: 0,
+        },
+        {
+            id: 'cust_1700000000004',
+            createdAt: now,
+            name: 'Padaria Pão Quente',
+            cpfRg: '444.555.666-77',
+            cidade: 'Curitiba, PR',
+            endereco: 'Rua XV de Novembro, 500',
+            telefone: '41999998888',
+            latitude: null, longitude: null, lastVisitedAt: null,
+            mesaNumero: '', relogioMesaNumero: '', relogioMesaAnterior: 0, valorFicha: 0, parteFirma: 0, parteCliente: 0,
+            jukeboxNumero: 'J-75', relogioJukeboxNumero: 'R-J75', relogioJukeboxAnterior: 22100, porcentagemJukeboxFirma: 70, porcentagemJukeboxCliente: 30,
+            linhaNumero: 'Rota C', assinaturaFirma: '', assinaturaCliente: '', debtAmount: 0,
+        },
+        {
+            id: 'cust_1700000000005',
+            createdAt: now,
+            name: 'Lanchonete Central',
+            cpfRg: '555.666.777-88',
+            cidade: 'Belo Horizonte, MG',
+            endereco: 'Avenida Afonso Pena, 1500',
+            telefone: '31987651234',
+            latitude: null, longitude: null, lastVisitedAt: null,
+            mesaNumero: '05', relogioMesaNumero: 'M-105', relogioMesaAnterior: 31500, valorFicha: 2, parteFirma: 50, parteCliente: 50,
+            jukeboxNumero: '', relogioJukeboxNumero: '', relogioJukeboxAnterior: 0, porcentagemJukeboxFirma: 0, porcentagemJukeboxCliente: 0,
+            linhaNumero: 'Rota B', assinaturaFirma: '', assinaturaCliente: '', debtAmount: 45.00,
+        }
+    ];
+};
 
 const getInitialData = () => {
     const savedCustomers = localStorage.getItem('customers');
@@ -43,13 +114,14 @@ const getInitialData = () => {
     const savedExpenses = localStorage.getItem('expenses');
     const savedDebtPayments = localStorage.getItem('debtPayments');
 
+    // If no customers are saved, load sample data for testing.
     const customers: Customer[] = savedCustomers ? JSON.parse(savedCustomers).map((c: any) => ({
         ...c,
         createdAt: new Date(c.createdAt),
         latitude: c.latitude !== undefined ? c.latitude : null,
         longitude: c.longitude !== undefined ? c.longitude : null,
         lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null,
-    })) : [];
+    })) : createSampleCustomers();
 
     const billings: Billing[] = savedBillings ? JSON.parse(savedBillings).map((b: any) => ({...b, settledAt: new Date(b.settledAt)})) : [];
     
@@ -231,7 +303,7 @@ const App: React.FC = () => {
                         </div>
                     `}
                     <div class="details total">
-                        <div><span>TOTAL:</span><span>R$ ${billing.valorTotal.toFixed(2)}${billing.paymentMethod === 'fiado' ? ' (DÉBITO)' : ''}</span></div>
+                        <div><span>VALOR P/ FIRMA:</span><span>R$ ${billing.valorTotal.toFixed(2)}${billing.paymentMethod === 'fiado' ? ' (DÉBITO)' : ''}</span></div>
                     </div>
                 </div>
             </body>
@@ -257,7 +329,9 @@ const App: React.FC = () => {
             const relogioAnterior = customer.relogioMesaAnterior;
             const partidasJogadas = data.relogioAtual - relogioAnterior;
             const partidasCobradas = partidasJogadas - data.descontoPartidas;
-            const valorTotal = partidasCobradas * customer.valorFicha;
+            const valorBruto = partidasCobradas * customer.valorFicha;
+            const valorParteFirma = valorBruto * (customer.parteFirma / 100);
+            const valorParteCliente = valorBruto * (customer.parteCliente / 100);
 
             newBilling = {
                 id: `bill_${new Date().getTime()}`,
@@ -270,9 +344,9 @@ const App: React.FC = () => {
                 descontoPartidas: data.descontoPartidas,
                 partidasCobradas,
                 valorFicha: customer.valorFicha,
-                valorTotal,
-                parteFirma: valorTotal * (customer.parteFirma / 100),
-                parteCliente: valorTotal * (customer.parteCliente / 100),
+                valorTotal: valorParteFirma,
+                parteFirma: valorParteFirma,
+                parteCliente: valorParteCliente,
                 settledAt: new Date(),
                 paymentMethod: data.paymentMethod,
             };
@@ -281,14 +355,16 @@ const App: React.FC = () => {
                 c.id === data.customerId ? { 
                     ...c, 
                     relogioMesaAnterior: data.relogioAtual,
-                    debtAmount: data.paymentMethod === 'fiado' ? c.debtAmount + valorTotal : c.debtAmount,
+                    debtAmount: data.paymentMethod === 'fiado' ? c.debtAmount + valorBruto : c.debtAmount,
                     lastVisitedAt: new Date(),
                 } : c
             ));
 
         } else { // Jukebox
             const relogioAnterior = customer.relogioJukeboxAnterior;
-            const valorTotal = data.relogioAtual - relogioAnterior; 
+            const valorBruto = data.relogioAtual - relogioAnterior; 
+            const valorParteFirma = valorBruto * (customer.porcentagemJukeboxFirma / 100);
+            const valorParteCliente = valorBruto * (customer.porcentagemJukeboxCliente / 100);
              
             newBilling = {
                 id: `bill_${new Date().getTime()}`,
@@ -299,10 +375,10 @@ const App: React.FC = () => {
                 relogioAtual: data.relogioAtual,
                 partidasJogadas: 0,
                 descontoPartidas: 0,
-                partidasCobradas: valorTotal,
-                valorTotal: valorTotal,
-                parteFirma: valorTotal * (customer.porcentagemJukeboxFirma / 100),
-                parteCliente: valorTotal * (customer.porcentagemJukeboxCliente / 100),
+                partidasCobradas: valorBruto,
+                valorTotal: valorParteFirma,
+                parteFirma: valorParteFirma,
+                parteCliente: valorParteCliente,
                 settledAt: new Date(),
                 paymentMethod: data.paymentMethod,
             };
@@ -311,7 +387,7 @@ const App: React.FC = () => {
                 c.id === data.customerId ? { 
                     ...c, 
                     relogioJukeboxAnterior: data.relogioAtual,
-                    debtAmount: data.paymentMethod === 'fiado' ? c.debtAmount + valorTotal : c.debtAmount,
+                    debtAmount: data.paymentMethod === 'fiado' ? c.debtAmount + valorBruto : c.debtAmount,
                     lastVisitedAt: new Date(),
                 } : c
             ));

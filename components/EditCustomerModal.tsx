@@ -1,4 +1,3 @@
-
 // components/EditCustomerModal.tsx
 import React, { useState, useEffect } from 'react';
 import { Customer } from '../types';
@@ -12,22 +11,29 @@ interface EditCustomerModalProps {
   isSaving: boolean;
 }
 
-// Define FormField props for clarity
-interface FormFieldProps {
-  label: string;
-  name: keyof Customer;
-  value: any;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  type?: string;
-  required?: boolean;
-  step?: string;
-  children?: React.ReactNode;
-}
+// A version of the Customer type where number fields can be strings for the form state
+type CustomerFormState = Omit<Customer, 'relogioMesaAnterior' | 'valorFicha' | 'parteFirma' | 'parteCliente' | 'relogioJukeboxAnterior' | 'porcentagemJukeboxFirma' | 'porcentagemJukeboxCliente'> & {
+    relogioMesaAnterior: string;
+    valorFicha: string;
+    parteFirma: string;
+    parteCliente: string;
+    relogioJukeboxAnterior: string;
+    porcentagemJukeboxFirma: string;
+    porcentagemJukeboxCliente: string;
+};
+
 
 // FIX: Moved FormField outside the EditCustomerModal component.
-// This prevents the component from being re-created on every render, which
-// fixes an issue where mobile keyboards would disappear during input.
-const FormField: React.FC<FormFieldProps> = ({ label, name, value, onChange, type = 'text', required = false, step, children }) => (
+const FormField: React.FC<{ 
+  label: string; 
+  name: keyof CustomerFormState;
+  value: any;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string; 
+  required?: boolean; 
+  step?: string;
+  children?: React.ReactNode;
+}> = ({ label, name, value, onChange, type = 'text', required = false, step, children }) => (
     <div>
         <label htmlFor={`edit-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
         {children || <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />}
@@ -36,19 +42,33 @@ const FormField: React.FC<FormFieldProps> = ({ label, name, value, onChange, typ
 
 
 const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, isSaving }) => {
-  const [formData, setFormData] = useState<Customer>(customer);
+  const [formData, setFormData] = useState<CustomerFormState>({
+      ...customer,
+      relogioMesaAnterior: String(customer.relogioMesaAnterior),
+      valorFicha: String(customer.valorFicha),
+      parteFirma: String(customer.parteFirma),
+      parteCliente: String(customer.parteCliente),
+      relogioJukeboxAnterior: String(customer.relogioJukeboxAnterior),
+      porcentagemJukeboxFirma: String(customer.porcentagemJukeboxFirma),
+      porcentagemJukeboxCliente: String(customer.porcentagemJukeboxCliente),
+  });
 
   useEffect(() => {
-    // Reset form data when the modal is opened with a new customer
-    setFormData(customer);
+    setFormData({
+        ...customer,
+        relogioMesaAnterior: String(customer.relogioMesaAnterior),
+        valorFicha: String(customer.valorFicha),
+        parteFirma: String(customer.parteFirma),
+        parteCliente: String(customer.parteCliente),
+        relogioJukeboxAnterior: String(customer.relogioJukeboxAnterior),
+        porcentagemJukeboxFirma: String(customer.porcentagemJukeboxFirma),
+        porcentagemJukeboxCliente: String(customer.porcentagemJukeboxCliente),
+    });
   }, [customer, isOpen]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({ 
-        ...prev, 
-        [name]: type === 'number' ? parseFloat(value) || 0 : value 
-    }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleCityChange = (value: string) => {
@@ -57,7 +77,18 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onConfirm(formData);
+    // Parse string values back to numbers before confirming
+    const customerToSave: Customer = {
+        ...formData,
+        relogioMesaAnterior: parseInt(formData.relogioMesaAnterior, 10) || 0,
+        valorFicha: parseFloat(formData.valorFicha) || 0,
+        parteFirma: parseInt(formData.parteFirma, 10) || 0,
+        parteCliente: parseInt(formData.parteCliente, 10) || 0,
+        relogioJukeboxAnterior: parseInt(formData.relogioJukeboxAnterior, 10) || 0,
+        porcentagemJukeboxFirma: parseInt(formData.porcentagemJukeboxFirma, 10) || 0,
+        porcentagemJukeboxCliente: parseInt(formData.porcentagemJukeboxCliente, 10) || 0,
+    };
+    await onConfirm(customerToSave);
   };
   
   if (!isOpen) return null;

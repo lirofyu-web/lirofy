@@ -31,32 +31,35 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
       <head>
           <title>Rota de Cobrança</title>
           <style>
-              body { font-family: Arial, sans-serif; font-size: 9pt; color: #333; }
+              body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
               @page { size: A4; margin: 15mm; }
-              h1 { text-align: center; font-size: 14pt; margin-bottom: 15px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { border: 1px solid #ccc; padding: 4px; text-align: left; vertical-align: middle; }
-              th { background-color: #f2f2f2; font-weight: bold; }
+              h1 { text-align: center; font-size: 16pt; margin-bottom: 20px; color: #000; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+              th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
+              th { background-color: #e9e9e9; font-weight: bold; font-size: 11pt; }
               .city-header td {
-                  font-size: 11pt;
+                  font-size: 12pt;
                   font-weight: bold;
-                  background-color: #e0e0e0;
+                  background-color: #d0d0d0;
                   text-align: center;
-                  padding: 5px;
+                  padding: 8px;
+                  border: 1px solid #aaa;
               }
-              .debt-info { color: #D32F2F; font-weight: bold; }
-              .col-check { width: 30px; text-align: center; }
-              .col-cliente { width: 25%; }
-              .col-endereco { width: 45%; }
-              .col-divida { width: 20%; }
+              .debt-info { color: #D32F2F; font-weight: bold; font-size: 11pt; }
+              .col-check { width: 40px; text-align: center; }
+              .col-cliente { width: 28%; }
+              .col-endereco { width: 40%; }
+              .col-divida { width: 22%; }
               .checkbox {
-                  width: 12px;
-                  height: 12px;
+                  width: 16px;
+                  height: 16px;
                   border: 1px solid #333;
                   display: inline-block;
+                  vertical-align: middle;
               }
-              .cliente-info { display: block; font-weight: bold; }
-              .tel-info { font-size: 8pt; color: #555; }
+              .cliente-info { display: block; font-weight: bold; font-size: 11pt; }
+              .tel-info { font-size: 9pt; color: #555; display: block; margin-top: 2px; }
+              tr:nth-child(even) { background-color: #f8f8f8; }
           </style>
       </head>
       <body>
@@ -67,7 +70,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                       <th class="col-check">Vis.</th>
                       <th class="col-cliente">Cliente / Telefone</th>
                       <th class="col-endereco">Endereço</th>
-                      <th class="col-divida">Dívida / Obs.</th>
+                      <th class="col-divida">Dívida / Observações</th>
                   </tr>
               </thead>
               <tbody>
@@ -82,7 +85,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                               </td>
                               <td>${customer.endereco}</td>
                               <td>
-                                  ${customer.debtAmount > 0 ? `<span class="debt-info">R$ ${customer.debtAmount.toFixed(2)}</span>` : `<span>-</span>`}
+                                  ${customer.debtAmount > 0 ? `<span class="debt-info">R$ ${customer.debtAmount.toFixed(2)}</span>` : `<span style="color: #888;">-</span>`}
                               </td>
                           </tr>
                       `).join('');
