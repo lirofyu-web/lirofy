@@ -83,7 +83,7 @@ const App: React.FC = () => {
                 } else {
                     // First time login for this user, create empty data structure
                     setAppData({ customers: [], billings: [], expenses: [], debtPayments: [] });
-                    setIsDataDirty(true); // Mark as dirty to trigger the first save
+                    // Do not mark as dirty, wait for user action.
                 }
             });
         }
