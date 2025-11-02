@@ -1,0 +1,51 @@
+
+import React from 'react';
+
+interface ActionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  confirmText?: string;
+  children: React.ReactNode;
+}
+
+const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, title, confirmText = 'Confirmar', children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-white">{title}</h2>
+          <div className="text-slate-400 mt-4">{children}</div>
+        </div>
+        <div className="p-6 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
+          <button
+            onClick={onClose}
+            className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-slate-500 transition-colors duration-200"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-emerald-500 transition-colors duration-200"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+      <style>{`
+        @keyframes fade-in-up {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default ActionModal;
