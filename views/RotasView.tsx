@@ -109,14 +109,14 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <PageHeader
           title="Rotas de Clientes"
           subtitle="Visualize a localização dos seus clientes e imprima sua rota de cobrança."
         />
         <button 
           onClick={handlePrintRoute}
-          className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 transition-colors mt-2"
+          className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 transition-colors mt-4 sm:mt-0"
         >
           <PrinterIcon className="w-5 h-5" />
           <span>Imprimir Rota</span>

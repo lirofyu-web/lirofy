@@ -8,10 +8,11 @@ import CobrancasView from './views/CobrancasView';
 import DespesasView from './views/DespesasView';
 import RelatoriosView from './views/RelatoriosView';
 import RotasView from './views/RotasView';
+import ConfiguracoesView from './views/ConfiguracoesView'; // New View
 import ActionModal from './components/ActionModal';
 import { LogoIcon } from './components/icons/LogoIcon';
 
-export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'RELATORIOS' | 'ROTAS';
+export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'RELATORIOS' | 'ROTAS' | 'CONFIGURACOES'; // New View
 
 // --- Geocoding Function ---
 const geocodeAddress = async (address: string): Promise<{ lat: number; lon: number } | null> => {
@@ -68,12 +69,12 @@ const MenuIcon = ({ className }: { className?: string }) => (
 );
 
 const MobileHeader = ({ onMenuClick }: { onMenuClick: () => void }) => (
-    <header className="md:hidden bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between no-print">
+    <header className="md:hidden bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between no-print sticky top-0 z-10">
         <div className="flex items-center gap-2">
             <LogoIcon className="w-8 h-8 text-slate-300" />
             <h1 className="text-lg font-bold text-white">Montanha</h1>
         </div>
-        <button onClick={onMenuClick} className="text-slate-300 hover:text-white">
+        <button onClick={onMenuClick} className="text-slate-300 hover:text-white p-2">
             <MenuIcon className="w-6 h-6" />
         </button>
     </header>
@@ -357,6 +358,8 @@ const App: React.FC = () => {
                 return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'ROTAS':
                 return <RotasView customers={customers} />;
+            case 'CONFIGURACOES':
+                return <ConfiguracoesView />;
             default:
                 return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
         }
@@ -371,7 +374,7 @@ const App: React.FC = () => {
     
     return (
         <>
-            <div className="bg-slate-900 text-slate-100 min-h-screen flex">
+            <div className="bg-slate-900 text-slate-100 min-h-screen flex flex-col md:flex-row">
                 <Sidebar currentView={view} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <div className="flex-1 flex flex-col min-w-0">
                     <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />

@@ -7,6 +7,7 @@ import { CalculatorIcon } from './icons/CalculatorIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { LogoIcon } from './icons/LogoIcon';
 import { MapIcon } from './icons/MapIcon';
+import { CogIcon } from './icons/CogIcon'; // New Icon
 
 interface SidebarProps {
   currentView: View;
@@ -24,12 +25,37 @@ const navItems = [
     { view: 'RELATORIOS' as View, label: 'Relatórios', icon: ChartBarIcon },
 ];
 
+const secondaryNavItems = [
+    { view: 'CONFIGURACOES' as View, label: 'Configurações', icon: CogIcon },
+]
+
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen }) => {
     
     const handleViewChange = (view: View) => {
         setView(view);
-        setIsOpen(false);
+        setIsOpen(false); // Close sidebar on navigation in mobile
     };
+    
+    const NavButton: React.FC<{item: {view: View, label: string, icon: React.FC<any>}}> = ({ item }) => {
+        const Icon = item.icon;
+        const isActive = currentView === item.view;
+        return (
+             <li key={item.view} className="mb-2">
+                <button 
+                    onClick={() => handleViewChange(item.view)}
+                    className={`w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium ${
+                        isActive 
+                        ? 'bg-emerald-600 text-white shadow-lg' 
+                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                    }`}
+                >
+                    <Icon className="w-5 h-5 mr-4" />
+                    <span>{item.label}</span>
+                </button>
+            </li>
+        );
+    };
+
 
     return (
         <>
@@ -49,29 +75,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                 </div>
                 <nav className="flex-grow">
                     <ul>
-                        {navItems.map(item => {
-                            const Icon = item.icon;
-                            const isActive = currentView === item.view;
-                            return (
-                                 <li key={item.view} className="mb-2">
-                                    <button 
-                                        onClick={() => handleViewChange(item.view)}
-                                        className={`w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium ${
-                                            isActive 
-                                            ? 'bg-emerald-600 text-white shadow-lg' 
-                                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                                        }`}
-                                    >
-                                        <Icon className="w-5 h-5 mr-4" />
-                                        <span>{item.label}</span>
-                                    </button>
-                                </li>
-                            );
-                        })}
+                        {navItems.map(item => <NavButton key={item.view} item={item} />)}
                     </ul>
                 </nav>
                 <div className="mt-auto">
-                    <div className="text-center text-xs text-slate-500">
+                     <nav>
+                        <ul>
+                            {secondaryNavItems.map(item => <NavButton key={item.view} item={item} />)}
+                        </ul>
+                    </nav>
+                    <div className="text-center text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700">
                         <p>&copy; {new Date().getFullYear()} All rights reserved.</p>
                     </div>
                 </div>
