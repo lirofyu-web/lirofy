@@ -40,7 +40,7 @@ const useGoogleDriveSync = () => {
     const [status, setStatus] = useState<'LOADING' | 'READY' | 'ERROR'>('LOADING');
 
     const API_KEY = 'AIzaSyDiSMwt9hwZrE0Jvt_OGDnxyxWdADupvj8';
-    const CLIENT_ID: string = '334672635545-j442qng9v8neqjii02feno6r89n1j175.apps.googleusercontent.com';
+    const CLIENT_ID: string = '998744714177-bvvgdulte02cjkg5ijtm19udthuvcjm8.apps.googleusercontent.com';
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     const FILENAME = 'montanha_bilhar_data.json';
 
@@ -225,38 +225,50 @@ const TroubleshootingGuide = () => {
 
     return (
         <div className="mt-8 pt-6 border-t border-slate-700">
-            <h4 className="text-lg font-semibold text-amber-300 mb-3">Solução de Problemas</h4>
-            <div className="text-slate-400 bg-slate-700/50 p-4 rounded-md text-sm space-y-3">
+            <h4 className="text-lg font-semibold text-amber-300 mb-3 flex items-center gap-2">
+                <ExclamationTriangleIcon className="w-5 h-5" />
+                <span>Solução de Problemas: Erro de Autorização</span>
+            </h4>
+            <div className="text-slate-400 bg-slate-700/50 p-4 rounded-md text-sm space-y-4">
                 <p>
-                    Se você encontrar um erro de <strong className="text-slate-300">"acesso bloqueado"</strong> ou <strong className="text-slate-300">"invalid_request"</strong> ao tentar conectar, geralmente significa que a URL deste aplicativo precisa ser autorizada no seu projeto Google Cloud.
+                    O erro <code className="bg-slate-800 text-red-300 px-1 py-0.5 rounded text-xs font-mono">Erro 400: invalid_request</code> que você está vendo significa que o Google está bloqueando a tentativa de login por segurança.
                 </p>
-                <p>Siga estes passos:</p>
-                <ol className="list-decimal list-inside space-y-2 pl-2">
-                    <li>
-                        Acesse suas <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">Credenciais da API do Google</a>.
-                    </li>
-                    <li>
-                        Clique no nome do seu <strong className="text-slate-300">ID do cliente OAuth 2.0</strong>.
-                    </li>
-                    <li>
-                        Na seção <strong className="text-slate-300">"Origens JavaScript autorizadas"</strong>, clique em <strong className="text-slate-300">"+ ADICIONAR URI"</strong>.
-                    </li>
-                    <li>
-                        No campo que aparecer, cole a seguinte URL:
-                        <div className="mt-2">
-                            <input 
-                                type="text" 
-                                readOnly 
-                                value={origin} 
-                                className="w-full bg-slate-800 border border-slate-600 rounded-md py-1.5 px-3 text-white font-mono text-xs"
-                                onClick={(e) => (e.target as HTMLInputElement).select()}
-                            />
-                        </div>
-                    </li>
-                    <li>
-                        Clique em <strong className="text-slate-300">"Salvar"</strong> no final da página e aguarde alguns minutos para a alteração propagar. Depois, tente conectar novamente.
-                    </li>
-                </ol>
+                <p>
+                    <strong>A solução é simples:</strong> você precisa informar ao Google que a URL deste aplicativo é segura e autorizada.
+                </p>
+                <div className="space-y-2">
+                    <p className="font-bold text-slate-200">Siga estes 4 passos exatamente:</p>
+                    <ol className="list-decimal list-inside space-y-3 pl-2">
+                        <li>
+                            Acesse a página de <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300 font-semibold">Credenciais da API do Google</a>.
+                        </li>
+                        <li>
+                            Na seção "IDs de cliente OAuth 2.0", encontre e clique no ID do cliente que você está usando para este app.
+                        </li>
+                        <li>
+                            Role a página até a seção <strong className="text-slate-300">"Origens JavaScript autorizadas"</strong> e clique em <strong className="text-slate-300">"+ ADICIONAR URI"</strong>.
+                        </li>
+                        <li>
+                            No campo de texto que aparecer, cole <strong className="text-amber-300">exatamente</strong> a URL abaixo:
+                            <div className="mt-2">
+                                <input 
+                                    type="text" 
+                                    readOnly 
+                                    value={origin} 
+                                    className="w-full bg-slate-800 border border-slate-600 rounded-md py-1.5 px-3 text-white font-mono"
+                                    onClick={(e) => {
+                                        (e.target as HTMLInputElement).select();
+                                        navigator.clipboard.writeText(origin).catch(err => console.error('Falha ao copiar:', err));
+                                    }}
+                                />
+                                <small className="text-slate-500">Clique no campo para selecionar e copiar a URL.</small>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+                <p className="pt-3 border-t border-slate-600/50">
+                    Após salvar a alteração no painel do Google, <strong className="text-slate-300">aguarde cerca de 5 minutos</strong> e tente conectar novamente. Às vezes, a mudança pode levar um tempo para ser aplicada.
+                </p>
             </div>
         </div>
     );
