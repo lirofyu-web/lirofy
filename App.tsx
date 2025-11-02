@@ -11,8 +11,7 @@ import RotasView from './views/RotasView';
 import ConfiguracoesView from './views/ConfiguracoesView';
 import ActionModal from './components/ActionModal';
 import { LogoIcon } from './components/icons/LogoIcon';
-import LoginView from './views/LoginView';
-import { useGoogleAuth, AuthStatus } from './hooks/useGoogleAuth';
+import { defaultCustomers } from './data/defaultCustomers';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'RELATORIOS' | 'ROTAS' | 'CONFIGURACOES';
 
@@ -23,6 +22,7 @@ export interface AppData {
   debtPayments: DebtPayment[];
 }
 
+const LOCAL_STORAGE_KEY = 'montanhaAppData';
 
 // --- Geocoding Function ---
 const geocodeAddress = async (address: string): Promise<{ lat: number; lon: number } | null> => {
@@ -56,7 +56,6 @@ const MobileHeader = ({ onMenuClick }: { onMenuClick: () => void }) => (
 );
 
 const App: React.FC = () => {
-    const { authStatus, userProfile, signIn, signOut, loadData, saveData, isConfigured } = useGoogleAuth();
     const [view, setView] = useState<View>('CLIENTES');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -68,44 +67,79 @@ const App: React.FC = () => {
 
     const [billingToPrint, setBillingToPrint] = useState<Billing | null>(null);
 
-    // Effect to load data once authenticated
+    // Effect to load data from localStorage on initial render
     useEffect(() => {
-        if (authStatus === AuthStatus.AUTHENTICATED) {
-            loadData().then(data => {
-                if (data) {
-                    setAppData({
-                         ...data,
-                         customers: data.customers.map((c: any) => ({ ...c, createdAt: new Date(c.createdAt), lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null })),
-                         billings: data.billings.map((b: any) => ({...b, settledAt: new Date(b.settledAt)})),
-                         expenses: data.expenses.map((e: any) => ({...e, date: new Date(e.date)})),
-                         debtPayments: data.debtPayments.map((p: any) => ({...p, paidAt: new Date(p.paidAt)}))
-                    });
-                } else {
-                    // First time login for this user, create empty data structure
-                    setAppData({ customers: [], billings: [], expenses: [], debtPayments: [] });
-                    // Do not mark as dirty, wait for user action.
+        try {
+            const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                // Convert date strings back to Date objects
+                setAppData({
+                     ...parsedData,
+                     customers: parsedData.customers.map((c: any) => ({ ...c, createdAt: new Date(c.createdAt), lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null })),
+                     billings: parsedData.billings.map((b: any) => ({...b, settledAt: new Date(b.settledAt)})),
+                     expenses: parsedData.expenses.map((e: any) => ({...e, date: new Date(e.date)})),
+                     debtPayments: parsedData.debtPayments.map((p: any) => ({...p, paidAt: new Date(p.paidAt)}))
+                });
+            } else {
+                // --- Pre-populate with default customers for demonstration ---
+                const newCustomers: Customer[] = defaultCustomers.map((cust, index) => ({
+                    ...cust,
+                    id: `cust_default_${new Date().getTime()}_${index}`,
+                    createdAt: new Date(),
+                    latitude: null,
+                    longitude: null,
+                    debtAmount: 0,
+                    lastVisitedAt: null,
+                }));
+                
+                // Add some sample debt and visit history to showcase features
+                if(newCustomers.length > 3) {
+                    newCustomers[1].debtAmount = 75.50;
+                    newCustomers[3].debtAmount = 120.00;
+                    
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    newCustomers[0].lastVisitedAt = yesterday;
+                    
+                    const longTimeAgo = new Date();
+                    longTimeAgo.setDate(longTimeAgo.getDate() - 30);
+                    newCustomers[2].lastVisitedAt = longTimeAgo;
                 }
-            });
-        }
-    }, [authStatus, loadData]);
 
-    // Debounced save effect
+                setAppData({
+                    customers: newCustomers,
+                    billings: [],
+                    expenses: [],
+                    debtPayments: []
+                });
+                setIsDataDirty(true);
+            }
+        } catch (error) {
+            console.error("Failed to load or parse data from localStorage", error);
+            setAppData({ customers: [], billings: [], expenses: [], debtPayments: [] });
+        }
+    }, []);
+
+    // Debounced save effect to localStorage
     useEffect(() => {
         if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
 
-        if (isDataDirty && authStatus === AuthStatus.AUTHENTICATED && appData) {
+        if (isDataDirty && appData) {
             debounceTimeoutRef.current = window.setTimeout(() => {
-                saveData(appData).then(() => {
-                    setIsDataDirty(false);
-                });
-            }, 2500); // 2.5 seconds debounce
+                try {
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appData));
+                    setIsDataDirty(false); // Mark as clean after saving
+                } catch (error) {
+                    console.error("Failed to save data to localStorage", error);
+                }
+            }, 1000); // 1 second debounce
         }
 
         return () => {
             if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
         };
-    }, [appData, isDataDirty, authStatus, saveData]);
-
+    }, [appData, isDataDirty]);
 
     // Data manipulation functions
     const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => {
@@ -216,10 +250,26 @@ const App: React.FC = () => {
     };
 
     const handleConfirmPrint = () => {
-        if (billingToPrint) {
-            // Receipt printing logic can be simplified or moved
-        }
         setBillingToPrint(null);
+    };
+
+    // --- Data Management Functions for Settings ---
+    const handleRestoreData = (newData: AppData) => {
+        // Revive dates after parsing
+        const revivedData = {
+             ...newData,
+             customers: newData.customers.map((c: any) => ({ ...c, createdAt: new Date(c.createdAt), lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null })),
+             billings: newData.billings.map((b: any) => ({...b, settledAt: new Date(b.settledAt)})),
+             expenses: newData.expenses.map((e: any) => ({...e, date: new Date(e.date)})),
+             debtPayments: newData.debtPayments.map((p: any) => ({...p, paidAt: new Date(p.paidAt)}))
+        };
+        setAppData(revivedData);
+        setIsDataDirty(true); // Mark as dirty to trigger save
+    };
+
+    const handleClearData = () => {
+        setAppData({ customers: [], billings: [], expenses: [], debtPayments: [] });
+        setIsDataDirty(true);
     };
 
     const renderView = () => {
@@ -233,13 +283,10 @@ const App: React.FC = () => {
             case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} />;
             case 'RELATORIOS': return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'ROTAS': return <RotasView customers={customers} />;
-            case 'CONFIGURACOES': return <ConfiguracoesView userProfile={userProfile} onSignOut={signOut} />;
+            case 'CONFIGURACOES': return <ConfiguracoesView appData={appData} onRestoreData={handleRestoreData} onClearData={handleClearData} />;
             default: return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
         }
     };
-    
-    if (authStatus === AuthStatus.LOADING) return <LoadingScreen />;
-    if (authStatus === AuthStatus.UNAUTHENTICATED) return <LoginView onSignIn={signIn} isConfigured={isConfigured} />;
     
     return (
         <>

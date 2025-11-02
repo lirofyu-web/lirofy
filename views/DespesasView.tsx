@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Expense } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PlusIcon } from '../components/icons/PlusIcon';
@@ -8,10 +8,54 @@ interface DespesasViewProps {
   onAddExpense: (expenseData: Omit<Expense, 'id'>) => void;
 }
 
+const SortIcon = ({ direction }: { direction: 'asc' | 'desc' | 'none' }) => {
+    if (direction === 'none') return <span className="text-slate-500">↕</span>;
+    return direction === 'asc' ? <span className="text-white">↑</span> : <span className="text-white">↓</span>;
+};
+
+
 const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Sorting state
+  const [sortKey, setSortKey] = useState<'description' | 'date' | 'amount'>('date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const sortedExpenses = useMemo(() => {
+    return [...expenses].sort((a, b) => {
+      const valA = a[sortKey];
+      const valB = b[sortKey];
+      
+      let comparison = 0;
+      if (valA > valB) {
+        comparison = 1;
+      } else if (valA < valB) {
+        comparison = -1;
+      }
+      return sortDir === 'desc' ? -comparison : comparison;
+    });
+  }, [expenses, sortKey, sortDir]);
+
+  const handleSort = (key: 'description' | 'date' | 'amount') => {
+    if (sortKey === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const SortableHeader = ({ label, sortKey }: { label: string, sortKey: 'description' | 'date' | 'amount' }) => (
+    <th scope="col" className="px-6 py-3">
+        <button className="flex items-center gap-2" onClick={() => handleSort(sortKey)}>
+            {label}
+            <SortIcon direction={sortKey === sortKey ? sortDir : 'none'} />
+        </button>
+    </th>
+  );
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,16 +106,21 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense }) =
          <table className="w-full text-sm text-left text-slate-300 min-w-[640px]">
                 <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
                     <tr>
-                        <th scope="col" className="px-6 py-3">Descrição</th>
-                        <th scope="col" className="px-6 py-3">Data</th>
-                        <th scope="col" className="px-6 py-3 text-right">Valor</th>
+                        <SortableHeader label="Descrição" sortKey="description" />
+                        <SortableHeader label="Data" sortKey="date" />
+                        <th scope="col" className="px-6 py-3 text-right">
+                           <button className="flex items-center gap-2 ml-auto" onClick={() => handleSort('amount')}>
+                                Valor
+                                <SortIcon direction={sortKey === 'amount' ? sortDir : 'none'} />
+                            </button>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {expenses.length > 0 ? expenses.map(expense => (
-                        <tr key={expense.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
+                    {sortedExpenses.length > 0 ? sortedExpenses.map(expense => (
+                        <tr key={expense.id} className="border-b border-slate-700 hover:bg-slate-700/50 even:bg-slate-800/50">
                             <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{expense.description}</td>
-                            <td className="px-6 py-4">{expense.date.toLocaleDateString('pt-BR')}</td>
+                            <td className="px-6 py-4">{new Date(expense.date).toLocaleDateString('pt-BR')}</td>
                             <td className="px-6 py-4 text-right font-mono text-red-400 font-bold">R$ {expense.amount.toFixed(2)}</td>
                         </tr>
                     )) : (

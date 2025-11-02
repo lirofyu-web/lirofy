@@ -157,7 +157,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, debtPayments })
                     </thead>
                     <tbody>
                         {sortedBillings.length > 0 ? sortedBillings.map(billing => (
-                            <tr key={billing.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
+                            <tr key={billing.id} className="border-b border-slate-700 hover:bg-slate-700/50 even:bg-slate-800/50">
                                 <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{billing.customerName}</td>
                                 <td className="px-6 py-4">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
                                 <td className="px-6 py-4 capitalize">
@@ -206,7 +206,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, debtPayments })
                     </thead>
                     <tbody>
                         {sortedDebtPayments.length > 0 ? sortedDebtPayments.map(payment => (
-                            <tr key={payment.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
+                            <tr key={payment.id} className="border-b border-slate-700 hover:bg-slate-700/50 even:bg-slate-800/50">
                                 <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{payment.customerName}</td>
                                 <td className="px-6 py-4">{new Date(payment.paidAt).toLocaleDateString('pt-BR')}</td>
                                 <td className="px-6 py-4 text-right font-mono text-amber-400 font-bold">R$ {payment.amountPaid.toFixed(2)}</td>

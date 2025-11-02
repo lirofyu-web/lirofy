@@ -25,25 +25,29 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     }, {} as Record<string, Customer[]>);
 
     const sortedCities = Object.keys(customersByCity).sort((a, b) => a.localeCompare(b));
+    const printDate = new Date().toLocaleDateString('pt-BR');
 
     const reportHtml = `
       <html>
       <head>
-          <title>Rota de Cobrança</title>
+          <title>Rota de Cobrança - ${printDate}</title>
           <style>
-              body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 10pt; color: #333; }
               @page { size: A4; margin: 15mm; }
-              h1 { text-align: center; font-size: 16pt; margin-bottom: 20px; color: #000; }
-              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-              th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
+              header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+              header h1 { font-size: 18pt; margin: 0; }
+              header p { font-size: 10pt; margin: 4px 0 0 0; color: #555; }
+              table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+              th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
               th { background-color: #e9e9e9; font-weight: bold; font-size: 11pt; }
               .city-header td {
-                  font-size: 12pt;
+                  font-size: 13pt;
                   font-weight: bold;
                   background-color: #d0d0d0;
-                  text-align: center;
+                  text-align: left;
                   padding: 8px;
                   border: 1px solid #aaa;
+                  border-left: 4px solid #333;
               }
               .debt-info { color: #D32F2F; font-weight: bold; font-size: 11pt; }
               .col-check { width: 40px; text-align: center; }
@@ -51,19 +55,24 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
               .col-endereco { width: 40%; }
               .col-divida { width: 22%; }
               .checkbox {
-                  width: 16px;
-                  height: 16px;
-                  border: 1px solid #333;
+                  width: 18px;
+                  height: 18px;
+                  border: 1.5px solid #333;
                   display: inline-block;
                   vertical-align: middle;
+                  border-radius: 3px;
               }
-              .cliente-info { display: block; font-weight: bold; font-size: 11pt; }
-              .tel-info { font-size: 9pt; color: #555; display: block; margin-top: 2px; }
+              .cliente-info { display: block; font-weight: bold; font-size: 12pt; }
+              .tel-info { font-size: 9pt; color: #555; display: block; margin-top: 4px; }
               tr:nth-child(even) { background-color: #f8f8f8; }
+              footer { text-align: center; font-size: 8pt; color: #777; position: fixed; bottom: 10mm; width: 100%; }
           </style>
       </head>
       <body>
-          <h1>Rota de Cobrança</h1>
+          <header>
+            <h1>Montanha Bilhar & Jukebox</h1>
+            <p>Relatório de Rota de Cobrança - Gerado em: ${printDate}</p>
+          </header>
           <table>
               <thead>
                   <tr>
@@ -93,6 +102,9 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                   }).join('')}
               </tbody>
           </table>
+          <footer>
+              <p>Boa rota!</p>
+          </footer>
       </body>
       </html>
     `;
