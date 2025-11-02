@@ -93,10 +93,15 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="billing-modal-title"
+    >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700 animate-fade-in-up">
         <div className="p-6 border-b border-slate-700">
-          <h2 className="text-2xl font-bold text-white">Realizar Cobrança</h2>
+          <h2 id="billing-modal-title" className="text-2xl font-bold text-white">Realizar Cobrança</h2>
           <p className="text-slate-400">Cliente: {customer.name}</p>
         </div>
         <div className="p-6 space-y-6">

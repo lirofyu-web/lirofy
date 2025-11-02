@@ -9,11 +9,12 @@ import DespesasView from './views/DespesasView';
 import RotasView from './views/RotasView';
 import RelatoriosView from './views/RelatoriosView';
 import ConfiguracoesView from './views/ConfiguracoesView';
-import { defaultCustomers } from './data/defaultCustomers';
+import { mockCities, mockFirstNames, mockLastNames, mockStreetTypes, mockStreetNames, mockExpenseDescriptions } from './data/seedHelper';
 import BottomNavBar from './components/BottomNavBar';
 import Notification from './components/Notification';
-import ActionModal from './components/ActionModal';
 import ReceiptModal from './components/ReceiptModal';
+import DebtReceiptModal from './components/DebtReceiptModal';
+import ReceiptActionsModal from './components/ReceiptActionsModal';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 
@@ -50,11 +51,22 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [receiptToShow, setReceiptToShow] = useState<Billing | null>(null);
-  const [billingForReceiptPrompt, setBillingForReceiptPrompt] = useState<Billing | null>(null);
+  const [debtReceiptToShow, setDebtReceiptToShow] = useState<DebtPayment | null>(null);
+  const [receiptActionPrompt, setReceiptActionPrompt] = useState<{ billing?: Billing; debtPayment?: DebtPayment } | null>(null);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
   };
+
+  useEffect(() => {
+    const dataSeeded = localStorage.getItem('dataSeeded');
+    if (!dataSeeded && customers.length === 0) {
+      console.log("First run detected, seeding initial data...");
+      seedInitialData();
+      localStorage.setItem('dataSeeded', 'true');
+      showNotification('Dados de exemplo carregados para sua primeira utilização!', 'success');
+    }
+  }, []); // Empty dependency array ensures it runs only once on mount
   
   const geocodeAddress = async (address: string, city: string): Promise<{ lat: number | null; lon: number | null }> => {
         if (!address || !city) return { lat: null, lon: null };
@@ -192,7 +204,7 @@ const App: React.FC = () => {
       return c;
     }));
     showNotification('Cobrança registrada com sucesso!');
-    setBillingForReceiptPrompt(newBilling);
+    setReceiptActionPrompt({ billing: newBilling });
   };
 
   const handlePayDebt = (customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => {
@@ -210,6 +222,7 @@ const App: React.FC = () => {
     setDebtPayments(prev => [...prev, newPayment]);
     setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, debtAmount: c.debtAmount - amount } : c));
     showNotification('Pagamento de dívida registrado!');
+    setReceiptActionPrompt({ debtPayment: newPayment });
   };
 
   const handleAddExpense = (description: string, amount: number) => {
@@ -228,25 +241,133 @@ const App: React.FC = () => {
     showNotification('Despesa removida.');
   };
 
-  const handleSeedData = (confirm = false) => {
-    if (confirm && !window.confirm('Isso irá adicionar clientes de exemplo. Continuar?')) return;
+  const seedInitialData = () => {
+        // Helper functions
+        const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+        const getRandomNumber = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
+        const getRandomDate = (start: Date, end: Date): Date => {
+            const startTime = start.getTime();
+            const endTime = end.getTime();
+            if (startTime >= endTime) return start;
+            return new Date(startTime + Math.random() * (endTime - startTime));
+        };
 
-    const newCustomers: Customer[] = defaultCustomers.map((cust, index) => ({
-      ...cust,
-      id: `cust_seed_${new Date().getTime() + index}`,
-      createdAt: new Date(),
-      debtAmount: Math.random() > 0.7 ? parseFloat((Math.random() * 200).toFixed(2)) : 0,
-      latitude: null, // Geocoding will be slow for many, add them without it first.
-      longitude: null,
-      lastVisitedAt: Math.random() > 0.5 ? new Date(new Date().getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000) : null,
-    }));
+        const finalCustomers: Customer[] = [];
+        const newBillings: Billing[] = [];
 
-    setCustomers(prev => [...prev, ...newCustomers]);
-    showNotification('Dados de exemplo carregados.');
-    
-    // Asynchronously geocode seeded customers
-    newCustomers.forEach(c => handleUpdateCustomer(c));
-  };
+        // Generate 100 customers, each with their own generated history
+        for (let i = 0; i < 100; i++) {
+            const city = getRandom(mockCities);
+            const hasMesa = Math.random() > 0.3;
+            const hasJukebox = Math.random() > 0.4;
+            const parteFirmaMesa = hasMesa ? getRandom([40, 50, 60]) : 0;
+            const porcentagemJukeboxFirma = hasJukebox ? getRandom([50, 60, 70]) : 0;
+            
+            // This is a mutable object that we'll update as we build the history
+            const customer: Customer = {
+                id: `cust_seed_${new Date().getTime()}_${i}`,
+                createdAt: getRandomDate(new Date(new Date().setFullYear(new Date().getFullYear() - 2)), new Date()),
+                name: `${getRandom(mockFirstNames)} ${getRandom(mockLastNames)}`,
+                cpfRg: `${getRandomNumber(100, 999)}.${getRandomNumber(100, 999)}.${getRandomNumber(100, 999)}-${getRandomNumber(10, 99)}`,
+                cidade: city.name,
+                endereco: `${getRandom(mockStreetTypes)} ${getRandom(mockStreetNames)}, ${getRandomNumber(10, 1000)}`,
+                telefone: `419${getRandomNumber(10000000, 99999999)}`,
+                latitude: city.lat + (Math.random() - 0.5) * 0.05,
+                longitude: city.lon + (Math.random() - 0.5) * 0.05,
+                mesaNumero: hasMesa ? `${getRandomNumber(1, 100)}` : '',
+                relogioMesaNumero: hasMesa ? `M-S${getRandomNumber(10, 99)}` : '',
+                relogioMesaAnterior: hasMesa ? getRandomNumber(1000, 20000) : 0,
+                valorFicha: hasMesa ? getRandom([2, 2.5, 3]) : 0,
+                parteFirma: parteFirmaMesa,
+                parteCliente: hasMesa ? 100 - parteFirmaMesa : 0,
+                jukeboxNumero: hasJukebox ? `J-${getRandomNumber(1, 50)}` : '',
+                relogioJukeboxNumero: hasJukebox ? `R-J${getRandomNumber(10, 99)}` : '',
+                relogioJukeboxAnterior: hasJukebox ? getRandomNumber(5000, 30000) : 0,
+                porcentagemJukeboxFirma: porcentagemJukeboxFirma,
+                porcentagemJukeboxCliente: hasJukebox ? 100 - porcentagemJukeboxFirma : 0,
+                linhaNumero: `Rota ${getRandomNumber(1, 5)}`,
+                assinaturaFirma: '',
+                assinaturaCliente: '',
+                debtAmount: 0,
+                lastVisitedAt: null,
+            };
+
+            // Generate a billing history for this customer
+            const numBillings = getRandomNumber(0, 3);
+            let lastEventDate = customer.createdAt;
+
+            for (let j = 0; j < numBillings; j++) {
+                const canBillMesa = !!customer.mesaNumero;
+                const canBillJukebox = !!customer.jukeboxNumero;
+                if (!canBillMesa && !canBillJukebox) continue;
+
+                const minSettledAt = new Date(lastEventDate);
+                minSettledAt.setDate(minSettledAt.getDate() + getRandomNumber(25, 60));
+                if (minSettledAt > new Date()) continue;
+                const settledAt = getRandomDate(minSettledAt, new Date());
+                
+                const equipment = (canBillMesa && canBillJukebox) ? (Math.random() > 0.5 ? 'mesa' : 'jukebox') : (canBillMesa ? 'mesa' : 'jukebox');
+                
+                const relogioAnterior = equipment === 'mesa' ? customer.relogioMesaAnterior : customer.relogioJukeboxAnterior;
+                const relogioAtual = relogioAnterior + getRandomNumber(10, 500);
+                const partidasJogadas = relogioAtual - relogioAnterior;
+                const descontoPartidas = equipment === 'mesa' ? getRandomNumber(0, Math.min(partidasJogadas, 10)) : 0;
+                const partidasCobradas = partidasJogadas - descontoPartidas;
+                const valorBruto = equipment === 'mesa' ? (partidasCobradas * customer.valorFicha) : partidasJogadas;
+                const parteFirmaPerc = equipment === 'mesa' ? customer.parteFirma : customer.porcentagemJukeboxFirma;
+                const valorTotal = valorBruto * (parteFirmaPerc / 100);
+                const paymentMethod = getRandom(['pix', 'dinheiro', 'fiado'] as const);
+
+                newBillings.push({
+                    id: `bill_seed_${customer.id}_${j}`,
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    equipment,
+                    relogioAnterior,
+                    relogioAtual,
+                    partidasJogadas,
+                    descontoPartidas,
+                    partidasCobradas,
+                    valorFicha: equipment === 'mesa' ? customer.valorFicha : undefined,
+                    valorTotal,
+                    parteFirma: valorTotal,
+                    parteCliente: valorBruto - valorTotal,
+                    settledAt,
+                    paymentMethod,
+                });
+                
+                // Update the mutable customer object for the next iteration
+                customer.lastVisitedAt = settledAt;
+                if (equipment === 'mesa') {
+                    customer.relogioMesaAnterior = relogioAtual;
+                } else {
+                    customer.relogioJukeboxAnterior = relogioAtual;
+                }
+                if (paymentMethod === 'fiado') {
+                    customer.debtAmount += valorBruto;
+                }
+                lastEventDate = settledAt;
+            }
+            finalCustomers.push(customer); // Push the fully updated customer
+        }
+        
+        // Generate expenses
+        const newExpenses: Expense[] = [];
+        for (let i = 0; i < 30; i++) {
+            newExpenses.push({
+                id: `exp_seed_${new Date().getTime() + i}`,
+                description: getRandom(mockExpenseDescriptions),
+                amount: getRandomNumber(20, 300),
+                date: getRandomDate(new Date(new Date().setFullYear(new Date().getFullYear() - 1)), new Date()),
+            });
+        }
+
+        // Update React state
+        setCustomers(prev => [...prev, ...finalCustomers].sort((a,b) => a.name.localeCompare(b.name)));
+        setBillings(prev => [...prev, ...newBillings]);
+        setExpenses(prev => [...prev, ...newExpenses]);
+    };
+
 
   const handleClearData = () => {
     if (window.confirm('ATENÇÃO: Isso apagará TODOS OS DADOS (clientes, cobranças, despesas). Esta ação é IRREVERSÍVEL. Deseja continuar?')) {
@@ -254,6 +375,7 @@ const App: React.FC = () => {
         setBillings([]);
         setExpenses([]);
         setDebtPayments([]);
+        localStorage.removeItem('dataSeeded'); // Also clear the seed flag
         showNotification('Todos os dados foram apagados.', 'success');
     }
   };
@@ -350,11 +472,67 @@ const App: React.FC = () => {
         }
     };
     
-  const handleConfirmPrintReceipt = () => {
-    if (billingForReceiptPrompt) {
-      setReceiptToShow(billingForReceiptPrompt);
+  const handlePrintReceipt = () => {
+    if (!receiptActionPrompt) return;
+    if (receiptActionPrompt.billing) {
+      setReceiptToShow(receiptActionPrompt.billing);
+    } else if (receiptActionPrompt.debtPayment) {
+      setDebtReceiptToShow(receiptActionPrompt.debtPayment);
     }
-    setBillingForReceiptPrompt(null);
+    setReceiptActionPrompt(null);
+  };
+
+  const handleSendWhatsAppReceipt = () => {
+    if (!receiptActionPrompt) return;
+
+    const { billing, debtPayment } = receiptActionPrompt;
+    const customerId = billing?.customerId || debtPayment?.customerId;
+    const customer = customers.find(c => c.id === customerId);
+
+    if (!customer || !customer.telefone) {
+        showNotification('Cliente não possui um número de telefone cadastrado.', 'error');
+        return;
+    }
+
+    let message = '';
+    if (billing) {
+        const isMesa = billing.equipment === 'mesa';
+        const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO', fiado: 'FIADO (ANOTADO)' };
+        message = `*RECIBO - MONTANHA BILHAR & JUKEBOX*\n` +
+                  `--------------------------------\n` +
+                  `*CLIENTE:* ${billing.customerName}\n` +
+                  `*DATA:* ${new Date(billing.settledAt).toLocaleString('pt-BR')}\n` +
+                  `--------------------------------\n` +
+                  `*EQUIPAMENTO:* ${isMesa ? 'MESA SINUCA' : 'JUKEBOX'}\n` +
+                  `Leitura Anterior: ${billing.relogioAnterior}\n` +
+                  `Leitura Atual: ${billing.relogioAtual}\n` +
+                  (isMesa ?
+                  `--------------------------------\n` +
+                  `Partidas Jogadas: ${billing.partidasJogadas}\n` +
+                  `Partidas Desconto: ${billing.descontoPartidas}\n` +
+                  `Partidas Cobradas: ${billing.partidasCobradas}\n` +
+                  `Valor Ficha: R$ ${billing.valorFicha?.toFixed(2)}\n` : '') +
+                  `--------------------------------\n` +
+                  `Valor Bruto: R$ ${(billing.parteFirma + billing.parteCliente).toFixed(2)}\n` +
+                  `Parte Cliente: R$ ${billing.parteCliente.toFixed(2)}\n` +
+                  `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*\n` +
+                  `*PAGAMENTO:* ${paymentMethodText[billing.paymentMethod]}`;
+    } else if (debtPayment) {
+        const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO' };
+        message = `*COMPROVANTE DE PAGAMENTO - MONTANHA BILHAR & JUKEBOX*\n` +
+                  `--------------------------------\n` +
+                  `*CLIENTE:* ${debtPayment.customerName}\n` +
+                  `*DATA:* ${new Date(debtPayment.paidAt).toLocaleString('pt-BR')}\n` +
+                  `--------------------------------\n` +
+                  `*VALOR PAGO: R$ ${debtPayment.amountPaid.toFixed(2)}*\n` +
+                  `*PAGAMENTO:* ${paymentMethodText[debtPayment.paymentMethod]}`;
+    }
+
+    const phoneNumber = customer.telefone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/55${phoneNumber}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank');
+    setReceiptActionPrompt(null);
   };
 
 
@@ -373,25 +551,29 @@ const App: React.FC = () => {
       case 'RELATORIOS':
         return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
        case 'CONFIGURACOES':
-        return <ConfiguracoesView onSeedData={handleSeedData} onClearData={handleClearData} onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} />;
+        return <ConfiguracoesView onClearData={handleClearData} onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} />;
       default:
         return <div>View não encontrada</div>;
     }
   };
 
+  const customerForReceiptAction = receiptActionPrompt 
+    ? customers.find(c => c.id === (receiptActionPrompt.billing?.customerId || receiptActionPrompt.debtPayment?.customerId))
+    : null;
+  const customerHasPhone = !!(customerForReceiptAction && customerForReceiptAction.telefone);
+
   return (
     <div className="bg-slate-900 text-slate-200 min-h-screen">
        <Notification notification={notification} onClose={() => setNotification(null)} />
        {receiptToShow && <ReceiptModal isOpen={!!receiptToShow} onClose={() => setReceiptToShow(null)} billing={receiptToShow} />}
-       <ActionModal
-        isOpen={!!billingForReceiptPrompt}
-        onClose={() => setBillingForReceiptPrompt(null)}
-        onConfirm={handleConfirmPrintReceipt}
-        title="Cobrança Finalizada"
-        confirmText="Sim, Imprimir"
-       >
-        <p>Deseja imprimir o recibo?</p>
-       </ActionModal>
+       {debtReceiptToShow && <DebtReceiptModal isOpen={!!debtReceiptToShow} onClose={() => setDebtReceiptToShow(null)} debtPayment={debtReceiptToShow} />}
+       <ReceiptActionsModal
+        isOpen={!!receiptActionPrompt}
+        onClose={() => setReceiptActionPrompt(null)}
+        onPrint={handlePrintReceipt}
+        onWhatsApp={handleSendWhatsAppReceipt}
+        customerHasPhone={customerHasPhone}
+       />
       <div className="flex">
         <Sidebar currentView={currentView} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <main className="flex-1 p-4 md:p-8 transition-all duration-300 ease-in-out md:ml-64 pb-20 md:pb-8">

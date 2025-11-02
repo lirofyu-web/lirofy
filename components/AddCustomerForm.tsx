@@ -56,7 +56,25 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    setFormData(prev => {
+        const newState = { ...prev, [name]: value };
+        const numericValue = parseInt(value, 10);
+
+        if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
+            const remaining = String(100 - numericValue);
+            if (name === 'parteFirma') {
+                newState.parteCliente = remaining;
+            } else if (name === 'parteCliente') {
+                newState.parteFirma = remaining;
+            } else if (name === 'porcentagemJukeboxFirma') {
+                newState.porcentagemJukeboxCliente = remaining;
+            } else if (name === 'porcentagemJukeboxCliente') {
+                newState.porcentagemJukeboxFirma = remaining;
+            }
+        }
+        return newState;
+    });
   }, []);
 
   const handleCityChange = useCallback((value: string) => {

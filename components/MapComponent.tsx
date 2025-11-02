@@ -22,11 +22,21 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
   useEffect(() => {
     if (!mapRef.current || mapInstance.current || !L) return;
 
-    mapInstance.current = L.map(mapRef.current).setView([-14.235, -51.9253], 4);
+    const brazilBounds = L.latLngBounds(
+      L.latLng(-33.75, -73.98), // Southwest corner of Brazil
+      L.latLng(5.27, -32.39)    // Northeast corner of Brazil
+    );
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
+    mapInstance.current = L.map(mapRef.current, {
+      center: [-14.235, -51.9253],
+      zoom: 4,
+      minZoom: 4,
+      maxBounds: brazilBounds,
+      maxBoundsViscosity: 1.0, // Prevents user from dragging outside bounds
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19
     }).addTo(mapInstance.current);
 
@@ -65,15 +75,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
             const marker = L.marker([customer.latitude, customer.longitude], { icon: customIcon });
             
             const popupContent = `
-                <div style="font-family: Inter, sans-serif; min-width: 180px;">
-                    <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 4px;">${customer.name}</h3>
-                    <p style="font-size: 0.875rem; margin: 0 0 8px 0; color: #94a3b8;">${isVisitedRecently ? `Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}` : 'Visita pendente'}</p>
-                    ${customer.debtAmount > 0 ? `<p style="font-size: 0.875rem; margin: 0 0 8px 0; color: #f87171; font-weight: 600;">Dívida: R$ ${customer.debtAmount.toFixed(2)}</p>` : ''}
+                <div style="font-family: Inter, sans-serif; min-width: 180px; color: #374151;">
+                    <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 4px; color: #111827;">${customer.name}</h3>
+                    <p style="font-size: 0.875rem; margin: 0 0 8px 0; color: #6b7280;">${isVisitedRecently ? `Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}` : 'Visita pendente'}</p>
+                    ${customer.debtAmount > 0 ? `<p style="font-size: 0.875rem; margin: 0 0 8px 0; color: #ef4444; font-weight: 600;">Dívida: R$ ${customer.debtAmount.toFixed(2)}</p>` : ''}
                     <a 
                         href="https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}" 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        style="font-weight: 600;"
+                        style="font-weight: 600; color: #0ea5e9;"
                     >
                         Ver Rotas &rarr;
                     </a>

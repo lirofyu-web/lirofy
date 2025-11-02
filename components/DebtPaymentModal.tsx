@@ -12,33 +12,54 @@ interface DebtPaymentModalProps {
 const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, onConfirm, customer }) => {
   const [amountStr, setAmountStr] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('dinheiro');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      setAmountStr(customer.debtAmount.toFixed(2).replace('.', ','));
+      const initialAmount = customer.debtAmount.toFixed(2).replace('.', ',');
+      setAmountStr(initialAmount);
       setPaymentMethod('dinheiro');
+
+      const amountNum = parseFloat(initialAmount.replace(',', '.')) || 0;
+      if (amountNum <= 0) {
+        setError('O valor deve ser maior que zero.');
+      } else if (amountNum > customer.debtAmount) {
+        setError('O valor não pode ser maior que a dívida.');
+      } else {
+        setError('');
+      }
     }
   }, [isOpen, customer]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const amountNum = parseFloat(amountStr.replace(',', '.')) || 0;
+    if (amountNum <= 0) {
+        setError('O valor deve ser maior que zero.');
+    } else if (amountNum > customer.debtAmount) {
+        setError('O valor não pode ser maior que a dívida.');
+    } else {
+        setError('');
+    }
+  }, [amountStr, customer.debtAmount, isOpen]);
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
+    if (error) return;
     const amountNum = parseFloat(amountStr.replace(',', '.')) || 0;
-    if (amountNum <= 0) {
-      alert('O valor do pagamento deve ser maior que zero.');
-      return;
-    }
-    if (amountNum > customer.debtAmount) {
-      alert('O valor do pagamento não pode ser maior que a dívida total.');
-      return;
-    }
     onConfirm(amountNum, paymentMethod);
   };
   
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    const sanitizedValue = value.replace(/[^0-9,]/g, '').replace(/,(?=.*,)/g, '');
-    setAmountStr(sanitizedValue);
+    let value = e.target.value;
+    // Sanitize: allow only numbers and one comma
+    value = value.replace(/[^0-9,]/g, '');
+    const parts = value.split(',');
+    if (parts.length > 2) {
+        value = parts[0] + ',' + parts.slice(1).join('');
+    }
+    setAmountStr(value);
   };
 
   const PaymentButton = ({ method, label }: { method: 'pix' | 'dinheiro', label: string }) => (
@@ -51,10 +72,15 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="debt-modal-title"
+    >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
         <div className="p-6 border-b border-slate-700">
-          <h2 className="text-2xl font-bold text-white">Pagar Dívida</h2>
+          <h2 id="debt-modal-title" className="text-2xl font-bold text-white">Pagar Dívida</h2>
           <p className="text-slate-400">Cliente: {customer.name}</p>
         </div>
         <div className="p-6 space-y-6">
@@ -73,6 +99,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
                 required 
                 className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white text-lg text-center font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" 
               />
+              {error && <p className="text-red-400 text-xs mt-1 text-center">{error}</p>}
             </div>
             <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Método de Pagamento</label>
@@ -84,7 +111,11 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
         </div>
         <div className="p-6 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Cancelar</button>
-          <button onClick={handleConfirm} className="bg-amber-600 text-white font-bold py-2 px-6 rounded-md hover:bg-amber-500 transition-colors inline-flex items-center gap-2">
+          <button 
+            onClick={handleConfirm} 
+            disabled={!!error}
+            className="bg-amber-600 text-white font-bold py-2 px-6 rounded-md hover:bg-amber-500 transition-colors inline-flex items-center gap-2 disabled:bg-slate-500 disabled:cursor-not-allowed"
+          >
             <CurrencyDollarIcon className="w-5 h-5" />
             Confirmar Pagamento
           </button>

@@ -13,6 +13,7 @@ import { NotVisitedIcon } from './icons/NotVisitedIcon';
 import { ShareIcon } from './icons/ShareIcon';
 import { BilliardIcon } from './icons/BilliardIcon';
 import { JukeboxIcon } from './icons/JukeboxIcon';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
 
 
 import BillingModal from './BillingModal';
@@ -39,12 +40,21 @@ interface CustomerCardProps {
   isSaving: boolean;
 }
 
+const DetailRow: React.FC<{ label: string; value: string | number; valueClass?: string }> = ({ label, value, valueClass = 'text-slate-300' }) => (
+    <div className="flex justify-between items-baseline text-sm">
+        <span className="text-slate-400">{label}</span>
+        <span className={`font-mono font-medium ${valueClass}`}>{value}</span>
+    </div>
+);
+
+
 const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPayments, onSettleBill, onDeleteCustomer, onPayDebt, onUpdateCustomer, isSaving }) => {
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSettleBill = (data: Omit<Parameters<typeof onSettleBill>[0], 'customerId'>) => {
     onSettleBill({ ...data, customerId: customer.id });
@@ -118,50 +128,68 @@ Leitura Ant. Jukebox: ${customer.relogioJukeboxAnterior}
   return (
     <>
       <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col h-full transition-shadow hover:shadow-emerald-500/10">
-        <div className="p-5 flex-grow">
-          <div className="flex justify-between items-start gap-2">
-            <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
-              <span title={visitIsPending ? 'Visita Pendente' : `Visitado em ${lastVisitedDate}`}>
-                {visitIsPending ? <NotVisitedIcon className="w-5 h-5" /> : <VisitedIcon className="w-5 h-5" />}
-              </span>
-              <span>{customer.name}</span>
-            </h3>
-            {hasHighDebt && (
-              <div className="flex-shrink-0" title={`Dívida pendente: R$ ${customer.debtAmount.toFixed(2)}`}>
-                <AlertIcon className="w-6 h-6 text-amber-400" />
+        <div className="flex-grow">
+          {/* Clickable Header Area */}
+          <div className="p-5 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+            <div className="flex justify-between items-start gap-2">
+              <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                <span title={visitIsPending ? 'Visita Pendente' : `Visitado em ${lastVisitedDate}`}>
+                  {visitIsPending ? <NotVisitedIcon className="w-5 h-5" /> : <VisitedIcon className="w-5 h-5" />}
+                </span>
+                <span>{customer.name}</span>
+              </h3>
+              <div className="flex-shrink-0 flex items-center gap-2">
+                  {hasHighDebt && !isExpanded && (
+                    <div title={`Dívida pendente: R$ ${customer.debtAmount.toFixed(2)}`}>
+                      <AlertIcon className="w-6 h-6 text-amber-400" />
+                    </div>
+                  )}
+                  <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
               </div>
-            )}
-          </div>
-          <p className="text-sm text-slate-400 mb-4">{customer.endereco}</p>
-          
-           {customer.distance !== undefined && customer.distance !== Infinity && (
-                 <p className="text-sm text-sky-400 font-medium mb-2">
-                    Aprox. {customer.distance.toFixed(1)} km de distância
-                </p>
-            )}
-
-            <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-3 text-sm">
-                {customer.mesaNumero && (
-                    <div className="flex items-center justify-between text-slate-300">
-                        <span className="flex items-center gap-2"><BilliardIcon className="w-4 h-4 text-cyan-400" /> Mesa {customer.mesaNumero}</span>
-                        <span className="font-mono">{customer.relogioMesaAnterior}</span>
-                    </div>
-                )}
-                {customer.jukeboxNumero && (
-                    <div className="flex items-center justify-between text-slate-300">
-                        <span className="flex items-center gap-2"><JukeboxIcon className="w-4 h-4 text-cyan-400" /> Jukebox {customer.jukeboxNumero}</span>
-                        <span className="font-mono">{customer.relogioJukeboxAnterior}</span>
-                    </div>
-                )}
-                {customer.debtAmount > 0 && (
-                    <div className="flex items-center justify-between text-amber-400 font-semibold">
-                        <span className="flex items-center gap-2">Saldo Devedor</span>
-                        <span className="font-mono">R$ {customer.debtAmount.toFixed(2)}</span>
-                    </div>
-                )}
             </div>
+            <p className="text-sm text-slate-400 mb-2 truncate">{customer.endereco}</p>
+            
+             {customer.distance !== undefined && customer.distance !== Infinity && (
+                   <p className="text-sm text-sky-400 font-medium">
+                      Aprox. {customer.distance.toFixed(1)} km de distância
+                  </p>
+              )}
+          </div>
 
+          {/* Expandable Content */}
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-96' : 'max-h-0'}`}>
+              <div className="px-5 pb-5">
+                  <div className="pt-4 border-t border-slate-700/50 space-y-4">
+                      {/* Mesa Details */}
+                      {customer.mesaNumero && (
+                          <div className="space-y-1.5">
+                             <h4 className="font-semibold text-cyan-400 flex items-center gap-2 text-base"><BilliardIcon className="w-4 h-4" /> Mesa {customer.mesaNumero}</h4>
+                             <DetailRow label="Leitura Anterior" value={customer.relogioMesaAnterior} />
+                             <DetailRow label="Nº Relógio" value={customer.relogioMesaNumero || '-'} />
+                             <DetailRow label="Valor Ficha" value={`R$ ${customer.valorFicha.toFixed(2)}`} />
+                             <DetailRow label="% Firma / Cliente" value={`${customer.parteFirma}% / ${customer.parteCliente}%`} />
+                          </div>
+                      )}
+                      {/* Jukebox Details */}
+                      {customer.jukeboxNumero && (
+                           <div className="space-y-1.5">
+                             <h4 className="font-semibold text-fuchsia-400 flex items-center gap-2 text-base"><JukeboxIcon className="w-4 h-4" /> Jukebox {customer.jukeboxNumero}</h4>
+                             <DetailRow label="Leitura Anterior" value={customer.relogioJukeboxAnterior} />
+                             <DetailRow label="Nº Relógio" value={customer.relogioJukeboxNumero || '-'} />
+                             <DetailRow label="% Firma / Cliente" value={`${customer.porcentagemJukeboxFirma}% / ${customer.porcentagemJukeboxCliente}%`} />
+                          </div>
+                      )}
+                      {/* Debt Details */}
+                      {customer.debtAmount > 0 && (
+                          <div className="pt-2 mt-2 border-t border-slate-700/50">
+                             <DetailRow label="Saldo Devedor" value={`R$ ${customer.debtAmount.toFixed(2)}`} valueClass="text-amber-400 font-bold" />
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
         </div>
+
 
         <div className="bg-slate-800/50 p-3 flex flex-wrap gap-2 justify-center border-t border-slate-700">
             <button onClick={() => setIsBillingModalOpen(true)} className="flex-1 text-sm bg-emerald-600 text-white font-bold py-2 px-3 rounded-md hover:bg-emerald-500 transition-colors min-w-[120px]">Cobrança</button>

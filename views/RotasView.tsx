@@ -3,10 +3,9 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Customer } from '../types';
 import PageHeader from '../components/PageHeader';
 import MapComponent from '../components/MapComponent';
-import { ListBulletIcon } from '../components/icons/ListBulletIcon';
-import { MapPinIcon } from '../components/icons/MapPinIcon';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import { RulerIcon } from '../components/icons/RulerIcon';
+import { LocationMarkerIcon } from '../components/icons/LocationMarkerIcon';
 
 interface RotasViewProps {
   customers: Customer[];
@@ -14,14 +13,27 @@ interface RotasViewProps {
 
 const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [isMobileMapView, setIsMobileMapView] = useState(true);
   const [distances, setDistances] = useState<Record<string, number | null>>({});
   const [isCalculating, setIsCalculating] = useState(false);
   const customerRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
   const geocodedCustomers = useMemo(() => {
-    return customers.filter(c => c.latitude != null && c.longitude != null) as (Customer & { latitude: number; longitude: number; })[];
+    return customers.filter(c => c.latitude != null && c.longitude != null).sort((a, b) => a.name.localeCompare(b.name)) as (Customer & { latitude: number; longitude: number; })[];
   }, [customers]);
+
+  const customersByCity = useMemo(() => {
+    return geocodedCustomers.reduce((acc, customer) => {
+        const city = customer.cidade.trim() || 'Sem Cidade';
+        if (!acc[city]) {
+            acc[city] = [];
+        }
+        acc[city].push(customer);
+        return acc;
+    }, {} as Record<string, (Customer & { latitude: number; longitude: number; })[]>);
+  }, [geocodedCustomers]);
+
+  const sortedCities = useMemo(() => Object.keys(customersByCity).sort((a, b) => a.localeCompare(b)), [customersByCity]);
 
   useEffect(() => {
     if (selectedCustomerId && customerRefs.current[selectedCustomerId]) {
@@ -34,13 +46,14 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
 
   const handleMarkerClick = (customerId: string) => {
     setSelectedCustomerId(customerId);
-    if (window.innerWidth < 768) { // On mobile, switch to list view
-        setIsMobileMapView(false);
-    }
   };
   
   const handleCustomerSelect = (customerId: string) => {
     setSelectedCustomerId(customerId);
+    // On mobile, scroll up to the map when a customer is selected from the list.
+    if (window.innerWidth < 768) { // Corresponds to Tailwind's 'md' breakpoint
+      mapContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
   
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -179,54 +192,6 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     }
   };
 
-
-  const customerListPanel = (
-    <div className="w-full md:w-1/3 lg:w-1/4 bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col h-full">
-      <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-white">Clientes ({geocodedCustomers.length})</h3>
-        <div className="flex gap-2">
-           <button onClick={handleCalculateDistances} title="Calcular Distâncias" disabled={isCalculating} className="p-2 text-slate-400 hover:text-white disabled:text-slate-600">
-             <RulerIcon className="w-5 h-5"/>
-           </button>
-           <button onClick={handlePrintRoute} title="Imprimir Rota" className="p-2 text-slate-400 hover:text-white">
-             <PrinterIcon className="w-5 h-5"/>
-           </button>
-        </div>
-      </div>
-      <ul className="overflow-y-auto flex-grow p-2">
-        {geocodedCustomers.length > 0 ? geocodedCustomers.map(customer => (
-          // FIX: Corrected the ref callback to have a void return type.
-          <li key={customer.id} ref={el => { customerRefs.current[customer.id] = el; }}>
-            <button
-              onClick={() => handleCustomerSelect(customer.id)}
-              className={`w-full text-left p-3 rounded-md transition-colors ${
-                selectedCustomerId === customer.id ? 'bg-emerald-600/20' : 'hover:bg-slate-700/50'
-              }`}
-            >
-              <p className={`font-semibold ${selectedCustomerId === customer.id ? 'text-emerald-400' : 'text-white'}`}>{customer.name}</p>
-              <p className="text-sm text-slate-400">{customer.cidade}</p>
-              {distances[customer.id] && <p className="text-xs text-sky-400 mt-1">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}
-            </button>
-          </li>
-        )) : (
-          <li className="p-4 text-center text-slate-400">
-            Nenhum cliente com endereço geocodificado encontrado.
-          </li>
-        )}
-      </ul>
-    </div>
-  );
-
-  const mapPanel = (
-    <div className="w-full md:w-2/3 lg:w-3/4 h-full">
-      <MapComponent
-        customers={geocodedCustomers}
-        selectedCustomerId={selectedCustomerId}
-        onMarkerClick={handleMarkerClick}
-      />
-    </div>
-  );
-
   return (
     <div className="h-full flex flex-col">
       <PageHeader
@@ -234,23 +199,80 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         subtitle="Visualize a localização dos seus clientes e planeje suas rotas."
       />
 
-      {/* Desktop Layout */}
-      <div className="hidden md:flex flex-row gap-8 flex-grow min-h-0">
-        {customerListPanel}
-        {mapPanel}
-      </div>
-      
-      {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col flex-grow min-h-0 relative">
-        <div className={`flex-grow h-full ${isMobileMapView ? 'block' : 'hidden'}`}>{mapPanel}</div>
-        <div className={`flex-grow h-full ${!isMobileMapView ? 'block' : 'hidden'}`}>{customerListPanel}</div>
+      <div className="flex flex-col md:flex-row gap-8 flex-grow min-h-0">
+        
+        {/* Map Panel */}
+        <div ref={mapContainerRef} className="h-[50vh] md:h-full w-full md:w-2/3 lg:w-3/4">
+          <MapComponent
+            customers={geocodedCustomers}
+            selectedCustomerId={selectedCustomerId}
+            onMarkerClick={handleMarkerClick}
+          />
+        </div>
 
-        <button 
-          onClick={() => setIsMobileMapView(!isMobileMapView)}
-          className="absolute bottom-4 right-4 z-10 bg-slate-800 text-white p-4 rounded-full shadow-lg border-2 border-emerald-500"
-        >
-          {isMobileMapView ? <ListBulletIcon className="w-6 h-6"/> : <MapPinIcon className="w-6 h-6"/>}
-        </button>
+        {/* Customer List Panel */}
+        <div className="flex-grow min-h-0 w-full md:w-1/3 lg:w-1/4 bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col">
+          <div className="p-4 border-b border-slate-700 flex justify-between items-center flex-shrink-0">
+            <h3 className="text-lg font-semibold text-white">Clientes ({geocodedCustomers.length})</h3>
+            <div className="flex gap-2">
+               <button onClick={handleCalculateDistances} title="Calcular Distâncias" disabled={isCalculating} className="p-2 text-slate-400 hover:text-white disabled:text-slate-600">
+                 <RulerIcon className="w-5 h-5"/>
+               </button>
+               <button onClick={handlePrintRoute} title="Imprimir Rota" className="p-2 text-slate-400 hover:text-white">
+                 <PrinterIcon className="w-5 h-5"/>
+               </button>
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-grow p-2 space-y-4">
+            {sortedCities.length > 0 ? sortedCities.map(city => (
+              <div key={city} className="bg-slate-900/50 rounded-lg">
+                <h4 className="text-md font-semibold text-emerald-400 p-3 border-b border-slate-700 capitalize flex items-center gap-2">
+                    <LocationMarkerIcon className="w-5 h-5" />
+                    {city}
+                </h4>
+                <ul className="divide-y divide-slate-800">
+                    {customersByCity[city].map(customer => {
+                      const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
+                      const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
+                      const hasDebt = customer.debtAmount > 0;
+
+                      return (
+                        <li key={customer.id} ref={el => { customerRefs.current[customer.id] = el; }}>
+                            <button
+                              onClick={() => handleCustomerSelect(customer.id)}
+                              className={`w-full text-left p-3 transition-colors ${
+                                selectedCustomerId === customer.id ? 'bg-emerald-600/20' : 'hover:bg-slate-700/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="flex-shrink-0 flex items-center gap-1.5">
+                                    {visitIsPending ? (
+                                        <span title="Visita Pendente" className="block w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                                    ) : (
+                                        <span title={`Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}`} className="block w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+                                    )}
+                                    {hasDebt && (
+                                        <span title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="block w-2.5 h-2.5 bg-amber-400 rounded-full"></span>
+                                    )}
+                                </div>
+                                <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-emerald-400' : 'text-white'}`}>{customer.name}</p>
+                              </div>
+                              <p className="text-sm text-slate-400 truncate">{customer.endereco}</p>
+                              {distances[customer.id] != null && <p className="text-xs text-sky-400 mt-1">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}
+                            </button>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            )) : (
+              <div className="p-4 text-center text-slate-400">
+                Nenhum cliente com endereço geocodificado encontrado.
+              </div>
+            )}
+          </div>
+        </div>
+        
       </div>
     </div>
   );

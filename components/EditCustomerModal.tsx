@@ -1,5 +1,5 @@
 // components/EditCustomerModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
 import CityAutocomplete from './CityAutocomplete';
 
@@ -66,14 +66,32 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
     });
   }, [customer, isOpen]);
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    
+    setFormData(prev => {
+        const newState = { ...prev, [name]: value };
+        const numericValue = parseInt(value, 10);
 
-  const handleCityChange = (value: string) => {
+        if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
+            const remaining = String(100 - numericValue);
+            if (name === 'parteFirma') {
+                newState.parteCliente = remaining;
+            } else if (name === 'parteCliente') {
+                newState.parteFirma = remaining;
+            } else if (name === 'porcentagemJukeboxFirma') {
+                newState.porcentagemJukeboxCliente = remaining;
+            } else if (name === 'porcentagemJukeboxCliente') {
+                newState.porcentagemJukeboxFirma = remaining;
+            }
+        }
+        return newState;
+    });
+  }, []);
+
+  const handleCityChange = useCallback((value: string) => {
     setFormData(prev => ({ ...prev, cidade: value }));
-  }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,10 +112,15 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-customer-modal-title"
+    >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-4xl border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
         <div className="p-6 border-b border-slate-700">
-          <h2 className="text-2xl font-bold text-white">Editar Cliente</h2>
+          <h2 id="edit-customer-modal-title" className="text-2xl font-bold text-white">Editar Cliente</h2>
           <p className="text-slate-400">Alterando dados de: {customer.name}</p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">

@@ -1,16 +1,15 @@
-// components/ReceiptModal.tsx
+// components/DebtReceiptModal.tsx
 import React, { useRef } from 'react';
-import { Billing } from '../types';
+import { DebtPayment } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
-import { LogoIcon } from './icons/LogoIcon';
 
-interface ReceiptModalProps {
+interface DebtReceiptModalProps {
   isOpen: boolean;
   onClose: () => void;
-  billing: Billing;
+  debtPayment: DebtPayment;
 }
 
-const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing }) => {
+const DebtReceiptModal: React.FC<DebtReceiptModalProps> = ({ isOpen, onClose, debtPayment }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -18,12 +17,12 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
     if (printContent) {
       const printWindow = window.open('', '', 'height=800,width=400');
       if (printWindow) {
-        printWindow.document.write('<html><head><title>Recibo de Cobrança</title>');
+        printWindow.document.write('<html><head><title>Comprovante de Pagamento de Dívida</title>');
         printWindow.document.write(`
           <style>
             body { 
               font-family: 'Courier New', Courier, monospace;
-              width: 300px; /* Standard thermal printer width */
+              width: 300px;
               font-size: 12px;
               color: #000;
               margin: 0;
@@ -32,11 +31,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
             .header { text-align: center; margin-bottom: 15px; }
             .header h3 { margin: 0; font-size: 14px; }
             .header p { margin: 2px 0; }
-            .item { display: flex; justify-content: space-between; }
-            .item-left { text-align: left; }
-            .item-right { text-align: right; }
             hr.dashed { border-top: 1px dashed #000; margin: 10px 0; }
-            .total { font-weight: bold; font-size: 14px; }
             .signatures { margin-top: 40px; }
             .signature-line { border-top: 1px solid #000; margin-top: 30px; }
           </style>
@@ -53,32 +48,22 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
   };
 
   if (!isOpen) return null;
-
-  const isMesa = billing.equipment === 'mesa';
   
   const paymentMethodText = {
       pix: 'PIX',
-      dinheiro: 'DINHEiro',
-      fiado: 'FIADO (ANOTADO)',
+      dinheiro: 'DINHEIRO',
   };
-
-  const ReceiptRow: React.FC<{label: string, value: string | number}> = ({ label, value }) => (
-    <div className="flex justify-between">
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
-  );
 
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 no-print"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="receipt-modal-title"
+      aria-labelledby="debt-receipt-modal-title"
     >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-sm border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
         <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-            <h2 id="receipt-modal-title" className="text-xl font-bold text-white">Recibo</h2>
+            <h2 id="debt-receipt-modal-title" className="text-xl font-bold text-white">Comprovante de Pagamento</h2>
             <button onClick={handlePrint} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500">
                 <PrinterIcon className="w-5 h-5"/> <span>Imprimir</span>
             </button>
@@ -88,41 +73,22 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
             <div ref={printRef}>
               <div className="header text-center mb-4">
                   <h3 className="font-bold text-base">MONTANHA BILHAR & JUKEBOX</h3>
-                  <p>ACERTO DE CONTAS</p>
+                  <p>COMPROVANTE DE PAGAMENTO DE DÍVIDA</p>
                   <p>--------------------------------</p>
               </div>
               
               <div className="space-y-1">
-                  <p>CLIENTE: {billing.customerName}</p>
-                  <p>DATA: {new Date(billing.settledAt).toLocaleString('pt-BR')}</p>
+                  <p>CLIENTE: {debtPayment.customerName}</p>
+                  <p>DATA: {new Date(debtPayment.paidAt).toLocaleString('pt-BR')}</p>
                   <hr className="border-dashed border-black my-2" />
                   
-                  <p className="font-bold">EQUIPAMENTO: {isMesa ? 'MESA SINUCA' : 'JUKEBOX'}</p>
-                  <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
-                  <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
-                  
-                  {isMesa && (
-                    <>
-                      <hr className="border-dashed border-black my-2" />
-                      <ReceiptRow label="Partidas Jogadas:" value={billing.partidasJogadas} />
-                      <ReceiptRow label="Partidas Desconto:" value={billing.descontoPartidas} />
-                      <ReceiptRow label="Partidas Cobradas:" value={billing.partidasCobradas} />
-                      <ReceiptRow label="Valor Ficha:" value={`R$ ${billing.valorFicha?.toFixed(2)}`} />
-                    </>
-                  )}
-                  
-                  <hr className="border-dashed border-black my-2" />
-
-                  <ReceiptRow label="Valor Bruto:" value={`R$ ${(billing.parteFirma + billing.parteCliente).toFixed(2)}`} />
-                  <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente.toFixed(2)}`} />
-                  
-                  <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
-                      <span>TOTAL (FIRMA):</span>
-                      <span>R$ {billing.valorTotal.toFixed(2)}</span>
+                  <div className="flex justify-between font-bold text-base pt-2 mt-2">
+                      <span>VALOR PAGO:</span>
+                      <span>R$ {debtPayment.amountPaid.toFixed(2)}</span>
                   </div>
                    <div className="flex justify-between pt-1">
                       <span>Pagamento:</span>
-                      <span>{paymentMethodText[billing.paymentMethod]}</span>
+                      <span>{paymentMethodText[debtPayment.paymentMethod]}</span>
                   </div>
 
                   <div className="signatures text-center mt-10">
@@ -147,4 +113,4 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
   );
 };
 
-export default ReceiptModal;
+export default DebtReceiptModal;

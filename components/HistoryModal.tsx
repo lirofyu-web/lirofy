@@ -73,10 +73,15 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="history-modal-title"
+        >
             <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
                 <div className="p-6 border-b border-slate-700">
-                    <h2 className="text-2xl font-bold text-white">Histórico do Cliente</h2>
+                    <h2 id="history-modal-title" className="text-2xl font-bold text-white">Histórico do Cliente</h2>
                     <p className="text-slate-400">{customer.name}</p>
                 </div>
                 <div className="p-6 overflow-y-auto">

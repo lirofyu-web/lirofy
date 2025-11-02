@@ -14,10 +14,15 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, t
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="action-modal-title"
+    >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-white">{title}</h2>
+          <h2 id="action-modal-title" className="text-2xl font-bold text-white">{title}</h2>
           <div className="text-slate-400 mt-4">{children}</div>
         </div>
         <div className="p-6 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
