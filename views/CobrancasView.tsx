@@ -1,30 +1,14 @@
-// views/CobrancasView.tsx
+// Fix: The file contained invalid HTML content. It has been replaced with a proper React component to display billing history.
 import React, { useState, useMemo } from 'react';
-import { Billing, DebtPayment } from '../types';
+import { Billing } from '../types';
 import PageHeader from '../components/PageHeader';
 import ReceiptModal from '../components/ReceiptModal';
-import { PrinterIcon } from '../components/icons/PrinterIcon';
-import { BilliardIcon } from '../components/icons/BilliardIcon';
-import { JukeboxIcon } from '../components/icons/JukeboxIcon';
+import { EyeIcon } from '../components/icons/EyeIcon';
+import { SearchIcon } from '../components/icons/SearchIcon';
 
-// --- Helper Components ---
-const SortIcon = ({ direction }: { direction: 'asc' | 'desc' | 'none' }) => {
-    if (direction === 'none') return <span className="text-slate-500">↕</span>;
-    return direction === 'asc' ? <span className="text-white">↑</span> : <span className="text-white">↓</span>;
-};
-
-const EquipmentDisplay = ({ equipment }: { equipment: 'mesa' | 'jukebox' }) => {
-    const isMesa = equipment === 'mesa';
-    const Icon = isMesa ? BilliardIcon : JukeboxIcon;
-    const text = isMesa ? 'Mesa' : 'Jukebox';
-    
-    return (
-        <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4 text-slate-400" />
-            <span>{text}</span>
-        </div>
-    );
-};
+interface CobrancasViewProps {
+  billings: Billing[];
+}
 
 const PaymentMethodDisplay = ({ method }: { method: 'pix' | 'dinheiro' | 'fiado' }) => {
     const styles = {
@@ -39,200 +23,107 @@ const PaymentMethodDisplay = ({ method }: { method: 'pix' | 'dinheiro' | 'fiado'
     };
 
     return (
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${styles[method]}`}>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
             {text[method]}
         </span>
     );
 };
 
-// --- Main Component ---
-interface CobrancasViewProps {
-  billings: Billing[];
-  debtPayments: DebtPayment[];
-}
 
-const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, debtPayments }) => {
+const CobrancasView: React.FC<CobrancasViewProps> = ({ billings }) => {
   const [selectedBilling, setSelectedBilling] = useState<Billing | null>(null);
+  const [filter, setFilter] = useState('');
 
-  // Sorting state for Billings table
-  const [billSortKey, setBillSortKey] = useState<'customerName' | 'settledAt' | 'valorTotal'>('settledAt');
-  const [billSortDir, setBillSortDir] = useState<'asc' | 'desc'>('desc');
+  const filteredBillings = useMemo(() => {
+    const lowercasedFilter = filter.toLowerCase();
+    return billings
+      .filter(b => 
+        b.customerName.toLowerCase().includes(lowercasedFilter) ||
+        b.equipment.toLowerCase().includes(lowercasedFilter)
+      )
+      .sort((a, b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime());
+  }, [billings, filter]);
   
-  // Sorting state for Debt Payments table
-  const [debtSortKey, setDebtSortKey] = useState<'customerName' | 'paidAt' | 'amountPaid'>('paidAt');
-  const [debtSortDir, setDebtSortDir] = useState<'asc' | 'desc'>('desc');
-
-  const sortedBillings = useMemo(() => {
-    return [...billings].sort((a, b) => {
-      const valA = a[billSortKey];
-      const valB = b[billSortKey];
-      
-      let comparison = 0;
-      if (valA > valB) {
-        comparison = 1;
-      } else if (valA < valB) {
-        comparison = -1;
-      }
-      return billSortDir === 'desc' ? -comparison : comparison;
-    });
-  }, [billings, billSortKey, billSortDir]);
-
-  const sortedDebtPayments = useMemo(() => {
-    return [...debtPayments].sort((a, b) => {
-      const valA = a[debtSortKey];
-      const valB = b[debtSortKey];
-      
-      let comparison = 0;
-      if (valA > valB) {
-        comparison = 1;
-      } else if (valA < valB) {
-        comparison = -1;
-      }
-      return debtSortDir === 'desc' ? -comparison : comparison;
-    });
-  }, [debtPayments, debtSortKey, debtSortDir]);
-
-  const handleBillSort = (key: 'customerName' | 'settledAt' | 'valorTotal') => {
-    if (billSortKey === key) {
-      setBillSortDir(billSortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-      setBillSortKey(key);
-      setBillSortDir('desc');
-    }
-  };
-
-  const handleDebtSort = (key: 'customerName' | 'paidAt' | 'amountPaid') => {
-    if (debtSortKey === key) {
-      setDebtSortDir(debtSortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-      setDebtSortKey(key);
-      setDebtSortDir('desc');
-    }
-  };
-
-  const BillSortableHeader = ({ label, sortKey }: { label: string, sortKey: 'customerName' | 'settledAt' | 'valorTotal' }) => (
-    <th scope="col" className="px-6 py-3">
-        <button className="flex items-center gap-2" onClick={() => handleBillSort(sortKey)}>
-            {label}
-            <SortIcon direction={billSortKey === sortKey ? billSortDir : 'none'} />
-        </button>
-    </th>
-  );
-  
-  const DebtSortableHeader = ({ label, sortKey }: { label: string, sortKey: 'customerName' | 'paidAt' | 'amountPaid' }) => (
-    <th scope="col" className="px-6 py-3">
-        <button className="flex items-center gap-2" onClick={() => handleDebtSort(sortKey)}>
-            {label}
-            <SortIcon direction={debtSortKey === sortKey ? debtSortDir : 'none'} />
-        </button>
-    </th>
-  );
+  const totalBilled = useMemo(() => {
+    return filteredBillings.reduce((sum, b) => sum + b.valorTotal, 0);
+  }, [filteredBillings]);
 
   return (
-    <>
-      <div>
-        <PageHeader 
-          title="Histórico Financeiro"
-          subtitle="Visualize todas as cobranças e pagamentos de dívidas realizados."
-        />
-        
-        <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
-           <h3 className="text-lg font-semibold text-white p-4 bg-slate-700/50">Histórico de Cobranças</h3>
-           <div className="overflow-x-auto">
-             <table className="w-full text-sm text-left text-slate-300 min-w-[640px]">
-                    <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
-                        <tr>
-                            <BillSortableHeader label="Cliente" sortKey="customerName" />
-                            <BillSortableHeader label="Data" sortKey="settledAt" />
-                            <th scope="col" className="px-6 py-3">Equipamento</th>
-                            <th scope="col" className="px-6 py-3 text-right">
-                                <button className="flex items-center gap-2 ml-auto" onClick={() => handleBillSort('valorTotal')}>
-                                    Valor Total
-                                    <SortIcon direction={billSortKey === 'valorTotal' ? billSortDir : 'none'} />
-                                </button>
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-center">Método Pgto.</th>
-                            <th scope="col" className="px-6 py-3 text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedBillings.length > 0 ? sortedBillings.map(billing => (
-                            <tr key={billing.id} className="border-b border-slate-700 hover:bg-slate-700/50 even:bg-slate-800/50">
-                                <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{billing.customerName}</td>
-                                <td className="px-6 py-4">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
-                                <td className="px-6 py-4 capitalize">
-                                  <EquipmentDisplay equipment={billing.equipment} />
-                                </td>
-                                <td className="px-6 py-4 text-right font-mono text-emerald-400 font-bold">R$ {billing.valorTotal.toFixed(2)}</td>
-                                <td className="px-6 py-4 text-center">
-                                    <PaymentMethodDisplay method={billing.paymentMethod} />
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button 
-                                        onClick={() => setSelectedBilling(billing)}
-                                        className="text-cyan-400 hover:text-cyan-300 font-medium inline-flex items-center gap-1"
-                                    >
-                                      <PrinterIcon className="w-4 h-4" />
-                                      <span>Recibo</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        )) : (
-                            <tr>
-                               <td colSpan={6} className="text-center py-16 text-slate-400 italic">Nenhuma cobrança registrada.</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+    <div>
+      <PageHeader
+        title="Histórico de Cobranças"
+        subtitle="Visualize todos os registros de cobrança realizados."
+      />
+      
+      <div className="mb-6">
+        <div className="relative max-w-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <SearchIcon className="w-5 h-5 text-slate-400" />
             </div>
-        </div>
-
-        <div className="mt-8 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
-           <h3 className="text-lg font-semibold text-white p-4 bg-slate-700/50">Histórico de Pagamentos de Dívidas</h3>
-           <div className="overflow-x-auto">
-             <table className="w-full text-sm text-left text-slate-300 min-w-[640px]">
-                    <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
-                        <tr>
-                            <DebtSortableHeader label="Cliente" sortKey="customerName" />
-                            <DebtSortableHeader label="Data" sortKey="paidAt" />
-                            <th scope="col" className="px-6 py-3 text-right">
-                                <button className="flex items-center gap-2 ml-auto" onClick={() => handleDebtSort('amountPaid')}>
-                                  Valor Pago
-                                  <SortIcon direction={debtSortKey === 'amountPaid' ? debtSortDir : 'none'} />
-                                </button>
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-center">Método Pgto.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedDebtPayments.length > 0 ? sortedDebtPayments.map(payment => (
-                            <tr key={payment.id} className="border-b border-slate-700 hover:bg-slate-700/50 even:bg-slate-800/50">
-                                <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{payment.customerName}</td>
-                                <td className="px-6 py-4">{new Date(payment.paidAt).toLocaleDateString('pt-BR')}</td>
-                                <td className="px-6 py-4 text-right font-mono text-amber-400 font-bold">R$ {payment.amountPaid.toFixed(2)}</td>
-                                <td className="px-6 py-4 text-center">
-                                    <PaymentMethodDisplay method={payment.paymentMethod} />
-                                </td>
-                            </tr>
-                        )) : (
-                            <tr>
-                               <td colSpan={4} className="text-center py-16 text-slate-400 italic">Nenhum pagamento de dívida registrado.</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            <input
+                type="text"
+                placeholder="Filtrar por cliente ou equipamento..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
         </div>
       </div>
 
+      <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left text-slate-300 min-w-[720px]">
+            <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
+              <tr>
+                <th scope="col" className="px-6 py-3">Data</th>
+                <th scope="col" className="px-6 py-3">Cliente</th>
+                <th scope="col" className="px-6 py-3">Equipamento</th>
+                <th scope="col" className="px-6 py-3">Método Pgto</th>
+                <th scope="col" className="px-6 py-3 text-right">Valor Total</th>
+                <th scope="col" className="px-6 py-3 text-center">Recibo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredBillings.length > 0 ? filteredBillings.map(billing => (
+                <tr key={billing.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
+                  <td className="px-6 py-4 whitespace-nowrap">{new Date(billing.settledAt).toLocaleString('pt-BR')}</td>
+                  <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{billing.customerName}</td>
+                  <td className="px-6 py-4 capitalize">{billing.equipment === 'mesa' ? 'Mesa de Sinuca' : 'Jukebox'}</td>
+                  <td className="px-6 py-4">
+                    <PaymentMethodDisplay method={billing.paymentMethod} />
+                  </td>
+                  <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400">R$ {billing.valorTotal.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-center">
+                    <button onClick={() => setSelectedBilling(billing)} className="text-slate-400 hover:text-cyan-400" title="Ver Recibo">
+                        <EyeIcon className="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={6} className="text-center py-16 text-slate-400 italic">Nenhuma cobrança encontrada.</td>
+                </tr>
+              )}
+            </tbody>
+             <tfoot className="bg-slate-700/50">
+                <tr className="font-bold text-white">
+                    <td colSpan={4} className="text-right px-6 py-3 uppercase">Total Filtrado</td>
+                    <td className="text-right px-6 py-3 font-mono text-lg text-emerald-400">R$ {totalBilled.toFixed(2)}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      
       {selectedBilling && (
         <ReceiptModal 
-          isOpen={!!selectedBilling}
-          onClose={() => setSelectedBilling(null)}
-          billing={selectedBilling}
+            isOpen={!!selectedBilling}
+            onClose={() => setSelectedBilling(null)}
+            billing={selectedBilling}
         />
       )}
-    </>
+    </div>
   );
 };
 

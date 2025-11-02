@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <style>
       html, body, #root {
         height: 100%;
@@ -35,6 +37,53 @@
        .leaflet-container a.leaflet-popup-close-button:hover {
         color: #f1f5f9; /* text-slate-100 */
       }
+      /* Custom Marker Cluster Styles */
+      .marker-cluster-small {
+        background-color: rgba(30, 136, 229, 0.6); /* Blueish, semi-transparent */
+      }
+      .marker-cluster-small div {
+        background-color: rgba(30, 136, 229, 0.9);
+        color: #fff;
+      }
+      .marker-cluster-medium {
+        background-color: rgba(245, 124, 0, 0.6); /* Orangish */
+      }
+      .marker-cluster-medium div {
+        background-color: rgba(245, 124, 0, 0.9);
+        color: #fff;
+      }
+      .marker-cluster-large {
+        background-color: rgba(211, 47, 47, 0.6); /* Redish */
+      }
+      .marker-cluster-large div {
+        background-color: rgba(211, 47, 47, 0.9);
+        color: #fff;
+      }
+
+      /* Custom DivIcon Marker Styles */
+      .custom-marker {
+        transition: transform 0.2s ease-out;
+      }
+      .custom-marker.selected-marker {
+        z-index: 1000 !important;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          filter: drop-shadow(0 0 2px #fff);
+        }
+        50% {
+          transform: scale(1.2);
+          filter: drop-shadow(0 0 10px #06b6d4);
+        }
+        100% {
+          transform: scale(1);
+          filter: drop-shadow(0 0 2px #fff);
+        }
+      }
+
       /* Print-specific styles */
       @media print {
         .no-print {
@@ -63,6 +112,7 @@
   <body class="bg-slate-900">
     <div id="root"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

@@ -1,313 +1,351 @@
-// App.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+// Fix: Implement the main App component.
+import React, { useState, useEffect, useCallback } from 'react';
 import { Customer, Billing, Expense, DebtPayment } from './types';
-import Sidebar from './components/Sidebar';
-import ClientesView from './views/ClientesView';
+import { defaultCustomers } from './data/defaultCustomers';
+
+// Views
 import DashboardView from './views/DashboardView';
+import ClientesView from './views/ClientesView';
 import CobrancasView from './views/CobrancasView';
 import DespesasView from './views/DespesasView';
 import RelatoriosView from './views/RelatoriosView';
 import RotasView from './views/RotasView';
 import ConfiguracoesView from './views/ConfiguracoesView';
-import ActionModal from './components/ActionModal';
-import { LogoIcon } from './components/icons/LogoIcon';
-import { defaultCustomers } from './data/defaultCustomers';
+
+// Components
+import Sidebar from './components/Sidebar';
+import BottomNavBar from './components/BottomNavBar';
+import Notification from './components/Notification';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'RELATORIOS' | 'ROTAS' | 'CONFIGURACOES';
 
-export interface AppData {
-  customers: Customer[];
-  billings: Billing[];
-  expenses: Expense[];
-  debtPayments: DebtPayment[];
-}
-
-const LOCAL_STORAGE_KEY = 'montanhaAppData';
-
-// --- Geocoding Function ---
-const geocodeAddress = async (address: string): Promise<{ lat: number; lon: number } | null> => {
-    if (!address.trim() || address.trim() === ',') return null;
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) return null;
-        const data = await response.json();
-        if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-        return null;
-    } catch (error) { return null; }
-};
-
-const LoadingScreen = () => (
-    <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-        <LogoIcon className="w-24 h-24 text-slate-400 mb-6" />
-        <p className="text-lg">Carregando seus dados...</p>
-    </div>
-);
-
-const MenuIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || 'w-6 h-6'}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
-);
-
-const MobileHeader = ({ onMenuClick }: { onMenuClick: () => void }) => (
-    <header className="md:hidden bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between no-print sticky top-0 z-10">
-        <div className="flex items-center gap-2"><LogoIcon className="w-8 h-8 text-slate-300" /><h1 className="text-lg font-bold text-white">Montanha</h1></div>
-        <button onClick={onMenuClick} className="text-slate-300 hover:text-white p-2"><MenuIcon className="w-6 h-6" /></button>
-    </header>
-);
+type NotificationState = {
+  message: string;
+  type: 'success' | 'error';
+} | null;
 
 const App: React.FC = () => {
-    const [view, setView] = useState<View>('CLIENTES');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
+  const [view, setView] = useState<View>('DASHBOARD');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Data State
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [billings, setBillings] = useState<Billing[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
+  
+  // UI State
+  const [isSaving, setIsSaving] = useState(false);
+  const [notification, setNotification] = useState<NotificationState>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    setNotification({ message, type });
+  };
+
+  // --- Data Persistence ---
+  useEffect(() => {
+    try {
+      const storedCustomers = localStorage.getItem('customers');
+      const storedBillings = localStorage.getItem('billings');
+      const storedExpenses = localStorage.getItem('expenses');
+      const storedDebtPayments = localStorage.getItem('debtPayments');
+      
+      if (storedCustomers) setCustomers(JSON.parse(storedCustomers));
+      if (storedBillings) setBillings(JSON.parse(storedBillings));
+      if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
+      if (storedDebtPayments) setDebtPayments(JSON.parse(storedDebtPayments));
+
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+      showNotification("Erro ao carregar os dados.", "error");
+    } finally {
+      setIsInitialized(true);
+    }
+  }, []);
+
+  useEffect(() => { if (isInitialized) localStorage.setItem('customers', JSON.stringify(customers)); }, [customers, isInitialized]);
+  useEffect(() => { if (isInitialized) localStorage.setItem('billings', JSON.stringify(billings)); }, [billings, isInitialized]);
+  useEffect(() => { if (isInitialized) localStorage.setItem('expenses', JSON.stringify(expenses)); }, [expenses, isInitialized]);
+  useEffect(() => { if (isInitialized) localStorage.setItem('debtPayments', JSON.stringify(debtPayments)); }, [debtPayments, isInitialized]);
+
+
+  // --- Helper Functions ---
+  const getCustomerName = (customerId: string) => customers.find(c => c.id === customerId)?.name || 'Cliente Desconhecido';
+
+  // --- Mock Geocoding ---
+  const getCoordinatesForAddress = async (address: string, city: string): Promise<{ lat: number; lon: number } | null> => {
+    // In a real app, this would call a geocoding API.
+    // Here, we'll generate pseudo-random, deterministic coordinates based on the address.
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+    try {
+        const fullAddress = `${address}, ${city}`;
+        let hash = 0;
+        for (let i = 0; i < fullAddress.length; i++) {
+            const char = fullAddress.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+
+        const latRange = { min: -24.0, max: -22.0 }; // Paraná latitude range
+        const lonRange = { min: -54.0, max: -48.0 }; // Paraná longitude range
+
+        const lat = latRange.min + (Math.abs(hash) % 10000 / 10000) * (latRange.max - latRange.min);
+        // Use a different calculation for longitude to avoid direct correlation
+        const lon = lonRange.min + (Math.abs(hash * 31) % 10000 / 10000) * (lonRange.max - lonRange.min);
+
+        return { lat, lon };
+    } catch {
+        return null;
+    }
+  };
+
+
+  // --- CRUD Handlers ---
+
+  const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => {
+    setIsSaving(true);
+    try {
+      const coords = await getCoordinatesForAddress(customerData.endereco, customerData.cidade);
+      const newCustomer: Customer = {
+        ...customerData,
+        id: crypto.randomUUID(),
+        createdAt: new Date(),
+        debtAmount: 0,
+        lastVisitedAt: null,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lon ?? null,
+      };
+      setCustomers(prev => [...prev, newCustomer]);
+      showNotification("Cliente adicionado com sucesso!", "success");
+    } catch (error) {
+      showNotification("Erro ao adicionar cliente.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateCustomer = async (updatedCustomer: Customer) => {
+    setIsSaving(true);
+    try {
+        const originalCustomer = customers.find(c => c.id === updatedCustomer.id);
+        let newCoords = { lat: updatedCustomer.latitude, lon: updatedCustomer.longitude };
+
+        // Re-geocode if address changed
+        if (originalCustomer && (originalCustomer.endereco !== updatedCustomer.endereco || originalCustomer.cidade !== updatedCustomer.cidade)) {
+            const coords = await getCoordinatesForAddress(updatedCustomer.endereco, updatedCustomer.cidade);
+            newCoords = { lat: coords?.lat ?? null, lon: coords?.lon ?? null };
+        }
+
+        setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? { ...updatedCustomer, latitude: newCoords.lat, longitude: newCoords.lon } : c));
+        showNotification("Cliente atualizado com sucesso!", "success");
+    } catch (error) {
+        showNotification("Erro ao atualizar cliente.", "error");
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleDeleteCustomer = (customerId: string) => {
+    setCustomers(prev => prev.filter(c => c.id !== customerId));
+    // Optional: Also delete related billings, debts etc.
+    showNotification("Cliente excluído.", "success");
+  };
+
+  const handleSettleBill = (billingData: { customerId: string; equipment: 'mesa' | 'jukebox'; relogioAtual: number; descontoPartidas: number; paymentMethod: 'pix' | 'dinheiro' | 'fiado'; }) => {
+    const customer = customers.find(c => c.id === billingData.customerId);
+    if (!customer) return;
+
+    let valorTotal = 0;
+    let newBilling: Omit<Billing, 'id'>;
+
+    const settledAt = new Date();
+
+    if (billingData.equipment === 'mesa') {
+      const partidasJogadas = billingData.relogioAtual - customer.relogioMesaAnterior;
+      const partidasCobradas = partidasJogadas - billingData.descontoPartidas;
+      valorTotal = partidasCobradas * customer.valorFicha;
+      
+      newBilling = {
+        customerId: customer.id,
+        customerName: customer.name,
+        equipment: 'mesa',
+        relogioAnterior: customer.relogioMesaAnterior,
+        relogioAtual: billingData.relogioAtual,
+        partidasJogadas,
+        descontoPartidas: billingData.descontoPartidas,
+        partidasCobradas,
+        valorFicha: customer.valorFicha,
+        valorTotal,
+        parteFirma: valorTotal * (customer.parteFirma / 100),
+        parteCliente: valorTotal * (customer.parteCliente / 100),
+        settledAt,
+        paymentMethod: billingData.paymentMethod
+      };
+      
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, relogioMesaAnterior: billingData.relogioAtual, lastVisitedAt: settledAt } : c));
+    } else { // Jukebox
+      valorTotal = billingData.relogioAtual - customer.relogioJukeboxAnterior;
+
+      newBilling = {
+         customerId: customer.id,
+         customerName: customer.name,
+         equipment: 'jukebox',
+         relogioAnterior: customer.relogioJukeboxAnterior,
+         relogioAtual: billingData.relogioAtual,
+         partidasJogadas: valorTotal,
+         descontoPartidas: 0,
+         partidasCobradas: valorTotal,
+         valorTotal,
+         parteFirma: valorTotal * (customer.porcentagemJukeboxFirma / 100),
+         parteCliente: valorTotal * (customer.porcentagemJukeboxCliente / 100),
+         settledAt,
+         paymentMethod: billingData.paymentMethod,
+      };
+
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, relogioJukeboxAnterior: billingData.relogioAtual, lastVisitedAt: settledAt } : c));
+    }
+
+    setBillings(prev => [{...newBilling, id: crypto.randomUUID()}, ...prev]);
+
+    if (billingData.paymentMethod === 'fiado') {
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, debtAmount: c.debtAmount + valorTotal } : c));
+    }
     
-    // Application data state
-    const [appData, setAppData] = useState<AppData | null>(null);
-    const [isDataDirty, setIsDataDirty] = useState(false);
-    const debounceTimeoutRef = useRef<number | null>(null);
+    showNotification("Cobrança realizada com sucesso!", "success");
+  };
 
-    const [billingToPrint, setBillingToPrint] = useState<Billing | null>(null);
+  const handlePayDebt = (customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => {
+    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, debtAmount: c.debtAmount - amount, lastVisitedAt: new Date() } : c));
+    const newPayment: DebtPayment = {
+      id: crypto.randomUUID(),
+      customerId,
+      customerName: getCustomerName(customerId),
+      amountPaid: amount,
+      paidAt: new Date(),
+      paymentMethod
+    };
+    setDebtPayments(prev => [newPayment, ...prev]);
+    showNotification("Pagamento de dívida registrado!", "success");
+  };
 
-    // Effect to load data from localStorage on initial render
-    useEffect(() => {
+  const handleAddExpense = (description: string, amount: number) => {
+    const newExpense: Expense = {
+      id: crypto.randomUUID(),
+      description,
+      amount,
+      date: new Date()
+    };
+    setExpenses(prev => [newExpense, ...prev]);
+    showNotification("Despesa adicionada.", "success");
+  };
+  
+  const handleDeleteExpense = (expenseId: string) => {
+      setExpenses(prev => prev.filter(e => e.id !== expenseId));
+      showNotification("Despesa removida.", "success");
+  };
+
+  const renderView = () => {
+    switch(view) {
+      case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
+      case 'CLIENTES': return <ClientesView customers={customers} billings={billings} debtPayments={debtPayments} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
+      case 'COBRANCAS': return <CobrancasView billings={billings} />;
+      case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
+      case 'RELATORIOS': return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
+      case 'ROTAS': return <RotasView customers={customers} />;
+      case 'CONFIGURACOES': return <ConfiguracoesView onSeedData={seedData} onClearData={clearAllData} onExportData={exportData} onImportData={importData} />;
+      default: return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
+    }
+  };
+  
+  // --- Config Page Functions ---
+  const seedData = async () => {
+    if (window.confirm('Isso irá adicionar clientes padrão. Deseja continuar?')) {
+        setIsSaving(true);
         try {
-            const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (savedData) {
-                const parsedData = JSON.parse(savedData);
-                // Convert date strings back to Date objects
-                setAppData({
-                     ...parsedData,
-                     customers: parsedData.customers.map((c: any) => ({ ...c, createdAt: new Date(c.createdAt), lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null })),
-                     billings: parsedData.billings.map((b: any) => ({...b, settledAt: new Date(b.settledAt)})),
-                     expenses: parsedData.expenses.map((e: any) => ({...e, date: new Date(e.date)})),
-                     debtPayments: parsedData.debtPayments.map((p: any) => ({...p, paidAt: new Date(p.paidAt)}))
-                });
-            } else {
-                // --- Pre-populate with default customers for demonstration ---
-                const newCustomers: Customer[] = defaultCustomers.map((cust, index) => ({
+            const customersWithCoords = await Promise.all(defaultCustomers.map(async (cust) => {
+                const coords = await getCoordinatesForAddress(cust.endereco, cust.cidade);
+                return {
                     ...cust,
-                    id: `cust_default_${new Date().getTime()}_${index}`,
+                    id: crypto.randomUUID(),
                     createdAt: new Date(),
-                    latitude: null,
-                    longitude: null,
                     debtAmount: 0,
                     lastVisitedAt: null,
-                }));
-                
-                // Add some sample debt and visit history to showcase features
-                if(newCustomers.length > 3) {
-                    newCustomers[1].debtAmount = 75.50;
-                    newCustomers[3].debtAmount = 120.00;
-                    
-                    const yesterday = new Date();
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    newCustomers[0].lastVisitedAt = yesterday;
-                    
-                    const longTimeAgo = new Date();
-                    longTimeAgo.setDate(longTimeAgo.getDate() - 30);
-                    newCustomers[2].lastVisitedAt = longTimeAgo;
-                }
-
-                setAppData({
-                    customers: newCustomers,
-                    billings: [],
-                    expenses: [],
-                    debtPayments: []
-                });
-                setIsDataDirty(true);
-            }
+                    latitude: coords?.lat ?? null,
+                    longitude: coords?.lon ?? null,
+                };
+            }));
+            setCustomers(prev => [...prev, ...customersWithCoords]);
+            showNotification('Dados de exemplo carregados!', 'success');
         } catch (error) {
-            console.error("Failed to load or parse data from localStorage", error);
-            setAppData({ customers: [], billings: [], expenses: [], debtPayments: [] });
+            showNotification('Erro ao carregar dados de exemplo.', 'error');
+        } finally {
+            setIsSaving(false);
         }
-    }, []);
+    }
+  };
 
-    // Debounced save effect to localStorage
-    useEffect(() => {
-        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+  const clearAllData = () => {
+    if (window.confirm('TEM CERTEZA? Todos os clientes, cobranças e despesas serão apagados permanentemente.')) {
+        setCustomers([]);
+        setBillings([]);
+        setExpenses([]);
+        setDebtPayments([]);
+        showNotification('Todos os dados foram apagados.', 'success');
+    }
+  };
 
-        if (isDataDirty && appData) {
-            debounceTimeoutRef.current = window.setTimeout(() => {
-                try {
-                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(appData));
-                    setIsDataDirty(false); // Mark as clean after saving
-                } catch (error) {
-                    console.error("Failed to save data to localStorage", error);
-                }
-            }, 1000); // 1 second debounce
-        }
+  const exportData = () => {
+    const data = { customers, billings, expenses, debtPayments };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `montanha_bilhar_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('Backup exportado com sucesso!', 'success');
+  };
 
-        return () => {
-            if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-        };
-    }, [appData, isDataDirty]);
+  const importData = (file: File) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          try {
+              const data = JSON.parse(event.target?.result as string);
+              if (data.customers && data.billings && data.expenses && data.debtPayments) {
+                  setCustomers(data.customers);
+                  setBillings(data.billings);
+                  setExpenses(data.expenses);
+                  setDebtPayments(data.debtPayments);
+                  showNotification('Backup importado com sucesso!', 'success');
+              } else {
+                  showNotification('Arquivo de backup inválido.', 'error');
+              }
+          } catch (error) {
+              showNotification('Erro ao ler o arquivo de backup.', 'error');
+          }
+      };
+      reader.readAsText(file);
+  };
 
-    // Data manipulation functions
-    const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => {
-        if (!appData) return;
-        setIsSaving(true);
-        const fullAddress = `${customerData.endereco}, ${customerData.cidade}`;
-        const coords = await geocodeAddress(fullAddress);
-        const newCustomer: Customer = { ...customerData, id: `cust_${new Date().getTime()}`, createdAt: new Date(), debtAmount: 0, latitude: coords ? coords.lat : null, longitude: coords ? coords.lon : null, lastVisitedAt: null };
-        setAppData(prev => prev ? { ...prev, customers: [newCustomer, ...prev.customers] } : null);
-        setIsDataDirty(true);
-        setIsSaving(false);
-    };
+  if (!isInitialized) {
+    return <div className="bg-slate-900 text-white min-h-screen flex items-center justify-center">Carregando...</div>;
+  }
 
-    const handleDeleteCustomer = (customerId: string) => {
-        if (!appData) return;
-        setAppData(prev => prev ? {
-            ...prev,
-            customers: prev.customers.filter(c => c.id !== customerId),
-            billings: prev.billings.filter(b => b.customerId !== customerId),
-            debtPayments: prev.debtPayments.filter(p => p.customerId !== customerId)
-        } : null);
-        setIsDataDirty(true);
-    };
-    
-    const handleUpdateCustomer = async (updatedCustomer: Customer) => {
-        if (!appData) return;
-        setIsSaving(true);
-        const originalCustomer = appData.customers.find(c => c.id === updatedCustomer.id);
-        if (originalCustomer) {
-            const oldAddress = `${originalCustomer.endereco}, ${originalCustomer.cidade}`;
-            const newAddress = `${updatedCustomer.endereco}, ${updatedCustomer.cidade}`;
-            if (oldAddress.trim() !== newAddress.trim()) {
-                const coords = await geocodeAddress(newAddress);
-                updatedCustomer.latitude = coords ? coords.lat : null;
-                updatedCustomer.longitude = coords ? coords.lon : null;
-            }
-        }
-        setAppData(prev => prev ? { ...prev, customers: prev.customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c) } : null);
-        setIsDataDirty(true);
-        setIsSaving(false);
-    };
-    
-    const handleSettleBill = (data: { customerId: string; equipment: 'mesa' | 'jukebox'; relogioAtual: number; descontoPartidas: number; paymentMethod: 'pix' | 'dinheiro' | 'fiado'; }) => {
-        if (!appData) return;
-        const customer = appData.customers.find(c => c.id === data.customerId);
-        if (!customer) return;
-
-        let newBilling: Billing;
-        let newDebt = 0;
-        let valorBruto = 0;
-        
-        if (data.equipment === 'mesa') {
-            const relogioAnterior = customer.relogioMesaAnterior;
-            const partidasJogadas = data.relogioAtual - relogioAnterior;
-            const partidasCobradas = partidasJogadas - data.descontoPartidas;
-            valorBruto = partidasCobradas * customer.valorFicha;
-            const valorParteFirma = valorBruto * (customer.parteFirma / 100);
-            const valorParteCliente = valorBruto * (customer.parteCliente / 100);
-            newBilling = { id: `bill_${new Date().getTime()}`, customerId: customer.id, customerName: customer.name, equipment: 'mesa', relogioAnterior, relogioAtual: data.relogioAtual, partidasJogadas, descontoPartidas: data.descontoPartidas, partidasCobradas, valorFicha: customer.valorFicha, valorTotal: valorParteFirma, parteFirma: valorParteFirma, parteCliente: valorParteCliente, settledAt: new Date(), paymentMethod: data.paymentMethod };
-        } else { // Jukebox
-            const relogioAnterior = customer.relogioJukeboxAnterior;
-            valorBruto = data.relogioAtual - relogioAnterior; 
-            const valorParteFirma = valorBruto * (customer.porcentagemJukeboxFirma / 100);
-            const valorParteCliente = valorBruto * (customer.porcentagemJukeboxCliente / 100);
-            newBilling = { id: `bill_${new Date().getTime()}`, customerId: customer.id, customerName: customer.name, equipment: 'jukebox', relogioAnterior, relogioAtual: data.relogioAtual, partidasJogadas: 0, descontoPartidas: 0, partidasCobradas: valorBruto, valorTotal: valorParteFirma, parteFirma: valorParteFirma, parteCliente: valorParteCliente, settledAt: new Date(), paymentMethod: data.paymentMethod };
-        }
-
-        if (data.paymentMethod === 'fiado') newDebt = valorBruto;
-        
-        setAppData(prev => {
-            if (!prev) return null;
-            const updatedCustomers = prev.customers.map(c => {
-                if (c.id === data.customerId) {
-                    return {
-                        ...c,
-                        relogioMesaAnterior: data.equipment === 'mesa' ? data.relogioAtual : c.relogioMesaAnterior,
-                        relogioJukeboxAnterior: data.equipment === 'jukebox' ? data.relogioAtual : c.relogioJukeboxAnterior,
-                        debtAmount: c.debtAmount + newDebt,
-                        lastVisitedAt: new Date(),
-                    };
-                }
-                return c;
-            });
-            return { ...prev, customers: updatedCustomers, billings: [newBilling, ...prev.billings] };
-        });
-        setIsDataDirty(true);
-        setBillingToPrint(newBilling);
-    };
-
-    const handlePayDebt = (customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => {
-        if (!appData) return;
-        const customer = appData.customers.find(c => c.id === customerId);
-        if (!customer) return;
-        const newPayment: DebtPayment = { id: `debt_${new Date().getTime()}`, customerId, customerName: customer.name, amountPaid: amount, paidAt: new Date(), paymentMethod };
-        setAppData(prev => {
-            if (!prev) return null;
-            const updatedCustomers = prev.customers.map(c => c.id === customerId ? { ...c, debtAmount: c.debtAmount - amount } : c);
-            return { ...prev, customers: updatedCustomers, debtPayments: [newPayment, ...prev.debtPayments] };
-        });
-        setIsDataDirty(true);
-    };
-
-    const handleAddExpense = (expenseData: Omit<Expense, 'id'>) => {
-        if (!appData) return;
-        const newExpense: Expense = { ...expenseData, id: `exp_${new Date().getTime()}` };
-        setAppData(prev => prev ? { ...prev, expenses: [newExpense, ...prev.expenses] } : null);
-        setIsDataDirty(true);
-    };
-
-    const handleConfirmPrint = () => {
-        setBillingToPrint(null);
-    };
-
-    // --- Data Management Functions for Settings ---
-    const handleRestoreData = (newData: AppData) => {
-        // Revive dates after parsing
-        const revivedData = {
-             ...newData,
-             customers: newData.customers.map((c: any) => ({ ...c, createdAt: new Date(c.createdAt), lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null })),
-             billings: newData.billings.map((b: any) => ({...b, settledAt: new Date(b.settledAt)})),
-             expenses: newData.expenses.map((e: any) => ({...e, date: new Date(e.date)})),
-             debtPayments: newData.debtPayments.map((p: any) => ({...p, paidAt: new Date(p.paidAt)}))
-        };
-        setAppData(revivedData);
-        setIsDataDirty(true); // Mark as dirty to trigger save
-    };
-
-    const handleClearData = () => {
-        setAppData({ customers: [], billings: [], expenses: [], debtPayments: [] });
-        setIsDataDirty(true);
-    };
-
-    const renderView = () => {
-        if (!appData) return <LoadingScreen />;
-        const { customers, billings, expenses, debtPayments } = appData;
-
-        switch (view) {
-            case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
-            case 'CLIENTES': return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
-            case 'COBRANCAS': return <CobrancasView billings={billings} debtPayments={debtPayments} />;
-            case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} />;
-            case 'RELATORIOS': return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
-            case 'ROTAS': return <RotasView customers={customers} />;
-            case 'CONFIGURACOES': return <ConfiguracoesView appData={appData} onRestoreData={handleRestoreData} onClearData={handleClearData} />;
-            default: return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
-        }
-    };
-    
-    return (
-        <>
-            <div className="bg-slate-900 text-slate-100 min-h-screen flex flex-col md:flex-row">
-                <Sidebar currentView={view} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                <div className="flex-1 flex flex-col min-w-0">
-                    <MobileHeader onMenuClick={() => setIsSidebarOpen(true)} />
-                    <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-                        {appData ? renderView() : <LoadingScreen />}
-                    </main>
-                </div>
-            </div>
-            <ActionModal
-                isOpen={!!billingToPrint}
-                onClose={() => setBillingToPrint(null)}
-                onConfirm={handleConfirmPrint}
-                title="Impressão de Recibo"
-                confirmText="Imprimir"
-            ><p>Cobrança realizada com sucesso! Deseja imprimir o comprovante?</p></ActionModal>
-        </>
-    );
+  return (
+    <div className="bg-slate-900 text-white min-h-screen">
+      <div className="flex">
+        <Sidebar currentView={view} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+        <main className="flex-1 p-4 sm:p-8 md:ml-64 mb-16 md:mb-0">
+          <div className="max-w-7xl mx-auto">
+            {renderView()}
+          </div>
+        </main>
+      </div>
+      <BottomNavBar currentView={view} setView={setView} />
+      <Notification notification={notification} onClose={() => setNotification(null)} />
+    </div>
+  );
 };
 
 export default App;

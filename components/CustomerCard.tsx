@@ -1,24 +1,26 @@
-// components/CustomerCard.tsx
-import React, { useState } from 'react';
-import { Customer } from '../types';
-import BillingModal from './BillingModal';
-import ActionModal from './ActionModal';
-import DebtPaymentModal from './DebtPaymentModal';
-import EditCustomerModal from './EditCustomerModal';
-import { TrashIcon } from './icons/TrashIcon';
-import { CreditCardIcon } from './icons/CreditCardIcon';
-import { BilliardIcon } from './icons/BilliardIcon';
-import { JukeboxIcon } from './icons/JukeboxIcon';
-import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
-import { PencilIcon } from './icons/PencilIcon';
-import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
-import { WhatsAppIcon } from './icons/WhatsAppIcon';
-import { VisitedIcon } from './icons/VisitedIcon';
-import { NotVisitedIcon } from './icons/NotVisitedIcon';
 
+// components/CustomerCard.tsx
+import React, { useState, useMemo } from 'react';
+import { Customer, Billing, DebtPayment } from '../types';
+import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
+import { TrashIcon } from './icons/TrashIcon';
+import { PencilIcon } from './icons/PencilIcon';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
+import { HistoryIcon } from './icons/HistoryIcon';
+import { AlertIcon } from './icons/AlertIcon';
+import { RulerIcon } from './icons/RulerIcon';
+
+import BillingModal from './BillingModal';
+import DebtPaymentModal from './DebtPaymentModal';
+import ActionModal from './ActionModal';
+import EditCustomerModal from './EditCustomerModal';
+import HistoryModal from './HistoryModal';
 
 interface CustomerCardProps {
-  customer: Customer;
+  customer: Customer & { distance?: number };
+  billings: Billing[];
+  debtPayments: DebtPayment[];
   onSettleBill: (billingData: {
     customerId: string;
     equipment: 'mesa' | 'jukebox';
@@ -32,174 +34,102 @@ interface CustomerCardProps {
   isSaving: boolean;
 }
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onSettleBill, onDeleteCustomer, onPayDebt, onUpdateCustomer, isSaving }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPayments, onSettleBill, onDeleteCustomer, onPayDebt, onUpdateCustomer, isSaving }) => {
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  const handleConfirmDelete = () => {
-    onDeleteCustomer(customer.id);
-    setIsDeleteModalOpen(false);
-  };
-  
-  const handleConfirmSettle = (billingData: { equipment: 'mesa' | 'jukebox'; relogioAtual: number; descontoPartidas: number; paymentMethod: 'pix' | 'dinheiro' | 'fiado'; }) => {
-    onSettleBill({ ...billingData, customerId: customer.id });
+  const handleSettleBill = (data: Omit<Parameters<typeof onSettleBill>[0], 'customerId'>) => {
+    onSettleBill({ ...data, customerId: customer.id });
     setIsBillingModalOpen(false);
   };
-
-  const handleConfirmPayDebt = (amount: number, paymentMethod: 'pix' | 'dinheiro') => {
+  
+  const handlePayDebt = (amount: number, paymentMethod: 'pix' | 'dinheiro') => {
     onPayDebt(customer.id, amount, paymentMethod);
     setIsDebtModalOpen(false);
   };
 
-  const handleConfirmUpdate = async (updatedCustomer: Customer) => {
+  const handleDeleteCustomer = () => {
+    onDeleteCustomer(customer.id);
+    setIsDeleteModalOpen(false);
+  };
+  
+  const handleUpdateCustomer = async (updatedCustomer: Customer) => {
     await onUpdateCustomer(updatedCustomer);
     setIsEditModalOpen(false);
   };
 
-  // Helper for map URL
-  const fullAddress = `${customer.endereco}, ${customer.cidade}`;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
-
-  // Helper for WhatsApp URL
-  const sanitizePhoneNumber = (phone: string) => {
-      const digitsOnly = phone.replace(/\D/g, '');
-      if (digitsOnly.length <= 11) { // Assume DDD + Number for Brazil
-          return `55${digitsOnly}`;
-      }
-      return digitsOnly;
-  };
-  const whatsappUrl = `https://wa.me/${sanitizePhoneNumber(customer.telefone)}`;
-
-  // --- Visited Status Logic ---
   const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
-  const isVisitedRecently = customer.lastVisitedAt && (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) <= twentyFiveDaysInMs;
-  const visitedStatusTitle = isVisitedRecently 
-    ? `Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}` 
-    : "Visita pendente (mais de 25 dias)";
+  const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
+
+  const googleMapsUrl = customer.latitude && customer.longitude
+    ? `https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${customer.endereco}, ${customer.cidade}`)}`;
+
+  const whatsAppUrl = customer.telefone 
+    ? `https://wa.me/55${customer.telefone.replace(/\D/g, '')}`
+    : '';
 
   return (
     <>
-      <div className="bg-slate-800 rounded-lg shadow-xl border border-slate-700 overflow-hidden flex flex-col h-full">
+      <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col h-full transition-shadow hover:shadow-emerald-500/10">
         <div className="p-5 flex-grow">
-            <div className="flex justify-between items-start">
-                <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-white">{customer.name}</h3>
-                    <span title={visitedStatusTitle}>
-                      {isVisitedRecently ? <VisitedIcon className="w-5 h-5" /> : <NotVisitedIcon className="w-5 h-5" />}
-                    </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="text-slate-500 hover:text-cyan-400 transition-colors p-2 rounded-full flex-shrink-0"
-                    aria-label="Editar cliente"
-                  >
-                    <PencilIcon className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => setIsDeleteModalOpen(true)} 
-                    className="text-slate-500 hover:text-red-400 transition-colors p-2 rounded-full flex-shrink-0"
-                    aria-label="Deletar cliente"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
-                </div>
-            </div>
-            {customer.endereco && customer.cidade && (
-              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-400 hover:text-cyan-300 transition-colors inline-flex items-center gap-1.5 mt-1">
-                  <LocationMarkerIcon className="w-4 h-4" />
-                  <span>{fullAddress}</span>
-              </a>
-            )}
-            
+          <div className="flex justify-between items-start">
+            <h3 className="text-xl font-bold text-white mb-1">{customer.name}</h3>
+            {visitIsPending && <div className="flex-shrink-0 ml-2" title="Visita pendente há mais de 25 dias"><AlertIcon className="w-6 h-6 text-amber-400" /></div>}
+          </div>
+          <p className="text-sm text-slate-400 mb-4">{customer.endereco}</p>
+          
+          <div className="space-y-2 text-sm">
             {customer.debtAmount > 0 && (
-                <div className="mt-4 p-2.5 rounded-md bg-red-900/50 border border-red-700 text-center">
-                    <p className="text-sm text-red-300">Saldo Devedor</p>
-                    <p className="text-lg font-bold text-white font-mono">R$ {customer.debtAmount.toFixed(2)}</p>
+              <div className="flex items-center gap-2 text-red-400 font-bold">
+                <CurrencyDollarIcon className="w-5 h-5" />
+                <span>Dívida: R$ {customer.debtAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {customer.distance !== Infinity && customer.distance !== undefined && (
+                 <div className="flex items-center gap-2 text-sky-400">
+                    <RulerIcon className="w-5 h-5" />
+                    <span>Distância: {customer.distance.toFixed(1)} km</span>
                 </div>
             )}
-
-            <div className="mt-4 pt-4 border-t border-slate-700 space-y-3 text-sm">
-                 {customer.telefone && (
-                    <div className="flex items-center gap-3 text-slate-300">
-                        <WhatsAppIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-300 transition-colors font-mono">
-                            {customer.telefone}
-                        </a>
-                    </div>
-                 )}
-                 <div className="flex items-center gap-3 text-slate-300">
-                    <BilliardIcon className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-                    <div>
-                        <span>Mesa: <span className="font-semibold text-white">{customer.mesaNumero || 'N/A'}</span></span>
-                        <span className="text-slate-500 mx-1">/</span>
-                        <span>Últ. Leitura: <span className="font-mono text-cyan-400">{customer.relogioMesaAnterior}</span></span>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-3 text-slate-300">
-                    <JukeboxIcon className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-                    <div>
-                        <span>Jukebox: <span className="font-semibold text-white">{customer.jukeboxNumero || 'N/A'}</span></span>
-                        <span className="text-slate-500 mx-1">/</span>
-                        <span>Últ. Leitura: <span className="font-mono text-cyan-400">{customer.relogioJukeboxAnterior}</span></span>
-                    </div>
-                </div>
+             <div className="text-xs text-slate-500 pt-2">
+                Última Visita: {customer.lastVisitedAt ? new Date(customer.lastVisitedAt).toLocaleDateString('pt-BR') : 'Nenhuma'}
             </div>
+          </div>
         </div>
-        <div className="mt-auto bg-slate-800/50 p-4 border-t border-slate-700 space-y-2">
-           {customer.debtAmount > 0 && (
-              <button 
-                  onClick={() => setIsDebtModalOpen(true)}
-                  className="flex items-center justify-center gap-2 w-full bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500 transition-colors text-sm"
-              >
-                  <CurrencyDollarIcon className="w-4 h-4" />
-                  <span>Pagar Dívida</span>
-              </button>
-           )}
-          <button 
-              onClick={() => setIsBillingModalOpen(true)}
-              className="flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors text-sm"
-          >
-              <CreditCardIcon className="w-4 h-4" />
-              <span>Realizar Cobrança</span>
-          </button>
+
+        <div className="bg-slate-800/50 p-3 flex flex-wrap gap-2 justify-center border-t border-slate-700">
+            <button onClick={() => setIsBillingModalOpen(true)} className="flex-1 text-sm bg-emerald-600 text-white font-bold py-2 px-3 rounded-md hover:bg-emerald-500 transition-colors min-w-[120px]">Cobrança</button>
+            {customer.debtAmount > 0 && (
+                 <button onClick={() => setIsDebtModalOpen(true)} className="flex-1 text-sm bg-amber-600 text-white font-bold py-2 px-3 rounded-md hover:bg-amber-500 transition-colors min-w-[120px]">Pagar Dívida</button>
+            )}
+        </div>
+        
+        <div className="bg-slate-900/40 p-2 flex justify-around items-center rounded-b-lg">
+          <button onClick={() => setIsHistoryModalOpen(true)} title="Histórico" className="text-slate-400 hover:text-white"><HistoryIcon className="w-5 h-5" /></button>
+          <button onClick={() => setIsEditModalOpen(true)} title="Editar" className="text-slate-400 hover:text-white"><PencilIcon className="w-5 h-5" /></button>
+          {whatsAppUrl && <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="text-slate-400 hover:text-white"><WhatsAppIcon className="w-5 h-5" /></a>}
+          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" title="Ver no Mapa" className="text-slate-400 hover:text-white"><LocationMarkerIcon className="w-5 h-5" /></a>
+          <button onClick={() => setIsDeleteModalOpen(true)} title="Excluir" className="text-slate-400 hover:text-red-500"><TrashIcon className="w-5 h-5" /></button>
         </div>
       </div>
       
-      <BillingModal 
-        isOpen={isBillingModalOpen}
-        onClose={() => setIsBillingModalOpen(false)}
-        onConfirm={handleConfirmSettle}
-        customer={customer}
-      />
-      
-      <DebtPaymentModal
-        isOpen={isDebtModalOpen}
-        onClose={() => setIsDebtModalOpen(false)}
-        onConfirm={handleConfirmPayDebt}
-        customer={customer}
-      />
-
-      <EditCustomerModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onConfirm={handleConfirmUpdate}
-        customer={customer}
-        isSaving={isSaving}
-      />
-
+      {/* Modals */}
+      <BillingModal isOpen={isBillingModalOpen} onClose={() => setIsBillingModalOpen(false)} onConfirm={handleSettleBill} customer={customer} />
+      {customer.debtAmount > 0 && <DebtPaymentModal isOpen={isDebtModalOpen} onClose={() => setIsDebtModalOpen(false)} onConfirm={handlePayDebt} customer={customer} />}
+      <EditCustomerModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onConfirm={handleUpdateCustomer} customer={customer} isSaving={isSaving} />
+      <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} customer={customer} billings={billings} debtPayments={debtPayments} />
       <ActionModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleConfirmDelete}
-        title="Deletar Cliente"
-        confirmText="Deletar"
+        onConfirm={handleDeleteCustomer}
+        title="Confirmar Exclusão"
+        confirmText="Excluir"
       >
-        <p>
-            Tem certeza que deseja deletar <strong>{customer.name}</strong>? Esta ação é irreversível e removerá todo o histórico de cobranças e pagamentos.
-        </p>
+        <p>Tem certeza que deseja excluir o cliente <strong>{customer.name}</strong>? Esta ação não pode ser desfeita.</p>
       </ActionModal>
     </>
   );

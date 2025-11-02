@@ -1,0 +1,130 @@
+// components/HistoryModal.tsx
+import React, { useMemo } from 'react';
+import { Customer, Billing, DebtPayment } from '../types';
+import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
+import { ReceiptIcon } from './icons/ReceiptIcon';
+
+interface HistoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  customer: Customer;
+  billings: Billing[];
+  debtPayments: DebtPayment[];
+}
+
+type HistoryItem = {
+    id: string;
+    date: Date;
+    type: 'billing' | 'payment';
+    description: string;
+    amount: number;
+    paymentMethod?: 'pix' | 'dinheiro' | 'fiado';
+};
+
+const PaymentMethodDisplay = ({ method }: { method: 'pix' | 'dinheiro' | 'fiado' }) => {
+    const styles = {
+        pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
+        dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
+        fiado: 'bg-amber-900/50 text-amber-300 border-amber-600',
+    };
+    const text = {
+        pix: 'PIX',
+        dinheiro: 'Dinheiro',
+        fiado: 'Fiado',
+    };
+
+    return (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
+            {text[method]}
+        </span>
+    );
+};
+
+
+const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, billings, debtPayments }) => {
+    
+    const historyItems = useMemo(() => {
+        const customerBillings: HistoryItem[] = billings
+            .filter(b => b.customerId === customer.id)
+            .map(b => ({
+                id: b.id,
+                date: new Date(b.settledAt),
+                type: 'billing',
+                description: `Cobrança - ${b.equipment === 'mesa' ? 'Mesa' : 'Jukebox'}`,
+                amount: b.valorTotal,
+                paymentMethod: b.paymentMethod,
+            }));
+
+        const customerPayments: HistoryItem[] = debtPayments
+            .filter(p => p.customerId === customer.id)
+            .map(p => ({
+                id: p.id,
+                date: new Date(p.paidAt),
+                type: 'payment',
+                description: 'Pagamento de Dívida',
+                amount: p.amountPaid,
+                paymentMethod: p.paymentMethod,
+            }));
+
+        return [...customerBillings, ...customerPayments].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    }, [customer, billings, debtPayments]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-slate-700">
+                    <h2 className="text-2xl font-bold text-white">Histórico do Cliente</h2>
+                    <p className="text-slate-400">{customer.name}</p>
+                </div>
+                <div className="p-6 overflow-y-auto">
+                    {historyItems.length > 0 ? (
+                        <ul className="space-y-4">
+                            {historyItems.map(item => (
+                                <li key={item.id} className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                                    <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${item.type === 'billing' ? 'bg-cyan-900/50' : 'bg-emerald-900/50'}`}>
+                                        {item.type === 'billing' 
+                                            ? <ReceiptIcon className="w-5 h-5 text-cyan-400" />
+                                            : <CurrencyDollarIcon className="w-5 h-5 text-emerald-400" />
+                                        }
+                                    </div>
+                                    <div className="flex-grow">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-semibold text-white">{item.description}</p>
+                                                <p className="text-sm text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
+                                            </div>
+                                            <p className={`font-mono font-bold text-lg ${item.type === 'billing' ? 'text-cyan-300' : 'text-emerald-300'}`}>
+                                                R$ {item.amount.toFixed(2)}
+                                            </p>
+                                        </div>
+                                        {item.paymentMethod && (
+                                            <div className="mt-2">
+                                                <PaymentMethodDisplay method={item.paymentMethod} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <div className="text-center py-12 text-slate-400">
+                            <p>Nenhuma transação registrada para este cliente.</p>
+                        </div>
+                    )}
+                </div>
+                <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-700">
+                    <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Fechar</button>
+                </div>
+            </div>
+            <style>{`
+                @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
+            `}</style>
+        </div>
+    );
+};
+
+export default HistoryModal;

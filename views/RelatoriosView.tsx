@@ -1,4 +1,3 @@
-
 // views/RelatoriosView.tsx
 import React, { useState, useMemo } from 'react';
 import { Billing, Customer, DebtPayment, Expense } from '../types';
@@ -284,7 +283,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   };
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-start mb-8">
         <PageHeader 
           title="Relatórios"
