@@ -10,7 +10,7 @@ export enum AuthStatus {
 }
 
 const API_KEY = 'AIzaSyDiSMwt9hwZrE0Jvt_OGDnxyxWdADupvj8';
-const CLIENT_ID: string = '998744714177-bvvgdulte02cjkg5ijtm19udthuvcjm8.apps.googleusercontent.com';
+const CLIENT_ID: string = '9987447177-bvvgdulte02cjkg5ijtm19udthuvcjm8.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 const FILENAME = 'montanha_bilhar_data.json';
 const API_TIMEOUT_MS = 8000; // 8 seconds
