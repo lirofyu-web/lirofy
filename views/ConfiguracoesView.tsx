@@ -44,6 +44,8 @@ const useGoogleDriveSync = () => {
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     const FILENAME = 'montanha_bilhar_data.json';
 
+    const isConfigured = CLIENT_ID && CLIENT_ID !== 'YOUR_GOOGLE_DRIVE_CLIENT_ID';
+
     useEffect(() => {
         const gapiUrl = 'https://apis.google.com/js/api.js';
         const gisUrl = 'https://accounts.google.com/gsi/client';
@@ -77,7 +79,7 @@ const useGoogleDriveSync = () => {
     }, []);
     
     useEffect(() => {
-        if (gapi && (window as any).google?.accounts?.oauth2 && CLIENT_ID !== 'YOUR_GOOGLE_DRIVE_CLIENT_ID') {
+        if (gapi && (window as any).google?.accounts?.oauth2 && isConfigured) {
             gapi.client.init({
                 apiKey: API_KEY,
                 discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
@@ -100,14 +102,17 @@ const useGoogleDriveSync = () => {
                 });
                 setTokenClient(client);
                 setStatus('READY');
+                // Attempt a silent sign-in on load
+                client.requestAccessToken({ prompt: '' });
             }).catch(() => setStatus('ERROR'));
-        } else if (CLIENT_ID === 'YOUR_GOOGLE_DRIVE_CLIENT_ID') {
+        } else if (!isConfigured) {
             setStatus('READY'); 
         }
-    }, [gapi, API_KEY, CLIENT_ID]);
+    }, [gapi, API_KEY, CLIENT_ID, isConfigured]);
 
     const signIn = () => {
         if (!tokenClient) return;
+        // Force consent screen for explicit sign-in
         tokenClient.requestAccessToken({ prompt: 'consent' });
     };
 
@@ -191,7 +196,7 @@ const useGoogleDriveSync = () => {
         }
     };
 
-    return { signIn, signOut, loadFile, saveFile, isSignedIn, userProfile, status, isConfigured: CLIENT_ID && CLIENT_ID !== 'YOUR_GOOGLE_DRIVE_CLIENT_ID' };
+    return { signIn, signOut, loadFile, saveFile, isSignedIn, userProfile, status, isConfigured };
 };
 
 // --- Helper Components ---
@@ -375,7 +380,7 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({ appData, onRestor
 
             <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
                 <h3 className="text-xl font-semibold text-white mb-4">Sincronização com Google Drive</h3>
-                {status === 'LOADING' && <p className="text-slate-400">Iniciando serviço de sincronização...</p>}
+                {status === 'LOADING' && <p className="text-slate-400">Verificando autenticação...</p>}
                 {status === 'ERROR' && <p className="text-red-400">Erro ao iniciar a API do Google. Verifique sua conexão e as configurações.</p>}
                 
                 {status === 'READY' && (
