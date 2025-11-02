@@ -1,3 +1,4 @@
+
 // views/DashboardView.tsx
 import React, { useMemo, useState } from 'react';
 import { Customer, Billing, Expense, DebtPayment } from '../types';
@@ -14,11 +15,58 @@ interface DashboardViewProps {
   debtPayments: DebtPayment[];
 }
 
-// FIX: Define a separate interface for InfoCard props for better readability and to resolve potential tooling errors.
+// --- Sub-components (moved outside for performance and best practices) ---
+
+interface DateFilterProps {
+    currentDate: Date;
+    onMonthChange: (month: number) => void;
+    onYearChange: (year: number) => void;
+}
+const DateFilter: React.FC<DateFilterProps> = ({ currentDate, onMonthChange, onYearChange }) => {
+    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+    return (
+        <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-wrap items-center gap-4">
+            <h3 className="text-lg font-semibold text-white">Período de Análise:</h3>
+            <select value={currentDate.getMonth()} onChange={(e) => onMonthChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                {monthNames.map((month, index) => <option key={month} value={index}>{month}</option>)}
+            </select>
+            <select value={currentDate.getFullYear()} onChange={(e) => onYearChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                {years.map(year => <option key={year} value={year}>{year}</option>)}
+            </select>
+        </div>
+    );
+};
+
 interface InfoCardProps {
     title: string;
     children: React.ReactNode;
 }
+const InfoCard: React.FC<InfoCardProps> = ({ title, children }) => (
+    <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 h-full">
+        <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-3">{title}</h3>
+        <dl className="space-y-3">
+            {children}
+        </dl>
+    </div>
+);
+
+interface InfoRowProps {
+    label: string;
+    value: string;
+    valueColor?: string;
+}
+const InfoRow: React.FC<InfoRowProps> = ({ label, value, valueColor = 'text-slate-300' }) => (
+    <div className="flex justify-between items-baseline">
+        <dt className="text-slate-400">{label}</dt>
+        <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
+    </div>
+);
+
+
+// --- Main View Component ---
 
 const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -76,39 +124,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             customersCount: customers.length
         };
     }, [billings, expenses, customers, debtPayments, currentDate]);
-
+    
     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
-
-    const DateFilter = () => (
-      <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-wrap items-center gap-4">
-        <h3 className="text-lg font-semibold text-white">Período de Análise:</h3>
-        <select value={currentDate.getMonth()} onChange={(e) => handleMonthChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-          {monthNames.map((month, index) => <option key={month} value={index}>{month}</option>)}
-        </select>
-        <select value={currentDate.getFullYear()} onChange={(e) => handleYearChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-           {years.map(year => <option key={year} value={year}>{year}</option>)}
-        </select>
-      </div>
-    );
-    
-    // FIX: Switched to using React.FC with the dedicated props interface to fix the type errors.
-    const InfoCard: React.FC<InfoCardProps> = ({ title, children }) => (
-        <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 h-full">
-            <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-3">{title}</h3>
-            <dl className="space-y-3">
-                {children}
-            </dl>
-        </div>
-    );
-    
-    const InfoRow = ({ label, value, valueColor = 'text-slate-300' }: { label: string, value: string, valueColor?: string }) => (
-        <div className="flex justify-between items-baseline">
-            <dt className="text-slate-400">{label}</dt>
-            <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
-        </div>
-    );
 
     return (
         <div>
@@ -117,7 +134,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 subtitle="Visão geral e desempenho do seu negócio."
             />
             
-            <DateFilter />
+            <DateFilter 
+                currentDate={currentDate}
+                onMonthChange={handleMonthChange}
+                onYearChange={handleYearChange}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                 <InfoCard title={`Resumo de Caixa (${monthNames[currentDate.getMonth()]})`}>

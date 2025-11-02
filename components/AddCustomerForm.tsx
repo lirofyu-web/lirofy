@@ -1,5 +1,5 @@
 // components/AddCustomerForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Customer } from '../types';
 import CityAutocomplete from './CityAutocomplete';
 import { PlusIcon } from './icons/PlusIcon';
@@ -31,19 +31,37 @@ const initialFormState = {
     assinaturaCliente: '',
 };
 
+// Extracted the FormField component to prevent it from being redefined on every render,
+// which was causing the input to lose focus and the mobile keyboard to disappear.
+const FormField: React.FC<{ 
+  label: string; 
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string; 
+  required?: boolean; 
+  step?: string;
+  children?: React.ReactNode;
+}> = ({ label, name, value, onChange, type = 'text', required = false, step, children }) => (
+    <div>
+        <label htmlFor={name} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
+        {children || <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />}
+    </div>
+);
+
 
 const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSaving }) => {
   const [formData, setFormData] = useState(initialFormState);
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  }, []);
 
-  const handleCityChange = (value: string) => {
+  const handleCityChange = useCallback((value: string) => {
     setFormData(prev => ({ ...prev, cidade: value }));
-  }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,13 +79,6 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
     setIsOpen(false);
   };
   
-  const FormField: React.FC<{ label: string; name: keyof typeof initialFormState; type?: string; required?: boolean; step?: string, children?: React.ReactNode}> = ({ label, name, type = 'text', required = false, step, children }) => (
-    <div>
-        <label htmlFor={name} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        {children || <input type={type} id={name} name={name} value={formData[name]} onChange={handleChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />}
-    </div>
-  );
-
 
   if (!isOpen) {
     return (
@@ -90,40 +101,40 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
             <div className="lg:col-span-3">
                 <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4">Informações do Cliente</h3>
             </div>
-            <FormField label="Nome Completo" name="name" required />
-            <FormField label="CPF/RG" name="cpfRg" />
-            <FormField label="Telefone" name="telefone" />
-            <FormField label="Endereço" name="endereco" />
+            <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleChange} />
+            <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleChange} />
+            <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleChange} />
+            <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleChange} />
             <div>
                  <label htmlFor="cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
                  <CityAutocomplete id="cidade" value={formData.cidade} onChange={handleCityChange} required />
             </div>
-            <FormField label="Número da Linha/Rota" name="linhaNumero" />
+            <FormField label="Número da Linha/Rota" name="linhaNumero" value={formData.linhaNumero} onChange={handleChange} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 pt-4 border-t border-slate-700">
              <div>
                 <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4 md:col-span-2">Mesa de Sinuca</h3>
                 <div className="space-y-4">
-                    <FormField label="Número da Mesa" name="mesaNumero" />
-                    <FormField label="Número do Relógio da Mesa" name="relogioMesaNumero" />
-                    <FormField label="Leitura Anterior (Mesa)" name="relogioMesaAnterior" type="number" />
-                    <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" />
+                    <FormField label="Número da Mesa" name="mesaNumero" value={formData.mesaNumero} onChange={handleChange} />
+                    <FormField label="Número do Relógio da Mesa" name="relogioMesaNumero" value={formData.relogioMesaNumero} onChange={handleChange} />
+                    <FormField label="Leitura Anterior (Mesa)" name="relogioMesaAnterior" type="number" value={formData.relogioMesaAnterior} onChange={handleChange} />
+                    <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={formData.valorFicha} onChange={handleChange} />
                     <div className="grid grid-cols-2 gap-4">
-                        <FormField label="Parte da Firma (%)" name="parteFirma" type="number" />
-                        <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" />
+                        <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={formData.parteFirma} onChange={handleChange} />
+                        <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={formData.parteCliente} onChange={handleChange} />
                     </div>
                 </div>
             </div>
             <div>
                 <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4 md:col-span-2">Jukebox</h3>
                 <div className="space-y-4">
-                    <FormField label="Número da Jukebox" name="jukeboxNumero" />
-                    <FormField label="Número do Relógio da Jukebox" name="relogioJukeboxNumero" />
-                    <FormField label="Leitura Anterior (Jukebox)" name="relogioJukeboxAnterior" type="number" />
+                    <FormField label="Número da Jukebox" name="jukeboxNumero" value={formData.jukeboxNumero} onChange={handleChange} />
+                    <FormField label="Número do Relógio da Jukebox" name="relogioJukeboxNumero" value={formData.relogioJukeboxNumero} onChange={handleChange} />
+                    <FormField label="Leitura Anterior (Jukebox)" name="relogioJukeboxAnterior" type="number" value={formData.relogioJukeboxAnterior} onChange={handleChange} />
                     <div className="grid grid-cols-2 gap-4">
-                        <FormField label="% da Firma (Jukebox)" name="porcentagemJukeboxFirma" type="number" />
-                        <FormField label="% do Cliente (Jukebox)" name="porcentagemJukeboxCliente" type="number" />
+                        <FormField label="% da Firma (Jukebox)" name="porcentagemJukeboxFirma" type="number" value={formData.porcentagemJukeboxFirma} onChange={handleChange} />
+                        <FormField label="% do Cliente (Jukebox)" name="porcentagemJukeboxCliente" type="number" value={formData.porcentagemJukeboxCliente} onChange={handleChange} />
                     </div>
                 </div>
             </div>

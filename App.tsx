@@ -91,6 +91,7 @@ const App: React.FC = () => {
     const [expenses, setExpenses] = useState<Expense[]>(initialData.expenses);
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>(initialData.debtPayments);
     const [billingToPrint, setBillingToPrint] = useState<Billing | null>(null);
+    const [isDataDirty, setIsDataDirty] = useState(false); // For Google Drive Sync
 
     useEffect(() => {
         // This effect runs once on mount to geocode any initial customers that don't have coordinates.
@@ -152,6 +153,7 @@ const App: React.FC = () => {
             lastVisitedAt: null,
         };
         setCustomers(prev => [newCustomer, ...prev]);
+        setIsDataDirty(true);
         setIsSaving(false);
     };
 
@@ -159,6 +161,7 @@ const App: React.FC = () => {
         setCustomers(prev => prev.filter(c => c.id !== customerId));
         setBillings(prev => prev.filter(b => b.customerId !== customerId));
         setDebtPayments(prev => prev.filter(p => p.customerId !== customerId));
+        setIsDataDirty(true);
     };
     
     const handleUpdateCustomer = async (updatedCustomer: Customer) => {
@@ -181,6 +184,7 @@ const App: React.FC = () => {
         setCustomers(prev => prev.map(c => 
             c.id === updatedCustomer.id ? updatedCustomer : c
         ));
+        setIsDataDirty(true);
         setIsSaving(false);
     };
 
@@ -314,6 +318,7 @@ const App: React.FC = () => {
         }
         
         setBillings(prev => [newBilling, ...prev]);
+        setIsDataDirty(true);
         setBillingToPrint(newBilling);
     };
 
@@ -334,6 +339,7 @@ const App: React.FC = () => {
         setCustomers(prev => prev.map(c => 
             c.id === customerId ? { ...c, debtAmount: c.debtAmount - amount } : c
         ));
+        setIsDataDirty(true);
     };
 
     const handleAddExpense = (expenseData: Omit<Expense, 'id'>) => {
@@ -342,6 +348,26 @@ const App: React.FC = () => {
             id: `exp_${new Date().getTime()}`
         };
         setExpenses(prev => [newExpense, ...prev]);
+        setIsDataDirty(true);
+    };
+
+    const handleDataRestore = (data: { customers: Customer[], billings: Billing[], expenses: Expense[], debtPayments: DebtPayment[] }) => {
+        const confirmation = window.confirm(
+            "ATENÇÃO: Restaurar este backup substituirá TODOS os dados locais. Esta ação não pode ser desfeita. Deseja continuar?"
+        );
+
+        if (confirmation) {
+            setCustomers(data.customers.map((c: any) => ({
+                ...c,
+                createdAt: new Date(c.createdAt),
+                lastVisitedAt: c.lastVisitedAt ? new Date(c.lastVisitedAt) : null,
+            })));
+            setBillings(data.billings.map((b: any) => ({...b, settledAt: new Date(b.settledAt)})));
+            setExpenses(data.expenses.map((e: any) => ({...e, date: new Date(e.date)})));
+            setDebtPayments(data.debtPayments.map((p: any) => ({...p, paidAt: new Date(p.paidAt)})));
+            setIsDataDirty(false); // Data is now in sync with the source
+            alert("Dados restaurados com sucesso a partir do Google Drive!");
+        }
     };
 
     const renderView = () => {
@@ -359,7 +385,12 @@ const App: React.FC = () => {
             case 'ROTAS':
                 return <RotasView customers={customers} />;
             case 'CONFIGURACOES':
-                return <ConfiguracoesView />;
+                return <ConfiguracoesView 
+                            appData={{ customers, billings, expenses, debtPayments }}
+                            onRestore={handleDataRestore}
+                            isDataDirty={isDataDirty}
+                            onSyncComplete={() => setIsDataDirty(false)}
+                        />;
             default:
                 return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
         }

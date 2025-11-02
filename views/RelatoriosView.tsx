@@ -1,3 +1,4 @@
+
 // views/RelatoriosView.tsx
 import React, { useState, useMemo } from 'react';
 import { Billing, Customer, DebtPayment, Expense } from '../types';
@@ -10,6 +11,35 @@ interface RelatoriosViewProps {
   expenses: Expense[];
   debtPayments: DebtPayment[];
 }
+
+// --- Sub-components (moved outside for performance and best practices) ---
+
+interface InfoCardProps {
+    title: string;
+    children: React.ReactNode;
+}
+const InfoCard: React.FC<InfoCardProps> = ({ title, children }) => (
+    <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 h-full">
+        <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-3">{title}</h3>
+        <dl className="space-y-3">
+            {children}
+        </dl>
+    </div>
+);
+
+interface InfoRowProps {
+    label: string;
+    value: string;
+    valueColor?: string;
+}
+const InfoRow: React.FC<InfoRowProps> = ({ label, value, valueColor = 'text-slate-300' }) => (
+    <div className="flex justify-between items-baseline">
+        <dt className="text-slate-400">{label}</dt>
+        <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
+    </div>
+);
+
+// --- Main View Component ---
 
 const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, expenses, debtPayments }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -252,22 +282,6 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         printWindow.close();
     }
   };
-
-  const InfoCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 h-full">
-        <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-3">{title}</h3>
-        <dl className="space-y-3">
-            {children}
-        </dl>
-    </div>
-  );
-    
-  const InfoRow = ({ label, value, valueColor = 'text-slate-300' }: { label: string, value: string, valueColor?: string }) => (
-      <div className="flex justify-between items-baseline">
-          <dt className="text-slate-400">{label}</dt>
-          <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
-      </div>
-  );
 
   return (
     <div>
