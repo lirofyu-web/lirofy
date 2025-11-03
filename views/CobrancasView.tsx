@@ -1,5 +1,5 @@
 // views/CobrancasView.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Billing } from '../types';
 import PageHeader from '../components/PageHeader';
 import { SearchIcon } from '../components/icons/SearchIcon';
@@ -15,6 +15,25 @@ type SortKey = 'settledAt' | 'customerName' | 'valorTotal';
 type SortDirection = 'asc' | 'desc';
 type Filter = 'all' | 'mesa' | 'jukebox';
 
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> = React.memo(({ method }) => {
+    const styles = {
+        pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
+        dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
+        fiado: 'bg-amber-900/50 text-amber-300 border-amber-600',
+    };
+    const text = {
+        pix: 'PIX',
+        dinheiro: 'Dinheiro',
+        fiado: 'Fiado',
+    };
+
+    return (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
+            {text[method]}
+        </span>
+    );
+});
+
 const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, onShowReceipt }) => {
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -24,7 +43,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, onShowReceipt }
     const filteredBillings = useMemo(() => {
         return billings
             .filter(billing => {
-                if (equipmentFilter !== 'all' && billing.equipment !== equipmentFilter) {
+                if (equipmentFilter !== 'all' && billing.equipmentType !== equipmentFilter) {
                     return false;
                 }
                 if (searchQuery && !billing.customerName.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -53,14 +72,14 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, onShowReceipt }
         });
     }, [filteredBillings, sortKey, sortDirection]);
 
-    const handleSort = (key: SortKey) => {
+    const handleSort = useCallback((key: SortKey) => {
         if (sortKey === key) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
         } else {
             setSortKey(key);
             setSortDirection('desc');
         }
-    };
+    }, [sortKey]);
     
     const renderSortArrow = (key: SortKey) => {
         if (sortKey !== key) return null;
@@ -68,25 +87,6 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, onShowReceipt }
     };
 
     const totalBilled = useMemo(() => sortedBillings.reduce((sum, b) => sum + b.valorTotal, 0), [sortedBillings]);
-    
-    const PaymentMethodDisplay = ({ method }: { method: 'pix' | 'dinheiro' | 'fiado' }) => {
-        const styles = {
-            pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
-            dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
-            fiado: 'bg-amber-900/50 text-amber-300 border-amber-600',
-        };
-        const text = {
-            pix: 'PIX',
-            dinheiro: 'Dinheiro',
-            fiado: 'Fiado',
-        };
-
-        return (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
-                {text[method]}
-            </span>
-        );
-    };
 
     return (
         <>
@@ -132,8 +132,8 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, onShowReceipt }
                                     <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{billing.customerName}</td>
                                     <td className="px-6 py-4">
                                         <span className="flex items-center gap-2">
-                                            {billing.equipment === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-400" /> : <JukeboxIcon className="w-4 h-4 text-fuchsia-400" />}
-                                            {billing.equipment === 'mesa' ? 'Mesa' : 'Jukebox'}
+                                            {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-400" /> : <JukeboxIcon className="w-4 h-4 text-fuchsia-400" />}
+                                            {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : `Jukebox ${billing.equipmentNumero}`}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">

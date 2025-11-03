@@ -1,7 +1,8 @@
 // components/EditCustomerModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Customer } from '../types';
+import { Customer, Equipment } from '../types';
 import CityAutocomplete from './CityAutocomplete';
+import { TrashIcon } from './icons/TrashIcon';
 
 interface EditCustomerModalProps {
   isOpen: boolean;
@@ -11,103 +12,94 @@ interface EditCustomerModalProps {
   isSaving: boolean;
 }
 
-// A version of the Customer type where number fields can be strings for the form state
-type CustomerFormState = Omit<Customer, 'relogioMesaAnterior' | 'valorFicha' | 'parteFirma' | 'parteCliente' | 'relogioJukeboxAnterior' | 'porcentagemJukeboxFirma' | 'porcentagemJukeboxCliente'> & {
-    relogioMesaAnterior: string;
-    valorFicha: string;
-    parteFirma: string;
-    parteCliente: string;
-    relogioJukeboxAnterior: string;
-    porcentagemJukeboxFirma: string;
-    porcentagemJukeboxCliente: string;
-};
-
-
-// FIX: Moved FormField outside the EditCustomerModal component.
 const FormField: React.FC<{ 
   label: string; 
-  name: keyof CustomerFormState;
-  value: any;
+  name: string;
+  value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string; 
   required?: boolean; 
   step?: string;
-  children?: React.ReactNode;
-}> = ({ label, name, value, onChange, type = 'text', required = false, step, children }) => (
+}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step }) => (
     <div>
         <label htmlFor={`edit-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        {children || <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />}
+        <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
-);
+));
 
 
 const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, isSaving }) => {
-  const [formData, setFormData] = useState<CustomerFormState>({
-      ...customer,
-      relogioMesaAnterior: String(customer.relogioMesaAnterior),
-      valorFicha: String(customer.valorFicha),
-      parteFirma: String(customer.parteFirma),
-      parteCliente: String(customer.parteCliente),
-      relogioJukeboxAnterior: String(customer.relogioJukeboxAnterior),
-      porcentagemJukeboxFirma: String(customer.porcentagemJukeboxFirma),
-      porcentagemJukeboxCliente: String(customer.porcentagemJukeboxCliente),
-  });
+  const [formData, setFormData] = useState<Omit<Customer, 'equipment'> & { equipment: Partial<Equipment>[] }>(customer);
 
   useEffect(() => {
-    setFormData({
-        ...customer,
-        relogioMesaAnterior: String(customer.relogioMesaAnterior),
-        valorFicha: String(customer.valorFicha),
-        parteFirma: String(customer.parteFirma),
-        parteCliente: String(customer.parteCliente),
-        relogioJukeboxAnterior: String(customer.relogioJukeboxAnterior),
-        porcentagemJukeboxFirma: String(customer.porcentagemJukeboxFirma),
-        porcentagemJukeboxCliente: String(customer.porcentagemJukeboxCliente),
-    });
+    if (isOpen) {
+        setFormData(customer);
+    }
   }, [customer, isOpen]);
   
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBaseChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
-    setFormData(prev => {
-        const newState = { ...prev, [name]: value };
-        const numericValue = parseInt(value, 10);
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
 
+  const handleEquipmentChange = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => {
+        const newEquipment = [...prev.equipment];
+        const currentItem = { ...newEquipment[index], [name]: value };
+        
+        const numericValue = parseInt(value, 10);
         if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
             const remaining = String(100 - numericValue);
             if (name === 'parteFirma') {
-                newState.parteCliente = remaining;
+                currentItem.parteCliente = remaining;
             } else if (name === 'parteCliente') {
-                newState.parteFirma = remaining;
+                currentItem.parteFirma = remaining;
             } else if (name === 'porcentagemJukeboxFirma') {
-                newState.porcentagemJukeboxCliente = remaining;
+                currentItem.porcentagemJukeboxCliente = remaining;
             } else if (name === 'porcentagemJukeboxCliente') {
-                newState.porcentagemJukeboxFirma = remaining;
+                currentItem.porcentagemJukeboxFirma = remaining;
             }
         }
-        return newState;
+
+        newEquipment[index] = currentItem;
+        return { ...prev, equipment: newEquipment };
     });
+  }, []);
+
+  const addEquipment = useCallback((type: 'mesa' | 'jukebox') => {
+      const newEquipment: Partial<Equipment> = type === 'mesa'
+        ? { id: `new_${new Date().getTime()}`, type: 'mesa', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2.00, parteFirma: 50, parteCliente: 50 }
+        : { id: `new_${new Date().getTime()}`, type: 'jukebox', numero: '', relogioNumero: '', relogioAnterior: 0, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
+      setFormData(prev => ({...prev, equipment: [...prev.equipment, newEquipment]}));
+  }, []);
+
+  const removeEquipment = useCallback((index: number) => {
+    setFormData(prev => ({...prev, equipment: prev.equipment.filter((_, i) => i !== index)}));
   }, []);
 
   const handleCityChange = useCallback((value: string) => {
     setFormData(prev => ({ ...prev, cidade: value }));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    // Parse string values back to numbers before confirming
-    const customerToSave: Customer = {
-        ...formData,
-        relogioMesaAnterior: parseInt(formData.relogioMesaAnterior, 10) || 0,
-        valorFicha: parseFloat(formData.valorFicha) || 0,
-        parteFirma: parseInt(formData.parteFirma, 10) || 0,
-        parteCliente: parseInt(formData.parteCliente, 10) || 0,
-        relogioJukeboxAnterior: parseInt(formData.relogioJukeboxAnterior, 10) || 0,
-        porcentagemJukeboxFirma: parseInt(formData.porcentagemJukeboxFirma, 10) || 0,
-        porcentagemJukeboxCliente: parseInt(formData.porcentagemJukeboxCliente, 10) || 0,
-    };
-    await onConfirm(customerToSave);
-  };
+    const finalEquipment = formData.equipment.map(e => ({
+        ...e,
+        id: e.id!,
+        type: e.type!,
+        numero: e.numero || '',
+        relogioNumero: e.relogioNumero || '',
+        relogioAnterior: Number(e.relogioAnterior) || 0,
+        valorFicha: Number(e.valorFicha) || 0,
+        parteFirma: Number(e.parteFirma) || 0,
+        parteCliente: Number(e.parteCliente) || 0,
+        porcentagemJukeboxFirma: Number(e.porcentagemJukeboxFirma) || 0,
+        porcentagemJukeboxCliente: Number(e.porcentagemJukeboxCliente) || 0,
+    }));
+    
+    await onConfirm({ ...formData, equipment: finalEquipment as Equipment[] });
+  }, [formData, onConfirm]);
   
   if (!isOpen) return null;
 
@@ -128,44 +120,54 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
               <div className="lg:col-span-3">
                   <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4">Informações do Cliente</h3>
               </div>
-              <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleChange} />
-              <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleChange}/>
-              <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleChange}/>
-              <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleChange}/>
+              <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} />
+              <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange}/>
+              <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange}/>
+              <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleBaseChange}/>
               <div>
                    <label htmlFor="edit-cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
                    <CityAutocomplete id="edit-cidade" value={formData.cidade} onChange={handleCityChange} required />
               </div>
-              <FormField label="Número da Linha/Rota" name="linhaNumero" value={formData.linhaNumero} onChange={handleChange}/>
+              <FormField label="Número da Linha/Rota" name="linhaNumero" value={formData.linhaNumero} onChange={handleBaseChange}/>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 pt-4 border-t border-slate-700">
-               <div>
-                  <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4">Mesa de Sinuca</h3>
-                  <div className="space-y-4">
-                      <FormField label="Número da Mesa" name="mesaNumero" value={formData.mesaNumero} onChange={handleChange}/>
-                      <FormField label="Número do Relógio da Mesa" name="relogioMesaNumero" value={formData.relogioMesaNumero} onChange={handleChange}/>
-                      <FormField label="Leitura Anterior (Mesa)" name="relogioMesaAnterior" type="number" value={formData.relogioMesaAnterior} onChange={handleChange}/>
-                      <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={formData.valorFicha} onChange={handleChange}/>
-                      <div className="grid grid-cols-2 gap-4">
-                          <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={formData.parteFirma} onChange={handleChange}/>
-                          <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={formData.parteCliente} onChange={handleChange}/>
-                      </div>
-                  </div>
-              </div>
-              <div>
-                  <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4">Jukebox</h3>
-                  <div className="space-y-4">
-                      <FormField label="Número da Jukebox" name="jukeboxNumero" value={formData.jukeboxNumero} onChange={handleChange}/>
-                      <FormField label="Número do Relógio da Jukebox" name="relogioJukeboxNumero" value={formData.relogioJukeboxNumero} onChange={handleChange}/>
-                      <FormField label="Leitura Anterior (Jukebox)" name="relogioJukeboxAnterior" type="number" value={formData.relogioJukeboxAnterior} onChange={handleChange}/>
-                      <div className="grid grid-cols-2 gap-4">
-                          <FormField label="% da Firma (Jukebox)" name="porcentagemJukeboxFirma" type="number" value={formData.porcentagemJukeboxFirma} onChange={handleChange}/>
-                          <FormField label="% do Cliente (Jukebox)" name="porcentagemJukeboxCliente" type="number" value={formData.porcentagemJukeboxCliente} onChange={handleChange}/>
-                      </div>
-                  </div>
-              </div>
-          </div>
+          <div className="pt-4 border-t border-slate-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Equipamentos</h3>
+            <div className="space-y-6">
+                {formData.equipment.map((equip, index) => (
+                    <div key={equip.id} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-md font-bold text-emerald-400 capitalize">{equip.type === 'mesa' ? `Mesa de Sinuca #${index + 1}` : `Jukebox #${index + 1}`}</h4>
+                            <button type="button" onClick={() => removeEquipment(index)} className="text-red-500 hover:text-red-400">
+                                <TrashIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        {equip.type === 'mesa' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField label="Número da Jukebox" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Nº Relógio da Jukebox" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="number" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="number" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            <div className="flex gap-4 mt-4">
+                <button type="button" onClick={() => addEquipment('mesa')} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Adicionar Mesa</button>
+                <button type="button" onClick={() => addEquipment('jukebox')} className="bg-fuchsia-600 text-white font-bold py-2 px-4 rounded-md hover:bg-fuchsia-500">Adicionar Jukebox</button>
+            </div>
+        </div>
         </form>
         <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-700">
           <button type="button" onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Cancelar</button>

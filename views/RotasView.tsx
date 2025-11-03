@@ -1,5 +1,5 @@
 // views/RotasView.tsx
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
 import PageHeader from '../components/PageHeader';
 import MapComponent from '../components/MapComponent';
@@ -44,17 +44,17 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     }
   }, [selectedCustomerId]);
 
-  const handleMarkerClick = (customerId: string) => {
+  const handleMarkerClick = useCallback((customerId: string) => {
     setSelectedCustomerId(customerId);
-  };
+  }, []);
   
-  const handleCustomerSelect = (customerId: string) => {
+  const handleCustomerSelect = useCallback((customerId: string) => {
     setSelectedCustomerId(customerId);
     // On mobile, scroll up to the map when a customer is selected from the list.
     if (window.innerWidth < 768) { // Corresponds to Tailwind's 'md' breakpoint
       mapContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, []);
   
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // Radius of the Earth in km
@@ -65,7 +65,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     return R * c;
   };
 
-  const handleCalculateDistances = () => {
+  const handleCalculateDistances = useCallback(() => {
     if (!navigator.geolocation) {
       alert("Geolocalização não é suportada.");
       return;
@@ -91,9 +91,9 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         setIsCalculating(false);
       }
     );
-  };
+  }, [customers]);
   
-  const handlePrintRoute = () => {
+  const handlePrintRoute = useCallback(() => {
     const customersByCity = customers
       .sort((a, b) => a.cidade.localeCompare(b.cidade) || a.name.localeCompare(b.name))
       .reduce((acc, customer) => {
@@ -128,8 +128,9 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
             } else {
                 const customer = item.data;
                 const equipamentos = [];
-                if (customer.mesaNumero) equipamentos.push('Mesa');
-                if (customer.jukeboxNumero) equipamentos.push('Jukebox');
+                // FIX: Use the new 'equipment' array to check for equipment types, instead of the deprecated 'mesaNumero' and 'jukeboxNumero' properties.
+                if (customer.equipment?.some(e => e.type === 'mesa')) equipamentos.push('Mesa');
+                if (customer.equipment?.some(e => e.type === 'jukebox')) equipamentos.push('Jukebox');
                 
                 tableRows += `
                     <tr>
@@ -190,7 +191,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         printWindow.focus();
         printWindow.print();
     }
-  };
+  }, [customers]);
 
   return (
     <div className="h-full flex flex-col">

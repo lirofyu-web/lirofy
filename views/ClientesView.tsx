@@ -1,5 +1,5 @@
 // views/ClientesView.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Customer, Billing, DebtPayment } from '../types';
 import AddCustomerForm from '../components/AddCustomerForm';
 import CustomerCard from '../components/CustomerCard';
@@ -15,7 +15,7 @@ interface ClientesViewProps {
   onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => Promise<void>;
   onSettleBill: (billingData: {
     customerId: string;
-    equipment: 'mesa' | 'jukebox';
+    equipmentId: string;
     relogioAtual: number;
     descontoPartidas: number;
     paymentMethod: 'pix' | 'dinheiro' | 'fiado';
@@ -58,7 +58,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [isLocating, setIsLocating] = useState(false);
 
-  const handleFindNearby = () => {
+  const handleFindNearby = useCallback(() => {
     if (!navigator.geolocation) {
       alert("Geolocalização não é suportada pelo seu navegador.");
       return;
@@ -80,7 +80,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  };
+  }, []);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery) {

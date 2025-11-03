@@ -21,7 +21,7 @@ type HistoryItem = {
     paymentMethod?: 'pix' | 'dinheiro' | 'fiado';
 };
 
-const PaymentMethodDisplay = ({ method }: { method: 'pix' | 'dinheiro' | 'fiado' }) => {
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> = React.memo(({ method }) => {
     const styles = {
         pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
         dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
@@ -38,7 +38,7 @@ const PaymentMethodDisplay = ({ method }: { method: 'pix' | 'dinheiro' | 'fiado'
             {text[method]}
         </span>
     );
-};
+});
 
 
 const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, billings, debtPayments }) => {

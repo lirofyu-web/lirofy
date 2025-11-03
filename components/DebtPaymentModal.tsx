@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
 
@@ -45,13 +45,13 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (error) return;
     const amountNum = parseFloat(amountStr.replace(',', '.')) || 0;
     onConfirm(amountNum, paymentMethod);
-  };
+  }, [error, amountStr, onConfirm, paymentMethod]);
   
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     // Sanitize: allow only numbers and one comma
     value = value.replace(/[^0-9,]/g, '');
@@ -60,7 +60,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
         value = parts[0] + ',' + parts.slice(1).join('');
     }
     setAmountStr(value);
-  };
+  }, []);
 
   const PaymentButton = ({ method, label }: { method: 'pix' | 'dinheiro', label: string }) => (
     <button

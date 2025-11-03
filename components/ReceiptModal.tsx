@@ -54,7 +54,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
 
   if (!isOpen) return null;
 
-  const isMesa = billing.equipment === 'mesa';
+  const isMesa = billing.equipmentType === 'mesa';
   
   const paymentMethodText = {
       pix: 'PIX',
@@ -97,7 +97,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
                   <p>DATA: {new Date(billing.settledAt).toLocaleString('pt-BR')}</p>
                   <hr className="border-dashed border-black my-2" />
                   
-                  <p className="font-bold">EQUIPAMENTO: {isMesa ? 'MESA SINUCA' : 'JUKEBOX'}</p>
+                  <p className="font-bold">EQUIPAMENTO: {isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}</p>
                   <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
                   <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
                   

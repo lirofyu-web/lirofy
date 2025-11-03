@@ -1,5 +1,5 @@
 // views/DespesasView.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Expense } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PlusIcon } from '../components/icons/PlusIcon';
@@ -20,7 +20,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(amount.replace(',', '.'));
     if (description && amountNum > 0) {
@@ -28,13 +28,13 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
       setDescription('');
       setAmount('');
     }
-  };
+  }, [description, amount, onAddExpense]);
   
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
     const sanitizedValue = value.replace(/[^0-9,.]/g, '').replace(',', '.');
     setAmount(sanitizedValue);
-  };
+  }, []);
 
   const sortedExpenses = useMemo(() => {
     return [...expenses].sort((a, b) => {
@@ -55,14 +55,14 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
     });
   }, [expenses, sortKey, sortDirection]);
   
-  const handleSort = (key: SortKey) => {
+  const handleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortKey(key);
       setSortDirection('desc');
     }
-  };
+  }, [sortKey]);
 
   const totalExpenses = useMemo(() => expenses.reduce((sum, expense) => sum + expense.amount, 0), [expenses]);
   

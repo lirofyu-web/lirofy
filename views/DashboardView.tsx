@@ -1,6 +1,5 @@
-
 // views/DashboardView.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Customer, Billing, Expense, DebtPayment } from '../types';
 import PageHeader from '../components/PageHeader';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
@@ -22,7 +21,7 @@ interface DateFilterProps {
     onMonthChange: (month: number) => void;
     onYearChange: (year: number) => void;
 }
-const DateFilter: React.FC<DateFilterProps> = ({ currentDate, onMonthChange, onYearChange }) => {
+const DateFilter: React.FC<DateFilterProps> = React.memo(({ currentDate, onMonthChange, onYearChange }) => {
     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -38,14 +37,14 @@ const DateFilter: React.FC<DateFilterProps> = ({ currentDate, onMonthChange, onY
             </select>
         </div>
     );
-};
+});
 
 interface InfoCardProps {
     title: string;
     children: React.ReactNode;
     icon?: React.ReactNode;
 }
-const InfoCard: React.FC<InfoCardProps> = ({ title, children, icon }) => (
+const InfoCard: React.FC<InfoCardProps> = React.memo(({ title, children, icon }) => (
     <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 h-full">
         <div className="flex items-center gap-3 text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-3">
           {icon}
@@ -55,19 +54,19 @@ const InfoCard: React.FC<InfoCardProps> = ({ title, children, icon }) => (
             {children}
         </dl>
     </div>
-);
+));
 
 interface InfoRowProps {
     label: string;
     value: string;
     valueColor?: string;
 }
-const InfoRow: React.FC<InfoRowProps> = ({ label, value, valueColor = 'text-slate-300' }) => (
+const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor = 'text-slate-300' }) => (
     <div className="flex justify-between items-baseline">
         <dt className="text-slate-400">{label}</dt>
         <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
     </div>
-);
+));
 
 
 // --- Main View Component ---
@@ -75,15 +74,13 @@ const InfoRow: React.FC<InfoRowProps> = ({ label, value, valueColor = 'text-slat
 const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
-    const handleMonthChange = (month: number) => {
-        const newDate = new Date(currentDate.getFullYear(), month, 1);
-        setCurrentDate(newDate);
-    };
+    const handleMonthChange = useCallback((month: number) => {
+        setCurrentDate(prevDate => new Date(prevDate.getFullYear(), month, 1));
+    }, []);
 
-    const handleYearChange = (year: number) => {
-        const newDate = new Date(year, currentDate.getMonth(), 1);
-        setCurrentDate(newDate);
-    };
+    const handleYearChange = useCallback((year: number) => {
+        setCurrentDate(prevDate => new Date(year, prevDate.getMonth(), 1));
+    }, []);
 
     const stats = useMemo(() => {
         const year = currentDate.getFullYear();
@@ -99,13 +96,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
         });
         
         // Revenue from Tables
-        const revenueMesaDinheiro = monthlyBillings.filter(b => b.equipment === 'mesa' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
-        const revenueMesaPix = monthlyBillings.filter(b => b.equipment === 'mesa' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+        const revenueMesaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'mesa' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
+        const revenueMesaPix = monthlyBillings.filter(b => b.equipmentType === 'mesa' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
         const totalRevenueMesa = revenueMesaDinheiro + revenueMesaPix;
 
         // Revenue from Jukeboxes
-        const revenueJukeboxDinheiro = monthlyBillings.filter(b => b.equipment === 'jukebox' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
-        const revenueJukeboxPix = monthlyBillings.filter(b => b.equipment === 'jukebox' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+        const revenueJukeboxDinheiro = monthlyBillings.filter(b => b.equipmentType === 'jukebox' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
+        const revenueJukeboxPix = monthlyBillings.filter(b => b.equipmentType === 'jukebox' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
         const totalRevenueJukebox = revenueJukeboxDinheiro + revenueJukeboxPix;
 
         // Revenue from Debt Payments
@@ -128,10 +125,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             totalDebt,
             customersCount: customers.length
         };
-    }, [billings, expenses, customers, debtPayments, currentDate]);
+    }, [billings, customers, debtPayments, currentDate]);
     
-    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-
     return (
         <div>
             <PageHeader 

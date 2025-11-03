@@ -1,4 +1,21 @@
 // types.ts
+export interface Equipment {
+  id: string;
+  type: 'mesa' | 'jukebox';
+  numero: string; // ex: "101" ou "A-05"
+  relogioNumero: string; // ex: "M-S99" ou "R-J12"
+  relogioAnterior: number;
+  
+  // Mesa specific
+  valorFicha?: number;
+  parteFirma?: number;
+  parteCliente?: number;
+
+  // Jukebox specific
+  porcentagemJukeboxFirma?: number;
+  porcentagemJukeboxCliente?: number;
+}
+
 export interface Customer {
   id: string;
   createdAt: Date;
@@ -9,17 +26,7 @@ export interface Customer {
   telefone: string;
   latitude: number | null;
   longitude: number | null;
-  mesaNumero: string;
-  relogioMesaNumero: string;
-  relogioMesaAnterior: number;
-  valorFicha: number;
-  parteFirma: number;
-  parteCliente: number;
-  jukeboxNumero: string;
-  relogioJukeboxNumero: string;
-  relogioJukeboxAnterior: number;
-  porcentagemJukeboxFirma: number;
-  porcentagemJukeboxCliente: number;
+  equipment: Equipment[];
   linhaNumero: string;
   assinaturaFirma: string;
   assinaturaCliente: string;
@@ -31,7 +38,9 @@ export interface Billing {
   id: string;
   customerId: string;
   customerName: string;
-  equipment: 'mesa' | 'jukebox';
+  equipmentType: 'mesa' | 'jukebox';
+  equipmentId: string;
+  equipmentNumero: string;
   relogioAnterior: number;
   relogioAtual: number;
   partidasJogadas: number;

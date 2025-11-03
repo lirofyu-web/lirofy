@@ -1,6 +1,6 @@
 // App.tsx
-import React, { useState, useEffect } from 'react';
-import { Customer, Billing, Expense, DebtPayment } from './types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Customer, Billing, Expense, DebtPayment, Equipment } from './types';
 import Sidebar from './components/Sidebar';
 import DashboardView from './views/DashboardView';
 import ClientesView from './views/ClientesView';
@@ -54,9 +54,230 @@ const App: React.FC = () => {
   const [debtReceiptToShow, setDebtReceiptToShow] = useState<DebtPayment | null>(null);
   const [receiptActionPrompt, setReceiptActionPrompt] = useState<{ billing?: Billing; debtPayment?: DebtPayment } | null>(null);
 
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+  const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
-  };
+  }, []);
+
+  useEffect(() => {
+    const migrationCompleted = localStorage.getItem('migration_v2_complete');
+    if (!migrationCompleted) {
+        // Check if migration is needed by inspecting the old data structure
+        const firstCustomer = customers[0] as any;
+        if (firstCustomer && firstCustomer.hasOwnProperty('mesaNumero')) {
+            console.log("Old data structure detected, running migration...");
+            const migratedCustomers = customers.map((c: any) => {
+                const newEquipment: Equipment[] = [];
+                if (c.mesaNumero) {
+                    newEquipment.push({
+                        id: `equip_mesa_${c.id}`,
+                        type: 'mesa',
+                        numero: c.mesaNumero,
+                        relogioNumero: c.relogioMesaNumero,
+                        relogioAnterior: c.relogioMesaAnterior,
+                        valorFicha: c.valorFicha,
+                        parteFirma: c.parteFirma,
+                        parteCliente: c.parteCliente,
+                    });
+                }
+                if (c.jukeboxNumero) {
+                    newEquipment.push({
+                        id: `equip_jukebox_${c.id}`,
+                        type: 'jukebox',
+                        numero: c.jukeboxNumero,
+                        relogioNumero: c.relogioJukeboxNumero,
+                        relogioAnterior: c.relogioJukeboxAnterior,
+                        porcentagemJukeboxFirma: c.porcentagemJukeboxFirma,
+                        porcentagemJukeboxCliente: c.porcentagemJukeboxCliente,
+                    });
+                }
+                // Remove old fields and add the new equipment array
+                delete c.mesaNumero;
+                delete c.relogioMesaNumero;
+                delete c.relogioMesaAnterior;
+                delete c.valorFicha;
+                delete c.parteFirma;
+                delete c.parteCliente;
+                delete c.jukeboxNumero;
+                delete c.relogioJukeboxNumero;
+                delete c.relogioJukeboxAnterior;
+                delete c.porcentagemJukeboxFirma;
+                delete c.porcentagemJukeboxCliente;
+                
+                return { ...c, equipment: newEquipment };
+            });
+            setCustomers(migratedCustomers);
+            localStorage.setItem('migration_v2_complete', 'true');
+            showNotification('Dados atualizados para o novo formato com sucesso!', 'success');
+        } else {
+             localStorage.setItem('migration_v2_complete', 'true');
+        }
+    }
+  }, [customers, setCustomers, showNotification]); // Run only on first load
+
+
+  const seedInitialData = useCallback(() => {
+    const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    const getRandomNumber = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
+    const getRandomDate = (start: Date, end: Date): Date => {
+        const startTime = start.getTime();
+        const endTime = end.getTime();
+        if (startTime >= endTime) return start;
+        return new Date(startTime + Math.random() * (endTime - startTime));
+    };
+
+    const finalCustomers: Customer[] = [];
+    const newBillings: Billing[] = [];
+
+    for (let i = 0; i < 100; i++) {
+        const city = getRandom(mockCities);
+        const customerEquipment: Equipment[] = [];
+        const numMesas = getRandomNumber(0, 2);
+        const numJukeboxes = getRandomNumber(0, 1);
+
+        for (let m = 0; m < numMesas; m++) {
+            const parteFirma = getRandom([40, 50, 60]);
+            customerEquipment.push({
+                id: `equip_seed_mesa_${i}_${m}`,
+                type: 'mesa',
+                numero: `${getRandomNumber(100, 300)}`,
+                relogioNumero: `M-S${getRandomNumber(10, 99)}`,
+                relogioAnterior: getRandomNumber(1000, 20000),
+                valorFicha: getRandom([2, 2.5, 3]),
+                parteFirma: parteFirma,
+                parteCliente: 100 - parteFirma,
+            });
+        }
+
+        for (let j = 0; j < numJukeboxes; j++) {
+            const parteFirma = getRandom([50, 60, 70]);
+            customerEquipment.push({
+                id: `equip_seed_jukebox_${i}_${j}`,
+                type: 'jukebox',
+                numero: `J-${getRandomNumber(1, 50)}`,
+                relogioNumero: `R-J${getRandomNumber(10, 99)}`,
+                relogioAnterior: getRandomNumber(5000, 30000),
+                porcentagemJukeboxFirma: parteFirma,
+                porcentagemJukeboxCliente: 100 - parteFirma,
+            });
+        }
+        
+        const customer: Customer = {
+            id: `cust_seed_${new Date().getTime()}_${i}`,
+            createdAt: getRandomDate(new Date(new Date().setFullYear(new Date().getFullYear() - 2)), new Date()),
+            name: `${getRandom(mockFirstNames)} ${getRandom(mockLastNames)}`,
+            cpfRg: `${getRandomNumber(100, 999)}.${getRandomNumber(100, 999)}.${getRandomNumber(100, 999)}-${getRandomNumber(10, 99)}`,
+            cidade: city.name,
+            endereco: `${getRandom(mockStreetTypes)} ${getRandom(mockStreetNames)}, ${getRandomNumber(10, 1000)}`,
+            telefone: `419${getRandomNumber(10000000, 99999999)}`,
+            latitude: city.lat + (Math.random() - 0.5) * 0.05,
+            longitude: city.lon + (Math.random() - 0.5) * 0.05,
+            equipment: customerEquipment,
+            linhaNumero: `Rota ${getRandomNumber(1, 5)}`,
+            assinaturaFirma: '',
+            assinaturaCliente: '',
+            debtAmount: 0,
+            lastVisitedAt: null,
+        };
+
+        const numBillings = getRandomNumber(0, 3);
+        let lastEventDate = customer.createdAt;
+        
+        for (let j = 0; j < numBillings; j++) {
+            const availableEquipment = customer.equipment.filter(e => e.relogioAnterior > 0);
+            if (availableEquipment.length === 0) continue;
+
+            const equipmentToBill = getRandom(availableEquipment);
+            const equipmentIndex = customer.equipment.findIndex(e => e.id === equipmentToBill.id);
+            if (equipmentIndex === -1) continue;
+
+            const minSettledAt = new Date(lastEventDate);
+            minSettledAt.setDate(minSettledAt.getDate() + getRandomNumber(25, 60));
+            if (minSettledAt > new Date()) continue;
+            const settledAt = getRandomDate(minSettledAt, new Date());
+            
+            const relogioAnterior = equipmentToBill.relogioAnterior;
+            const relogioAtual = relogioAnterior + getRandomNumber(10, 500);
+            const partidasJogadas = relogioAtual - relogioAnterior;
+            
+            const {
+                descontoPartidas = 0,
+                partidasCobradas = 0,
+                valorBruto = 0,
+                valorTotal = 0,
+                parteFirma = 0,
+                parteCliente = 0
+            } = (() => {
+                if (equipmentToBill.type === 'mesa') {
+                    const desc = getRandomNumber(0, Math.min(partidasJogadas, 10));
+                    const cobradas = partidasJogadas - desc;
+                    const bruto = cobradas * (equipmentToBill.valorFicha || 0);
+                    const vTotal = bruto * ((equipmentToBill.parteFirma || 0) / 100);
+                    return {
+                        descontoPartidas: desc,
+                        partidasCobradas: cobradas,
+                        valorBruto: bruto,
+                        valorTotal: vTotal,
+                        parteFirma: vTotal,
+                        parteCliente: bruto - vTotal,
+                    };
+                } else { // Jukebox
+                    const bruto = partidasJogadas;
+                    const vTotal = bruto * ((equipmentToBill.porcentagemJukeboxFirma || 0) / 100);
+                    return {
+                        valorBruto: bruto,
+                        valorTotal: vTotal,
+                        parteFirma: vTotal,
+                        parteCliente: bruto - vTotal,
+                    };
+                }
+            })();
+            
+            const paymentMethod = getRandom(['pix', 'dinheiro', 'fiado'] as const);
+
+            newBillings.push({
+                id: `bill_seed_${customer.id}_${j}`,
+                customerId: customer.id,
+                customerName: customer.name,
+                equipmentType: equipmentToBill.type,
+                equipmentId: equipmentToBill.id,
+                equipmentNumero: equipmentToBill.numero,
+                relogioAnterior,
+                relogioAtual,
+                partidasJogadas,
+                descontoPartidas,
+                partidasCobradas,
+                valorFicha: equipmentToBill.valorFicha,
+                valorTotal,
+                parteFirma,
+                parteCliente,
+                settledAt,
+                paymentMethod,
+            });
+            
+            customer.lastVisitedAt = settledAt;
+            customer.equipment[equipmentIndex].relogioAnterior = relogioAtual;
+            if (paymentMethod === 'fiado') {
+                customer.debtAmount += valorBruto;
+            }
+            lastEventDate = settledAt;
+        }
+        finalCustomers.push(customer);
+    }
+    
+    const newExpenses: Expense[] = [];
+    for (let i = 0; i < 30; i++) {
+        newExpenses.push({
+            id: `exp_seed_${new Date().getTime() + i}`,
+            description: getRandom(mockExpenseDescriptions),
+            amount: getRandomNumber(20, 300),
+            date: getRandomDate(new Date(new Date().setFullYear(new Date().getFullYear() - 1)), new Date()),
+        });
+    }
+
+    setCustomers(prev => [...prev, ...finalCustomers].sort((a,b) => a.name.localeCompare(b.name)));
+    setBillings(prev => [...prev, ...newBillings]);
+    setExpenses(prev => [...prev, ...newExpenses]);
+  }, [setCustomers, setBillings, setExpenses]);
 
   useEffect(() => {
     const dataSeeded = localStorage.getItem('dataSeeded');
@@ -66,9 +287,9 @@ const App: React.FC = () => {
       localStorage.setItem('dataSeeded', 'true');
       showNotification('Dados de exemplo carregados para sua primeira utilização!', 'success');
     }
-  }, []); // Empty dependency array ensures it runs only once on mount
+  }, [customers.length, seedInitialData, showNotification]);
   
-  const geocodeAddress = async (address: string, city: string): Promise<{ lat: number | null; lon: number | null }> => {
+  const geocodeAddress = useCallback(async (address: string, city: string): Promise<{ lat: number | null; lon: number | null }> => {
         if (!address || !city) return { lat: null, lon: null };
         try {
             const query = encodeURIComponent(`${address}, ${city}, Brazil`);
@@ -85,10 +306,10 @@ const App: React.FC = () => {
             showNotification('Falha ao obter coordenadas do endereço.', 'error');
             return { lat: null, lon: null };
         }
-  };
+  }, [showNotification]);
 
 
-  const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => {
+  const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => {
     setIsSaving(true);
     try {
         const { lat, lon } = await geocodeAddress(customerData.endereco, customerData.cidade);
@@ -108,9 +329,9 @@ const App: React.FC = () => {
     } finally {
         setIsSaving(false);
     }
-  };
+  }, [geocodeAddress, setCustomers, showNotification]);
 
-  const handleUpdateCustomer = async (updatedCustomer: Customer) => {
+  const handleUpdateCustomer = useCallback(async (updatedCustomer: Customer) => {
     setIsSaving(true);
      try {
         const originalCustomer = customers.find(c => c.id === updatedCustomer.id);
@@ -129,18 +350,18 @@ const App: React.FC = () => {
     } finally {
         setIsSaving(false);
     }
-  };
+  }, [customers, geocodeAddress, setCustomers, showNotification]);
 
-  const handleDeleteCustomer = (customerId: string) => {
+  const handleDeleteCustomer = useCallback((customerId: string) => {
     setCustomers(prev => prev.filter(c => c.id !== customerId));
     setBillings(prev => prev.filter(b => b.customerId !== customerId));
     setDebtPayments(prev => prev.filter(p => p.customerId !== customerId));
     showNotification('Cliente excluído com sucesso.');
-  };
+  }, [setCustomers, setBillings, setDebtPayments, showNotification]);
 
-  const handleSettleBill = (billingData: {
+  const handleSettleBill = useCallback((billingData: {
     customerId: string;
-    equipment: 'mesa' | 'jukebox';
+    equipmentId: string;
     relogioAtual: number;
     descontoPartidas: number;
     paymentMethod: 'pix' | 'dinheiro' | 'fiado';
@@ -148,56 +369,67 @@ const App: React.FC = () => {
     const customer = customers.find(c => c.id === billingData.customerId);
     if (!customer) return;
 
-    let relogioAnterior = 0;
+    const equipment = customer.equipment.find(e => e.id === billingData.equipmentId);
+    if (!equipment) return;
+
+    const { relogioAtual, descontoPartidas, paymentMethod } = billingData;
+    
+    let relogioAnterior = equipment.relogioAnterior;
     let valorTotal = 0;
     let partidasJogadas = 0;
     let partidasCobradas = 0;
     let valorBruto = 0;
     
-    if (billingData.equipment === 'mesa') {
-      relogioAnterior = customer.relogioMesaAnterior;
-      partidasJogadas = billingData.relogioAtual - relogioAnterior;
-      partidasCobradas = partidasJogadas - billingData.descontoPartidas;
-      valorBruto = partidasCobradas * customer.valorFicha;
-      valorTotal = valorBruto * (customer.parteFirma / 100);
+    if (equipment.type === 'mesa') {
+      partidasJogadas = relogioAtual - relogioAnterior;
+      partidasCobradas = partidasJogadas - descontoPartidas;
+      valorBruto = partidasCobradas * (equipment.valorFicha || 0);
+      valorTotal = valorBruto * ((equipment.parteFirma || 0) / 100);
     } else { // jukebox
-      relogioAnterior = customer.relogioJukeboxAnterior;
-      valorBruto = billingData.relogioAtual - relogioAnterior;
-      valorTotal = valorBruto * (customer.porcentagemJukeboxFirma / 100);
+      partidasJogadas = relogioAtual - relogioAnterior;
+      valorBruto = partidasJogadas; // For jukebox, we assume 1 pulse = R$ 1.00
+      valorTotal = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
     }
 
     const newBilling: Billing = {
         id: `bill_${new Date().getTime()}`,
         customerId: customer.id,
         customerName: customer.name,
-        equipment: billingData.equipment,
+        equipmentType: equipment.type,
+        equipmentId: equipment.id,
+        equipmentNumero: equipment.numero,
         relogioAnterior,
-        relogioAtual: billingData.relogioAtual,
+        relogioAtual: relogioAtual,
         partidasJogadas,
-        descontoPartidas: billingData.equipment === 'mesa' ? billingData.descontoPartidas : 0,
+        descontoPartidas: equipment.type === 'mesa' ? descontoPartidas : 0,
         partidasCobradas,
-        valorFicha: billingData.equipment === 'mesa' ? customer.valorFicha : undefined,
+        valorFicha: equipment.type === 'mesa' ? equipment.valorFicha : undefined,
         valorTotal,
         parteFirma: valorTotal,
         parteCliente: valorBruto - valorTotal,
         settledAt: new Date(),
-        paymentMethod: billingData.paymentMethod,
+        paymentMethod: paymentMethod,
     };
 
     setBillings(prev => [...prev, newBilling]);
 
     setCustomers(prev => prev.map(c => {
       if (c.id === customer.id) {
-        const updatedCustomer = { ...c };
-        updatedCustomer.lastVisitedAt = new Date();
-        if (billingData.equipment === 'mesa') {
-          updatedCustomer.relogioMesaAnterior = billingData.relogioAtual;
-        } else {
-          updatedCustomer.relogioJukeboxAnterior = billingData.relogioAtual;
-        }
-        if (billingData.paymentMethod === 'fiado') {
-          const valorBrutoTotal = billingData.equipment === 'mesa' ? partidasCobradas * customer.valorFicha : billingData.relogioAtual - relogioAnterior;
-          updatedCustomer.debtAmount += valorBrutoTotal;
+        const updatedEquipment = c.equipment.map(eq => {
+            if (eq.id === equipment.id) {
+                return { ...eq, relogioAnterior: relogioAtual };
+            }
+            return eq;
+        });
+
+        const updatedCustomer = { 
+            ...c,
+            equipment: updatedEquipment,
+            lastVisitedAt: new Date(),
+        };
+        
+        if (paymentMethod === 'fiado') {
+          updatedCustomer.debtAmount += valorBruto;
         }
         return updatedCustomer;
       }
@@ -205,9 +437,9 @@ const App: React.FC = () => {
     }));
     showNotification('Cobrança registrada com sucesso!');
     setReceiptActionPrompt({ billing: newBilling });
-  };
+  }, [customers, setBillings, setCustomers, showNotification]);
 
-  const handlePayDebt = (customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => {
+  const handlePayDebt = useCallback((customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => {
     const customer = customers.find(c => c.id === customerId);
     if (!customer || amount > customer.debtAmount || amount <= 0) return;
 
@@ -220,12 +452,12 @@ const App: React.FC = () => {
       paymentMethod,
     };
     setDebtPayments(prev => [...prev, newPayment]);
-    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, debtAmount: c.debtAmount - amount } : c));
+    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, debtAmount: parseFloat((c.debtAmount - amount).toFixed(2)) } : c));
     showNotification('Pagamento de dívida registrado!');
     setReceiptActionPrompt({ debtPayment: newPayment });
-  };
+  }, [customers, setCustomers, setDebtPayments, showNotification]);
 
-  const handleAddExpense = (description: string, amount: number) => {
+  const handleAddExpense = useCallback((description: string, amount: number) => {
     const newExpense: Expense = {
       id: `exp_${new Date().getTime()}`,
       description,
@@ -234,153 +466,14 @@ const App: React.FC = () => {
     };
     setExpenses(prev => [...prev, newExpense]);
     showNotification('Despesa adicionada.');
-  };
+  }, [setExpenses, showNotification]);
 
-  const handleDeleteExpense = (expenseId: string) => {
+  const handleDeleteExpense = useCallback((expenseId: string) => {
     setExpenses(prev => prev.filter(e => e.id !== expenseId));
     showNotification('Despesa removida.');
-  };
+  }, [setExpenses, showNotification]);
 
-  const seedInitialData = () => {
-        // Helper functions
-        const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-        const getRandomNumber = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
-        const getRandomDate = (start: Date, end: Date): Date => {
-            const startTime = start.getTime();
-            const endTime = end.getTime();
-            if (startTime >= endTime) return start;
-            return new Date(startTime + Math.random() * (endTime - startTime));
-        };
-
-        const finalCustomers: Customer[] = [];
-        const newBillings: Billing[] = [];
-
-        // Generate 100 customers, each with their own generated history
-        for (let i = 0; i < 100; i++) {
-            const city = getRandom(mockCities);
-            const hasMesa = Math.random() > 0.3;
-            const hasJukebox = Math.random() > 0.4;
-            const parteFirmaMesa = hasMesa ? getRandom([40, 50, 60]) : 0;
-            const porcentagemJukeboxFirma = hasJukebox ? getRandom([50, 60, 70]) : 0;
-            
-            // This is a mutable object that we'll update as we build the history
-            const customer: Customer = {
-                id: `cust_seed_${new Date().getTime()}_${i}`,
-                createdAt: getRandomDate(new Date(new Date().setFullYear(new Date().getFullYear() - 2)), new Date()),
-                name: `${getRandom(mockFirstNames)} ${getRandom(mockLastNames)}`,
-                cpfRg: `${getRandomNumber(100, 999)}.${getRandomNumber(100, 999)}.${getRandomNumber(100, 999)}-${getRandomNumber(10, 99)}`,
-                cidade: city.name,
-                endereco: `${getRandom(mockStreetTypes)} ${getRandom(mockStreetNames)}, ${getRandomNumber(10, 1000)}`,
-                telefone: `419${getRandomNumber(10000000, 99999999)}`,
-                latitude: city.lat + (Math.random() - 0.5) * 0.05,
-                longitude: city.lon + (Math.random() - 0.5) * 0.05,
-                mesaNumero: hasMesa ? `${getRandomNumber(1, 100)}` : '',
-                relogioMesaNumero: hasMesa ? `M-S${getRandomNumber(10, 99)}` : '',
-                relogioMesaAnterior: hasMesa ? getRandomNumber(1000, 20000) : 0,
-                valorFicha: hasMesa ? getRandom([2, 2.5, 3]) : 0,
-                parteFirma: parteFirmaMesa,
-                parteCliente: hasMesa ? 100 - parteFirmaMesa : 0,
-                jukeboxNumero: hasJukebox ? `J-${getRandomNumber(1, 50)}` : '',
-                relogioJukeboxNumero: hasJukebox ? `R-J${getRandomNumber(10, 99)}` : '',
-                relogioJukeboxAnterior: hasJukebox ? getRandomNumber(5000, 30000) : 0,
-                porcentagemJukeboxFirma: porcentagemJukeboxFirma,
-                porcentagemJukeboxCliente: hasJukebox ? 100 - porcentagemJukeboxFirma : 0,
-                linhaNumero: `Rota ${getRandomNumber(1, 5)}`,
-                assinaturaFirma: '',
-                assinaturaCliente: '',
-                debtAmount: 0,
-                lastVisitedAt: null,
-            };
-
-            // Generate a billing history for this customer
-            const numBillings = getRandomNumber(0, 3);
-            let lastEventDate = customer.createdAt;
-
-            for (let j = 0; j < numBillings; j++) {
-                const canBillMesa = !!customer.mesaNumero;
-                const canBillJukebox = !!customer.jukeboxNumero;
-                if (!canBillMesa && !canBillJukebox) continue;
-
-                const minSettledAt = new Date(lastEventDate);
-                minSettledAt.setDate(minSettledAt.getDate() + getRandomNumber(25, 60));
-                if (minSettledAt > new Date()) continue;
-                const settledAt = getRandomDate(minSettledAt, new Date());
-                
-                const equipment = (canBillMesa && canBillJukebox) ? (Math.random() > 0.5 ? 'mesa' : 'jukebox') : (canBillMesa ? 'mesa' : 'jukebox');
-                
-                const relogioAnterior = equipment === 'mesa' ? customer.relogioMesaAnterior : customer.relogioJukeboxAnterior;
-                const relogioAtual = relogioAnterior + getRandomNumber(10, 500);
-                const partidasJogadas = relogioAtual - relogioAnterior;
-                const descontoPartidas = equipment === 'mesa' ? getRandomNumber(0, Math.min(partidasJogadas, 10)) : 0;
-                const partidasCobradas = partidasJogadas - descontoPartidas;
-                const valorBruto = equipment === 'mesa' ? (partidasCobradas * customer.valorFicha) : partidasJogadas;
-                const parteFirmaPerc = equipment === 'mesa' ? customer.parteFirma : customer.porcentagemJukeboxFirma;
-                const valorTotal = valorBruto * (parteFirmaPerc / 100);
-                const paymentMethod = getRandom(['pix', 'dinheiro', 'fiado'] as const);
-
-                newBillings.push({
-                    id: `bill_seed_${customer.id}_${j}`,
-                    customerId: customer.id,
-                    customerName: customer.name,
-                    equipment,
-                    relogioAnterior,
-                    relogioAtual,
-                    partidasJogadas,
-                    descontoPartidas,
-                    partidasCobradas,
-                    valorFicha: equipment === 'mesa' ? customer.valorFicha : undefined,
-                    valorTotal,
-                    parteFirma: valorTotal,
-                    parteCliente: valorBruto - valorTotal,
-                    settledAt,
-                    paymentMethod,
-                });
-                
-                // Update the mutable customer object for the next iteration
-                customer.lastVisitedAt = settledAt;
-                if (equipment === 'mesa') {
-                    customer.relogioMesaAnterior = relogioAtual;
-                } else {
-                    customer.relogioJukeboxAnterior = relogioAtual;
-                }
-                if (paymentMethod === 'fiado') {
-                    customer.debtAmount += valorBruto;
-                }
-                lastEventDate = settledAt;
-            }
-            finalCustomers.push(customer); // Push the fully updated customer
-        }
-        
-        // Generate expenses
-        const newExpenses: Expense[] = [];
-        for (let i = 0; i < 30; i++) {
-            newExpenses.push({
-                id: `exp_seed_${new Date().getTime() + i}`,
-                description: getRandom(mockExpenseDescriptions),
-                amount: getRandomNumber(20, 300),
-                date: getRandomDate(new Date(new Date().setFullYear(new Date().getFullYear() - 1)), new Date()),
-            });
-        }
-
-        // Update React state
-        setCustomers(prev => [...prev, ...finalCustomers].sort((a,b) => a.name.localeCompare(b.name)));
-        setBillings(prev => [...prev, ...newBillings]);
-        setExpenses(prev => [...prev, ...newExpenses]);
-    };
-
-
-  const handleClearData = () => {
-    if (window.confirm('ATENÇÃO: Isso apagará TODOS OS DADOS (clientes, cobranças, despesas). Esta ação é IRREVERSÍVEL. Deseja continuar?')) {
-        setCustomers([]);
-        setBillings([]);
-        setExpenses([]);
-        setDebtPayments([]);
-        localStorage.removeItem('dataSeeded'); // Also clear the seed flag
-        showNotification('Todos os dados foram apagados.', 'success');
-    }
-  };
-
-   const handleExportData = () => {
+   const handleExportData = useCallback(() => {
     const dataToExport = {
       customers,
       billings,
@@ -397,9 +490,9 @@ const App: React.FC = () => {
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
     showNotification('Backup exportado com sucesso!');
-  };
+  }, [customers, billings, expenses, debtPayments, showNotification]);
 
-   const handleMergeData = (file: File) => {
+   const handleMergeData = useCallback((file: File) => {
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
@@ -423,9 +516,9 @@ const App: React.FC = () => {
             }
         };
         reader.readAsText(file);
-    };
+    }, [setCustomers, setBillings, setExpenses, setDebtPayments, showNotification]);
 
-    const handleAddCustomerFromText = (text: string) => {
+    const handleAddCustomerFromText = useCallback((text: string) => {
         try {
             const data: Record<string, string> = {};
             const lines = text.trim().split('\n');
@@ -438,41 +531,58 @@ const App: React.FC = () => {
                 }
             });
 
-            const newCustomer: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'> = {
+            // This import is simplified and will only import the first Mesa/Jukebox found.
+            // A more complex parser would be needed for multi-equipment text import.
+             const equipment: Equipment[] = [];
+             if (data['Nº Mesa']) {
+                equipment.push({
+                    id: `equip_text_${new Date().getTime()}_m`,
+                    type: 'mesa',
+                    numero: data['Nº Mesa'] || '',
+                    relogioNumero: data['Nº Relógio Mesa'] || '',
+                    relogioAnterior: parseInt(data['Leitura Ant. Mesa'], 10) || 0,
+                    valorFicha: parseFloat(data['Valor Ficha']?.replace('R$ ', '')) || 2.00,
+                    parteFirma: parseInt(data['% Firma (Mesa)'], 10) || 50,
+                    parteCliente: parseInt(data['% Cliente (Mesa)'], 10) || 50,
+                });
+             }
+             if (data['Nº Jukebox']) {
+                 equipment.push({
+                    id: `equip_text_${new Date().getTime()}_j`,
+                    type: 'jukebox',
+                    numero: data['Nº Jukebox'] || '',
+                    relogioNumero: data['Nº Relógio Jukebox'] || '',
+                    relogioAnterior: parseInt(data['Leitura Ant. Jukebox'], 10) || 0,
+                    porcentagemJukeboxFirma: parseInt(data['% Firma (Jukebox)'], 10) || 50,
+                    porcentagemJukeboxCliente: parseInt(data['% Cliente (Jukebox)'], 10) || 50,
+                });
+             }
+
+            const newCustomerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'> = {
                 name: data['Nome'] || '',
                 cpfRg: data['CPF/RG'] || '',
                 cidade: data['Cidade'] || '',
                 endereco: data['Endereço'] || '',
                 telefone: data['Telefone'] || '',
                 linhaNumero: data['Linha/Rota'] || '',
-                mesaNumero: data['Nº Mesa'] || '',
-                relogioMesaNumero: data['Nº Relógio Mesa'] || '',
-                relogioMesaAnterior: parseInt(data['Leitura Ant. Mesa'], 10) || 0,
-                valorFicha: parseFloat(data['Valor Ficha']?.replace('R$ ', '')) || 2.00,
-                parteFirma: parseInt(data['% Firma (Mesa)'], 10) || 50,
-                parteCliente: parseInt(data['% Cliente (Mesa)'], 10) || 50,
-                jukeboxNumero: data['Nº Jukebox'] || '',
-                relogioJukeboxNumero: data['Nº Relógio Jukebox'] || '',
-                relogioJukeboxAnterior: parseInt(data['Leitura Ant. Jukebox'], 10) || 0,
-                porcentagemJukeboxFirma: parseInt(data['% Firma (Jukebox)'], 10) || 50,
-                porcentagemJukeboxCliente: parseInt(data['% Cliente (Jukebox)'], 10) || 50,
+                equipment: equipment,
                 assinaturaFirma: '',
                 assinaturaCliente: '',
             };
 
-            if (!newCustomer.name) {
+            if (!newCustomerData.name) {
                 throw new Error("Nome do cliente não encontrado no texto.");
             }
 
-            handleAddCustomer(newCustomer);
+            handleAddCustomer(newCustomerData);
             showNotification('Cliente importado via texto com sucesso!');
         } catch (error) {
             console.error("Failed to parse customer from text", error);
             showNotification('Falha ao importar cliente. Verifique o formato do texto.', 'error');
         }
-    };
+    }, [handleAddCustomer, showNotification]);
     
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = useCallback(() => {
     if (!receiptActionPrompt) return;
     if (receiptActionPrompt.billing) {
       setReceiptToShow(receiptActionPrompt.billing);
@@ -480,9 +590,9 @@ const App: React.FC = () => {
       setDebtReceiptToShow(receiptActionPrompt.debtPayment);
     }
     setReceiptActionPrompt(null);
-  };
+  }, [receiptActionPrompt]);
 
-  const handleSendWhatsAppReceipt = () => {
+  const handleSendWhatsAppReceipt = useCallback(() => {
     if (!receiptActionPrompt) return;
 
     const { billing, debtPayment } = receiptActionPrompt;
@@ -496,14 +606,14 @@ const App: React.FC = () => {
 
     let message = '';
     if (billing) {
-        const isMesa = billing.equipment === 'mesa';
+        const isMesa = billing.equipmentType === 'mesa';
         const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO', fiado: 'FIADO (ANOTADO)' };
         message = `*RECIBO - MONTANHA BILHAR & JUKEBOX*\n` +
                   `--------------------------------\n` +
                   `*CLIENTE:* ${billing.customerName}\n` +
                   `*DATA:* ${new Date(billing.settledAt).toLocaleString('pt-BR')}\n` +
                   `--------------------------------\n` +
-                  `*EQUIPAMENTO:* ${isMesa ? 'MESA SINUCA' : 'JUKEBOX'}\n` +
+                  `*EQUIPAMENTO:* ${isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}\n` +
                   `Leitura Anterior: ${billing.relogioAnterior}\n` +
                   `Leitura Atual: ${billing.relogioAtual}\n` +
                   (isMesa ?
@@ -533,7 +643,7 @@ const App: React.FC = () => {
     
     window.open(whatsappUrl, '_blank');
     setReceiptActionPrompt(null);
-  };
+  }, [customers, receiptActionPrompt, showNotification]);
 
 
   const renderView = () => {
@@ -551,7 +661,7 @@ const App: React.FC = () => {
       case 'RELATORIOS':
         return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
        case 'CONFIGURACOES':
-        return <ConfiguracoesView onClearData={handleClearData} onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} />;
+        return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} />;
       default:
         return <div>View não encontrada</div>;
     }

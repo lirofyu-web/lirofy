@@ -1,6 +1,6 @@
 // components/CustomerCard.tsx
-import React, { useState } from 'react';
-import { Customer, Billing, DebtPayment } from '../types';
+import React, { useState, useCallback } from 'react';
+import { Customer, Billing, DebtPayment, Equipment } from '../types';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { PencilIcon } from './icons/PencilIcon';
@@ -29,7 +29,7 @@ interface CustomerCardProps {
   debtPayments: DebtPayment[];
   onSettleBill: (billingData: {
     customerId: string;
-    equipment: 'mesa' | 'jukebox';
+    equipmentId: string;
     relogioAtual: number;
     descontoPartidas: number;
     paymentMethod: 'pix' | 'dinheiro' | 'fiado';
@@ -40,12 +40,21 @@ interface CustomerCardProps {
   isSaving: boolean;
 }
 
-const DetailRow: React.FC<{ label: string; value: string | number; valueClass?: string }> = ({ label, value, valueClass = 'text-slate-300' }) => (
+const DetailRow: React.FC<{ label: string; value: string | number; valueClass?: string }> = React.memo(({ label, value, valueClass = 'text-slate-300' }) => (
     <div className="flex justify-between items-baseline text-sm">
         <span className="text-slate-400">{label}</span>
         <span className={`font-mono font-medium ${valueClass}`}>{value}</span>
     </div>
-);
+));
+
+const ActionButton: React.FC<{onClick?: () => void; href?: string; title: string; children: React.ReactNode; isLink?: boolean; className?: string}> = 
+  React.memo(({onClick, href, title, children, isLink, className}) => {
+  const commonClasses = "p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-white transition-colors duration-200";
+  if (isLink) {
+      return <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`${commonClasses} ${className}`}>{children}</a>
+  }
+  return <button onClick={onClick} title={title} className={`${commonClasses} ${className}`}>{children}</button>;
+});
 
 
 const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPayments, onSettleBill, onDeleteCustomer, onPayDebt, onUpdateCustomer, isSaving }) => {
@@ -56,25 +65,25 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleSettleBill = (data: Omit<Parameters<typeof onSettleBill>[0], 'customerId'>) => {
+  const handleSettleBill = useCallback((data: Omit<Parameters<typeof onSettleBill>[0], 'customerId'>) => {
     onSettleBill({ ...data, customerId: customer.id });
     setIsBillingModalOpen(false);
-  };
+  }, [onSettleBill, customer.id]);
   
-  const handlePayDebt = (amount: number, paymentMethod: 'pix' | 'dinheiro') => {
+  const handlePayDebt = useCallback((amount: number, paymentMethod: 'pix' | 'dinheiro') => {
     onPayDebt(customer.id, amount, paymentMethod);
     setIsDebtModalOpen(false);
-  };
+  }, [onPayDebt, customer.id]);
 
-  const handleDeleteCustomer = () => {
+  const handleDeleteCustomer = useCallback(() => {
     onDeleteCustomer(customer.id);
     setIsDeleteModalOpen(false);
-  };
+  }, [onDeleteCustomer, customer.id]);
   
-  const handleUpdateCustomer = async (updatedCustomer: Customer) => {
+  const handleUpdateCustomer = useCallback(async (updatedCustomer: Customer) => {
     await onUpdateCustomer(updatedCustomer);
     setIsEditModalOpen(false);
-  };
+  }, [onUpdateCustomer]);
 
   const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
   const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
@@ -90,7 +99,29 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
     ? `https://wa.me/55${customer.telefone.replace(/\D/g, '')}`
     : '';
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
+    let equipmentDataString = '';
+    if(customer.equipment && customer.equipment.length > 0) {
+      customer.equipment.forEach(equip => {
+        if(equip.type === 'mesa') {
+          equipmentDataString += `
+Nº Mesa: ${equip.numero}
+Nº Relógio Mesa: ${equip.relogioNumero}
+Leitura Ant. Mesa: ${equip.relogioAnterior}
+Valor Ficha: R$ ${equip.valorFicha?.toFixed(2)}
+% Firma (Mesa): ${equip.parteFirma}
+% Cliente (Mesa): ${equip.parteCliente}`;
+        } else {
+          equipmentDataString += `
+Nº Jukebox: ${equip.numero}
+Nº Relógio Jukebox: ${equip.relogioNumero}
+Leitura Ant. Jukebox: ${equip.relogioAnterior}
+% Firma (Jukebox): ${equip.porcentagemJukeboxFirma}
+% Cliente (Jukebox): ${equip.porcentagemJukeboxCliente}`;
+        }
+      });
+    }
+
     const customerDataString = `
 --- INÍCIO DADOS CLIENTE ---
 Nome: ${customer.name}
@@ -99,31 +130,12 @@ Cidade: ${customer.cidade}
 Endereço: ${customer.endereco}
 Telefone: ${customer.telefone}
 Linha/Rota: ${customer.linhaNumero}
-Nº Mesa: ${customer.mesaNumero}
-Nº Relógio Mesa: ${customer.relogioMesaNumero}
-Leitura Ant. Mesa: ${customer.relogioMesaAnterior}
-Valor Ficha: R$ ${customer.valorFicha.toFixed(2)}
-% Firma (Mesa): ${customer.parteFirma}
-% Cliente (Mesa): ${customer.parteCliente}
-Nº Jukebox: ${customer.jukeboxNumero}
-Nº Relógio Jukebox: ${customer.relogioJukeboxNumero}
-Leitura Ant. Jukebox: ${customer.relogioJukeboxAnterior}
-% Firma (Jukebox): ${customer.porcentagemJukeboxFirma}
-% Cliente (Jukebox): ${customer.porcentagemJukeboxCliente}
+${equipmentDataString.trim()}
 --- FIM DADOS CLIENTE ---
     `.trim();
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(customerDataString)}`;
     window.open(whatsappUrl, '_blank');
-  };
-
-  const ActionButton: React.FC<{onClick?: () => void; href?: string; title: string; children: React.ReactNode; isLink?: boolean; className?: string}> = 
-    ({onClick, href, title, children, isLink, className}) => {
-    const commonClasses = "p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-white transition-colors duration-200";
-    if (isLink) {
-        return <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`${commonClasses} ${className}`}>{children}</a>
-    }
-    return <button onClick={onClick} title={title} className={`${commonClasses} ${className}`}>{children}</button>;
-  };
+  }, [customer]);
 
   return (
     <>
@@ -157,28 +169,29 @@ Leitura Ant. Jukebox: ${customer.relogioJukeboxAnterior}
           </div>
 
           {/* Expandable Content */}
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-96' : 'max-h-0'}`}>
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[500px] overflow-y-auto' : 'max-h-0'}`}>
               <div className="px-5 pb-5">
                   <div className="pt-4 border-t border-slate-700/50 space-y-4">
-                      {/* Mesa Details */}
-                      {customer.mesaNumero && (
-                          <div className="space-y-1.5">
-                             <h4 className="font-semibold text-cyan-400 flex items-center gap-2 text-base"><BilliardIcon className="w-4 h-4" /> Mesa {customer.mesaNumero}</h4>
-                             <DetailRow label="Leitura Anterior" value={customer.relogioMesaAnterior} />
-                             <DetailRow label="Nº Relógio" value={customer.relogioMesaNumero || '-'} />
-                             <DetailRow label="Valor Ficha" value={`R$ ${customer.valorFicha.toFixed(2)}`} />
-                             <DetailRow label="% Firma / Cliente" value={`${customer.parteFirma}% / ${customer.parteCliente}%`} />
-                          </div>
-                      )}
-                      {/* Jukebox Details */}
-                      {customer.jukeboxNumero && (
-                           <div className="space-y-1.5">
-                             <h4 className="font-semibold text-fuchsia-400 flex items-center gap-2 text-base"><JukeboxIcon className="w-4 h-4" /> Jukebox {customer.jukeboxNumero}</h4>
-                             <DetailRow label="Leitura Anterior" value={customer.relogioJukeboxAnterior} />
-                             <DetailRow label="Nº Relógio" value={customer.relogioJukeboxNumero || '-'} />
-                             <DetailRow label="% Firma / Cliente" value={`${customer.porcentagemJukeboxFirma}% / ${customer.porcentagemJukeboxCliente}%`} />
-                          </div>
-                      )}
+                      {customer.equipment?.map((equip, index) => (
+                        <div key={equip.id} className="space-y-1.5">
+                          {equip.type === 'mesa' ? (
+                            <>
+                              <h4 className="font-semibold text-cyan-400 flex items-center gap-2 text-base"><BilliardIcon className="w-4 h-4" /> Mesa {equip.numero}</h4>
+                              <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
+                              <DetailRow label="Nº Relógio" value={equip.relogioNumero || '-'} />
+                              <DetailRow label="Valor Ficha" value={`R$ ${equip.valorFicha?.toFixed(2)}`} />
+                              <DetailRow label="% Firma / Cliente" value={`${equip.parteFirma}% / ${equip.parteCliente}%`} />
+                            </>
+                          ) : (
+                            <>
+                              <h4 className="font-semibold text-fuchsia-400 flex items-center gap-2 text-base"><JukeboxIcon className="w-4 h-4" /> Jukebox {equip.numero}</h4>
+                              <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
+                              <DetailRow label="Nº Relógio" value={equip.relogioNumero || '-'} />
+                              <DetailRow label="% Firma / Cliente" value={`${equip.porcentagemJukeboxFirma}% / ${equip.porcentagemJukeboxCliente}%`} />
+                            </>
+                          )}
+                        </div>
+                      ))}
                       {/* Debt Details */}
                       {customer.debtAmount > 0 && (
                           <div className="pt-2 mt-2 border-t border-slate-700/50">
