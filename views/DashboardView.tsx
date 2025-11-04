@@ -6,6 +6,7 @@ import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 import { UsersIcon } from '../components/icons/UsersIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
+import { CraneIcon } from '../components/icons/CraneIcon';
 
 interface DashboardViewProps {
   billings: Billing[];
@@ -105,6 +106,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
         const revenueJukeboxPix = monthlyBillings.filter(b => b.equipmentType === 'jukebox' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
         const totalRevenueJukebox = revenueJukeboxDinheiro + revenueJukeboxPix;
 
+        // Revenue from Cranes
+        const revenueGruaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'grua' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
+        const revenueGruaPix = monthlyBillings.filter(b => b.equipmentType === 'grua' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+        const totalRevenueGrua = revenueGruaDinheiro + revenueGruaPix;
+
         // Revenue from Debt Payments
         const debtPaymentsDinheiro = monthlyDebtPayments.filter(p => p.paymentMethod === 'dinheiro').reduce((sum, p) => sum + p.amountPaid, 0);
         const debtPaymentsPix = monthlyDebtPayments.filter(p => p.paymentMethod === 'pix').reduce((sum, p) => sum + p.amountPaid, 0);
@@ -119,6 +125,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             revenueJukeboxDinheiro,
             revenueJukeboxPix,
             totalRevenueJukebox,
+            revenueGruaDinheiro,
+            revenueGruaPix,
+            totalRevenueGrua,
             debtPaymentsDinheiro,
             debtPaymentsPix,
             totalDebtPayments,
@@ -156,6 +165,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalRevenueJukebox.toFixed(2)}`} valueColor="text-amber-400 text-lg" />
                     </div>
                 </InfoCard>
+                
+                 <InfoCard title="Caixa (Gruas)" icon={<CraneIcon className="w-6 h-6 text-cyan-400" />}>
+                    <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueGruaDinheiro.toFixed(2)}`} valueColor="text-sky-400" />
+                    <InfoRow label="Receita em PIX" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-emerald-400" />
+                    <div className="pt-3 mt-2 border-t border-slate-700/50">
+                        <InfoRow label="Total Recebido" value={`R$ ${stats.totalRevenueGrua.toFixed(2)}`} valueColor="text-amber-400 text-lg" />
+                    </div>
+                </InfoCard>
 
                  <InfoCard title="Caixa (Dívidas)" icon={<CurrencyDollarIcon className="w-6 h-6 text-cyan-400" />}>
                     <InfoRow label="Pago em Dinheiro" value={`R$ ${stats.debtPaymentsDinheiro.toFixed(2)}`} valueColor="text-sky-400" />
@@ -164,11 +181,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPayments.toFixed(2)}`} valueColor="text-amber-400 text-lg" />
                     </div>
                 </InfoCard>
-
-                <InfoCard title="Situação Geral" icon={<UsersIcon className="w-6 h-6 text-cyan-400" />}>
-                     <InfoRow label="Dívida Total (Fiado)" value={`R$ ${stats.totalDebt.toFixed(2)}`} valueColor="text-red-400 text-lg" />
-                     <InfoRow label="Clientes Ativos" value={`${stats.customersCount}`} valueColor="text-slate-300 text-lg" />
-                </InfoCard>
+                 <div className="lg:col-span-2 xl:col-span-4">
+                    <InfoCard title="Situação Geral" icon={<UsersIcon className="w-6 h-6 text-cyan-400" />}>
+                         <InfoRow label="Dívida Total (Fiado)" value={`R$ ${stats.totalDebt.toFixed(2)}`} valueColor="text-red-400 text-lg" />
+                         <InfoRow label="Clientes Ativos" value={`${stats.customersCount}`} valueColor="text-slate-300 text-lg" />
+                    </InfoCard>
+                </div>
             </div>
         </div>
     );

@@ -67,10 +67,15 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
     });
   }, []);
 
-  const addEquipment = useCallback((type: 'mesa' | 'jukebox') => {
-      const newEquipment: Partial<Equipment> = type === 'mesa'
-        ? { id: `new_${new Date().getTime()}`, type: 'mesa', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2.00, parteFirma: 50, parteCliente: 50 }
-        : { id: `new_${new Date().getTime()}`, type: 'jukebox', numero: '', relogioNumero: '', relogioAnterior: 0, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
+  const addEquipment = useCallback((type: 'mesa' | 'jukebox' | 'grua') => {
+      let newEquipment: Partial<Equipment>;
+      if (type === 'mesa') {
+          newEquipment = { id: `new_${new Date().getTime()}`, type: 'mesa', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2.00, parteFirma: 50, parteCliente: 50 };
+      } else if (type === 'jukebox') {
+          newEquipment = { id: `new_${new Date().getTime()}`, type: 'jukebox', numero: '', relogioNumero: '', relogioAnterior: 0, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
+      } else { // grua
+          newEquipment = { id: `new_${new Date().getTime()}`, type: 'grua', numero: '', relogioAnterior: 0, aluguelValor: 0, saldo: 0, reposicaoPelucia: 0, recebimentoEspecie: 0, recebimentoPix: 0 };
+      }
       setFormData(prev => ({...prev, equipment: [...prev.equipment, newEquipment]}));
   }, []);
 
@@ -96,6 +101,13 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
         parteCliente: Number(e.parteCliente) || 0,
         porcentagemJukeboxFirma: Number(e.porcentagemJukeboxFirma) || 0,
         porcentagemJukeboxCliente: Number(e.porcentagemJukeboxCliente) || 0,
+        aluguelPercentual: Number(e.aluguelPercentual) || 0,
+        aluguelValor: Number(e.aluguelValor) || 0,
+        saldo: Number(e.saldo) || 0,
+        quantidadePelucia: Number(e.quantidadePelucia) || 0,
+        reposicaoPelucia: Number(e.reposicaoPelucia) || 0,
+        recebimentoEspecie: Number(e.recebimentoEspecie) || 0,
+        recebimentoPix: Number(e.recebimentoPix) || 0,
     }));
     
     await onConfirm({ ...formData, equipment: finalEquipment as Equipment[] });
@@ -134,10 +146,14 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
           <div className="pt-4 border-t border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4">Equipamentos</h3>
             <div className="space-y-6">
-                {formData.equipment.map((equip, index) => (
+                {(formData.equipment || []).map((equip, index) => (
                     <div key={equip.id} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
                         <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-md font-bold text-emerald-400 capitalize">{equip.type === 'mesa' ? `Mesa de Sinuca #${index + 1}` : `Jukebox #${index + 1}`}</h4>
+                            <h4 className="text-md font-bold text-emerald-400 capitalize">
+                                {equip.type === 'mesa' ? `Mesa de Sinuca #${index + 1}` : 
+                                 equip.type === 'jukebox' ? `Jukebox #${index + 1}` : 
+                                 `Grua de Pelúcia #${index + 1}`}
+                            </h4>
                             <button type="button" onClick={() => removeEquipment(index)} className="text-red-500 hover:text-red-400">
                                 <TrashIcon className="w-5 h-5" />
                             </button>
@@ -151,7 +167,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                                 <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
                                 <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
                             </div>
-                        ) : (
+                        ) : equip.type === 'jukebox' ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField label="Número da Jukebox" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
                                 <FormField label="Nº Relógio da Jukebox" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
@@ -159,13 +175,22 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                                 <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="number" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
                                 <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="number" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
                             </div>
+                        ) : (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField label="Número da Grua" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="number" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
+                             </div>
                         )}
                     </div>
                 ))}
             </div>
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-wrap gap-4 mt-4">
                 <button type="button" onClick={() => addEquipment('mesa')} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Adicionar Mesa</button>
                 <button type="button" onClick={() => addEquipment('jukebox')} className="bg-fuchsia-600 text-white font-bold py-2 px-4 rounded-md hover:bg-fuchsia-500">Adicionar Jukebox</button>
+                <button type="button" onClick={() => addEquipment('grua')} className="bg-orange-600 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-500">Adicionar Grua</button>
             </div>
         </div>
         </form>

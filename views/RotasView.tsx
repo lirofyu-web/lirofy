@@ -6,21 +6,61 @@ import MapComponent from '../components/MapComponent';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import { RulerIcon } from '../components/icons/RulerIcon';
 import { LocationMarkerIcon } from '../components/icons/LocationMarkerIcon';
+import { BilliardIcon } from '../components/icons/BilliardIcon';
+import { JukeboxIcon } from '../components/icons/JukeboxIcon';
+import { CraneIcon } from '../components/icons/CraneIcon';
+import { ListBulletIcon } from '../components/icons/ListBulletIcon';
+
 
 interface RotasViewProps {
   customers: Customer[];
 }
 
+type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
+
+const FilterCard: React.FC<{
+    title: string;
+    count: number;
+    icon: React.ReactNode;
+    onClick: () => void;
+    isActive: boolean;
+}> = ({ title, count, icon, onClick, isActive }) => {
+    const baseClasses = "bg-slate-800 p-4 rounded-lg shadow-lg border-2 flex-1 text-left transition-all duration-200 min-w-[200px]";
+    const activeClasses = "border-emerald-500 bg-emerald-900/50 scale-105";
+    const inactiveClasses = "border-slate-700 hover:border-slate-600";
+    return (
+        <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
+            <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-full ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                    {icon}
+                </div>
+                <div>
+                    <h4 className="font-semibold text-white text-lg">{title}</h4>
+                    <p className="text-slate-400 text-sm">{count} clientes</p>
+                </div>
+            </div>
+        </button>
+    );
+};
+
 const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [distances, setDistances] = useState<Record<string, number | null>>({});
   const [isCalculating, setIsCalculating] = useState(false);
+  const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   const customerRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
+  const filteredCustomersForRoute = useMemo(() => {
+    if (equipmentFilter === 'all') {
+        return customers;
+    }
+    return customers.filter(c => c.equipment?.some(e => e.type === equipmentFilter));
+  }, [customers, equipmentFilter]);
+
   const geocodedCustomers = useMemo(() => {
-    return customers.filter(c => c.latitude != null && c.longitude != null).sort((a, b) => a.name.localeCompare(b.name)) as (Customer & { latitude: number; longitude: number; })[];
-  }, [customers]);
+    return filteredCustomersForRoute.filter(c => c.latitude != null && c.longitude != null).sort((a, b) => a.name.localeCompare(b.name)) as (Customer & { latitude: number; longitude: number; })[];
+  }, [filteredCustomersForRoute]);
 
   const customersByCity = useMemo(() => {
     return geocodedCustomers.reduce((acc, customer) => {
@@ -32,6 +72,13 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         return acc;
     }, {} as Record<string, (Customer & { latitude: number; longitude: number; })[]>);
   }, [geocodedCustomers]);
+  
+  const equipmentCounts = useMemo(() => ({
+    all: customers.length,
+    mesa: customers.filter(c => c.equipment?.some(e => e.type === 'mesa')).length,
+    jukebox: customers.filter(c => c.equipment?.some(e => e.type === 'jukebox')).length,
+    grua: customers.filter(c => c.equipment?.some(e => e.type === 'grua')).length,
+  }), [customers]);
 
   const sortedCities = useMemo(() => Object.keys(customersByCity).sort((a, b) => a.localeCompare(b)), [customersByCity]);
 
@@ -94,7 +141,8 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   }, [customers]);
   
   const handlePrintRoute = useCallback(() => {
-    const customersByCity = customers
+    const customersToPrint = filteredCustomersForRoute;
+    const customersByCity = customersToPrint
       .sort((a, b) => a.cidade.localeCompare(b.cidade) || a.name.localeCompare(b.name))
       .reduce((acc, customer) => {
           const city = customer.cidade.trim() || 'Sem Cidade';
@@ -128,9 +176,9 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
             } else {
                 const customer = item.data;
                 const equipamentos = [];
-                // FIX: Use the new 'equipment' array to check for equipment types, instead of the deprecated 'mesaNumero' and 'jukeboxNumero' properties.
                 if (customer.equipment?.some(e => e.type === 'mesa')) equipamentos.push('Mesa');
                 if (customer.equipment?.some(e => e.type === 'jukebox')) equipamentos.push('Jukebox');
+                if (customer.equipment?.some(e => e.type === 'grua')) equipamentos.push('Grua');
                 
                 tableRows += `
                     <tr>
@@ -191,7 +239,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         printWindow.focus();
         printWindow.print();
     }
-  }, [customers]);
+  }, [filteredCustomersForRoute]);
 
   return (
     <div className="h-full flex flex-col">
@@ -199,6 +247,39 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         title="Rotas e Mapa de Clientes"
         subtitle="Visualize a localização dos seus clientes e planeje suas rotas."
       />
+
+       {/* Filter Cards */}
+      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <FilterCard 
+              title="Todas as Rotas"
+              count={equipmentCounts.all}
+              icon={<ListBulletIcon className="w-6 h-6" />}
+              onClick={() => setEquipmentFilter('all')}
+              isActive={equipmentFilter === 'all'}
+          />
+          <FilterCard 
+              title="Rotas (Mesas)"
+              count={equipmentCounts.mesa}
+              icon={<BilliardIcon className="w-6 h-6" />}
+              onClick={() => setEquipmentFilter('mesa')}
+              isActive={equipmentFilter === 'mesa'}
+          />
+          <FilterCard 
+              title="Rotas (Jukebox)"
+              count={equipmentCounts.jukebox}
+              icon={<JukeboxIcon className="w-6 h-6" />}
+              onClick={() => setEquipmentFilter('jukebox')}
+              isActive={equipmentFilter === 'jukebox'}
+          />
+          <FilterCard 
+              title="Rotas (Gruas)"
+              count={equipmentCounts.grua}
+              icon={<CraneIcon className="w-6 h-6" />}
+              onClick={() => setEquipmentFilter('grua')}
+              isActive={equipmentFilter === 'grua'}
+          />
+      </div>
+
 
       <div className="flex flex-col md:flex-row gap-8 flex-grow min-h-0">
         
@@ -268,7 +349,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
               </div>
             )) : (
               <div className="p-4 text-center text-slate-400">
-                Nenhum cliente com endereço geocodificado encontrado.
+                Nenhum cliente com endereço geocodificado encontrado para o filtro selecionado.
               </div>
             )}
           </div>

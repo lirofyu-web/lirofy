@@ -1,9 +1,9 @@
 // types.ts
 export interface Equipment {
   id: string;
-  type: 'mesa' | 'jukebox';
+  type: 'mesa' | 'jukebox' | 'grua';
   numero: string; // ex: "101" ou "A-05"
-  relogioNumero: string; // ex: "M-S99" ou "R-J12"
+  relogioNumero?: string; // ex: "M-S99" ou "R-J12"
   relogioAnterior: number;
   
   // Mesa specific
@@ -14,6 +14,15 @@ export interface Equipment {
   // Jukebox specific
   porcentagemJukeboxFirma?: number;
   porcentagemJukeboxCliente?: number;
+
+  // Grua de Pelucia specific
+  aluguelPercentual?: number; // aluguel %
+  aluguelValor?: number; // aluguel R$
+  saldo?: number; // saldo R$
+  quantidadePelucia?: number; // quantidade de pelucia
+  reposicaoPelucia?: number; // reposição pelucia
+  recebimentoEspecie?: number; // recebimento via especie
+  recebimentoPix?: number; // recebimento pix
 }
 
 export interface Customer {
@@ -38,21 +47,38 @@ export interface Billing {
   id: string;
   customerId: string;
   customerName: string;
-  equipmentType: 'mesa' | 'jukebox';
+  equipmentType: 'mesa' | 'jukebox' | 'grua';
   equipmentId: string;
   equipmentNumero: string;
   relogioAnterior: number;
   relogioAtual: number;
-  partidasJogadas: number;
-  descontoPartidas: number;
-  partidasCobradas: number;
-  valorFicha?: number; // Only for 'mesa'
-  valorTotal: number;
-  parteFirma: number;
-  parteCliente: number;
+  partidasJogadas: number; // For all: relogioAtual - relogioAnterior
   settledAt: Date;
-  paymentMethod: 'pix' | 'dinheiro' | 'fiado';
+  
+  // Mesa specific
+  descontoPartidas?: number;
+  partidasCobradas?: number;
+  valorFicha?: number;
+
+  // Mesa & Jukebox calculation result
+  parteFirma?: number;
+  parteCliente?: number;
+  
+  // Grua specific
+  aluguelPercentual?: number;
+  aluguelValor?: number;
+  saldo?: number;
+  quantidadePelucia?: number;
+  sobraPelucia?: number;
+  reposicaoPelucia?: number;
+  recebimentoEspecie?: number;
+  recebimentoPix?: number;
+
+  // Universal
+  valorTotal: number; // The final value for the company
+  paymentMethod: 'pix' | 'dinheiro' | 'fiado'; // Fiado will not be an option for grua
 }
+
 
 export interface Expense {
   id: string;

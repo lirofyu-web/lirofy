@@ -55,6 +55,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
   if (!isOpen) return null;
 
   const isMesa = billing.equipmentType === 'mesa';
+  const isGrua = billing.equipmentType === 'grua';
   
   const paymentMethodText = {
       pix: 'PIX',
@@ -67,6 +68,61 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
       <span>{label}</span>
       <span>{value}</span>
     </div>
+  );
+
+  const renderGruaDetails = () => {
+    const saldo = billing.saldo || 0;
+    const aluguelCliente = billing.aluguelValor || 0;
+    const parteFirma = billing.valorTotal;
+
+    return (
+        <>
+            <p className="font-bold">EQUIPAMENTO: GRUA {billing.equipmentNumero}</p>
+            <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
+            <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
+            <hr className="border-dashed border-black my-2" />
+            <ReceiptRow label="SALDO:" value={`R$ ${saldo.toFixed(2)}`} />
+            <ReceiptRow label="Recebido Espécie:" value={`R$ ${(billing.recebimentoEspecie || 0).toFixed(2)}`} />
+            <ReceiptRow label="Recebido PIX:" value={`R$ ${(billing.recebimentoPix || 0).toFixed(2)}`} />
+            <hr className="border-dashed border-black my-2" />
+            <ReceiptRow label="Qtd. Pelúcias (Capacidade):" value={billing.quantidadePelucia || 0} />
+            <ReceiptRow label="Sobra de Pelúcias:" value={billing.sobraPelucia || 0} />
+            <ReceiptRow label="Reposição de Pelúcias:" value={billing.reposicaoPelucia || 0} />
+            <hr className="border-dashed border-black my-2" />
+            <ReceiptRow label="ALUGUEL (PAGO AO CLIENTE):" value={`R$ ${aluguelCliente.toFixed(2)}`} />
+            <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+                <span>TOTAL (FIRMA):</span>
+                <span>R$ {parteFirma.toFixed(2)}</span>
+            </div>
+        </>
+    );
+  };
+
+  const renderMesaJukeboxDetails = () => (
+    <>
+      <p className="font-bold">EQUIPAMENTO: {isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}</p>
+      <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
+      <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
+      
+      {isMesa && (
+        <>
+          <hr className="border-dashed border-black my-2" />
+          <ReceiptRow label="Partidas Jogadas:" value={billing.partidasJogadas} />
+          <ReceiptRow label="Partidas Desconto:" value={billing.descontoPartidas || 0} />
+          <ReceiptRow label="Partidas Cobradas:" value={billing.partidasCobradas || 0} />
+          <ReceiptRow label="Valor Ficha:" value={`R$ ${(billing.valorFicha ?? 0).toFixed(2)}`} />
+        </>
+      )}
+      
+      <hr className="border-dashed border-black my-2" />
+      <ReceiptRow label="Valor Bruto:" value={`R$ ${(billing.parteFirma! + billing.parteCliente!).toFixed(2)}`} />
+      <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente!.toFixed(2)}`} />
+      
+      <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+          <span>TOTAL (FIRMA):</span>
+          <span>R$ {billing.valorTotal.toFixed(2)}</span>
+      </div>
+    </>
   );
 
   return (
@@ -97,36 +153,15 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
                   <p>DATA: {new Date(billing.settledAt).toLocaleString('pt-BR')}</p>
                   <hr className="border-dashed border-black my-2" />
                   
-                  <p className="font-bold">EQUIPAMENTO: {isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}</p>
-                  <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
-                  <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
+                  {isGrua ? renderGruaDetails() : renderMesaJukeboxDetails()}
                   
-                  {isMesa && (
-                    <>
-                      <hr className="border-dashed border-black my-2" />
-                      <ReceiptRow label="Partidas Jogadas:" value={billing.partidasJogadas} />
-                      <ReceiptRow label="Partidas Desconto:" value={billing.descontoPartidas} />
-                      <ReceiptRow label="Partidas Cobradas:" value={billing.partidasCobradas} />
-                      <ReceiptRow label="Valor Ficha:" value={`R$ ${billing.valorFicha?.toFixed(2)}`} />
-                    </>
-                  )}
-                  
-                  <hr className="border-dashed border-black my-2" />
-
-                  <ReceiptRow label="Valor Bruto:" value={`R$ ${(billing.parteFirma + billing.parteCliente).toFixed(2)}`} />
-                  <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente.toFixed(2)}`} />
-                  
-                  <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
-                      <span>TOTAL (FIRMA):</span>
-                      <span>R$ {billing.valorTotal.toFixed(2)}</span>
-                  </div>
                    <div className="flex justify-between pt-1">
                       <span>Pagamento:</span>
                       <span>{paymentMethodText[billing.paymentMethod]}</span>
                   </div>
 
                   <div className="signatures text-center mt-10">
-                    <div className="signature-line w-4/5 mx-auto mt-12"></div>
+                    <div className="signature-line w-4/s mx-auto mt-12"></div>
                     <p>Assinatura Firma</p>
                     <div className="signature-line w-4/5 mx-auto mt-12"></div>
                     <p>Assinatura Cliente</p>

@@ -363,8 +363,16 @@ const App: React.FC = () => {
     customerId: string;
     equipmentId: string;
     relogioAtual: number;
-    descontoPartidas: number;
     paymentMethod: 'pix' | 'dinheiro' | 'fiado';
+    descontoPartidas?: number;
+    aluguelPercentual?: number;
+    aluguelValor?: number;
+    saldo?: number;
+    quantidadePelucia?: number;
+    sobraPelucia?: number;
+    reposicaoPelucia?: number;
+    recebimentoEspecie?: number;
+    recebimentoPix?: number;
   }) => {
     const customer = customers.find(c => c.id === billingData.customerId);
     if (!customer) return;
@@ -372,69 +380,103 @@ const App: React.FC = () => {
     const equipment = customer.equipment.find(e => e.id === billingData.equipmentId);
     if (!equipment) return;
 
-    const { relogioAtual, descontoPartidas, paymentMethod } = billingData;
-    
-    let relogioAnterior = equipment.relogioAnterior;
-    let valorTotal = 0;
-    let partidasJogadas = 0;
-    let partidasCobradas = 0;
-    let valorBruto = 0;
-    
-    if (equipment.type === 'mesa') {
-      partidasJogadas = relogioAtual - relogioAnterior;
-      partidasCobradas = partidasJogadas - descontoPartidas;
-      valorBruto = partidasCobradas * (equipment.valorFicha || 0);
-      valorTotal = valorBruto * ((equipment.parteFirma || 0) / 100);
-    } else { // jukebox
-      partidasJogadas = relogioAtual - relogioAnterior;
-      valorBruto = partidasJogadas; // For jukebox, we assume 1 pulse = R$ 1.00
-      valorTotal = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
-    }
+    let newBilling: Billing;
+    let updatedEquipment: Equipment;
 
-    const newBilling: Billing = {
-        id: `bill_${new Date().getTime()}`,
-        customerId: customer.id,
-        customerName: customer.name,
-        equipmentType: equipment.type,
-        equipmentId: equipment.id,
-        equipmentNumero: equipment.numero,
-        relogioAnterior,
-        relogioAtual: relogioAtual,
-        partidasJogadas,
-        descontoPartidas: equipment.type === 'mesa' ? descontoPartidas : 0,
-        partidasCobradas,
-        valorFicha: equipment.type === 'mesa' ? equipment.valorFicha : undefined,
-        valorTotal,
-        parteFirma: valorTotal,
-        parteCliente: valorBruto - valorTotal,
-        settledAt: new Date(),
-        paymentMethod: paymentMethod,
-    };
+    const { relogioAtual, paymentMethod } = billingData;
+    const relogioAnterior = equipment.relogioAnterior;
+    const partidasJogadas = relogioAtual > relogioAnterior ? relogioAtual - relogioAnterior : 0;
+    
+    if (equipment.type === 'grua') {
+        const { aluguelPercentual, aluguelValor, saldo, quantidadePelucia, sobraPelucia, reposicaoPelucia, recebimentoEspecie, recebimentoPix } = billingData;
+        
+        const firmaShare = saldo! - aluguelValor!;
+
+        newBilling = {
+            id: `bill_${new Date().getTime()}`,
+            customerId: customer.id,
+            customerName: customer.name,
+            equipmentType: 'grua',
+            equipmentId: equipment.id,
+            equipmentNumero: equipment.numero,
+            relogioAnterior,
+            relogioAtual,
+            partidasJogadas,
+            settledAt: new Date(),
+            paymentMethod: paymentMethod,
+            valorTotal: firmaShare, // This is the firm's calculated share
+            aluguelPercentual,
+            aluguelValor, // This is the client's share
+            saldo,
+            quantidadePelucia,
+            sobraPelucia,
+            reposicaoPelucia,
+            recebimentoEspecie,
+            recebimentoPix
+        };
+
+        updatedEquipment = {
+            ...equipment,
+            relogioAnterior: relogioAtual,
+            // Per new logic, `quantidadePelucia` represents the machine's capacity and doesn't change after a restock.
+        };
+
+    } else { // Mesa or Jukebox
+        const { descontoPartidas = 0 } = billingData;
+        let valorBruto = 0;
+        let valorTotal = 0; // Firma's take
+        let partidasCobradas = 0;
+
+        if (equipment.type === 'mesa') {
+            partidasCobradas = partidasJogadas - descontoPartidas;
+            valorBruto = partidasCobradas * (equipment.valorFicha || 0);
+            valorTotal = valorBruto * ((equipment.parteFirma || 0) / 100);
+        } else { // jukebox
+            partidasCobradas = partidasJogadas;
+            valorBruto = partidasJogadas;
+            valorTotal = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
+        }
+
+        newBilling = {
+            id: `bill_${new Date().getTime()}`,
+            customerId: customer.id,
+            customerName: customer.name,
+            equipmentType: equipment.type,
+            equipmentId: equipment.id,
+            equipmentNumero: equipment.numero,
+            relogioAnterior,
+            relogioAtual,
+            partidasJogadas,
+            descontoPartidas: equipment.type === 'mesa' ? descontoPartidas : undefined,
+            partidasCobradas,
+            valorFicha: equipment.type === 'mesa' ? equipment.valorFicha : undefined,
+            valorTotal,
+            parteFirma: valorTotal,
+            parteCliente: valorBruto - valorTotal,
+            settledAt: new Date(),
+            paymentMethod,
+        };
+        
+        updatedEquipment = { ...equipment, relogioAnterior: relogioAtual };
+
+         if (paymentMethod === 'fiado') {
+            setCustomers(prev => prev.map(c => c.id === customer.id ? {...c, debtAmount: c.debtAmount + valorBruto } : c));
+        }
+    }
 
     setBillings(prev => [...prev, newBilling]);
 
     setCustomers(prev => prev.map(c => {
-      if (c.id === customer.id) {
-        const updatedEquipment = c.equipment.map(eq => {
-            if (eq.id === equipment.id) {
-                return { ...eq, relogioAnterior: relogioAtual };
-            }
-            return eq;
-        });
-
-        const updatedCustomer = { 
-            ...c,
-            equipment: updatedEquipment,
-            lastVisitedAt: new Date(),
-        };
-        
-        if (paymentMethod === 'fiado') {
-          updatedCustomer.debtAmount += valorBruto;
+        if (c.id === customer.id) {
+            return {
+                ...c,
+                equipment: c.equipment.map(eq => eq.id === equipment.id ? updatedEquipment : eq),
+                lastVisitedAt: new Date(),
+            };
         }
-        return updatedCustomer;
-      }
-      return c;
+        return c;
     }));
+
     showNotification('Cobrança registrada com sucesso!');
     setReceiptActionPrompt({ billing: newBilling });
   }, [customers, setBillings, setCustomers, showNotification]);
@@ -557,6 +599,17 @@ const App: React.FC = () => {
                     porcentagemJukeboxCliente: parseInt(data['% Cliente (Jukebox)'], 10) || 50,
                 });
              }
+            if (data['Nº Grua']) {
+                equipment.push({
+                    id: `equip_text_${new Date().getTime()}_g`,
+                    type: 'grua',
+                    numero: data['Nº Grua'] || '',
+                    relogioAnterior: parseInt(data['Leitura Ant. Grua'], 10) || 0,
+                    aluguelPercentual: data['Aluguel (%)'] ? parseInt(data['Aluguel (%)'], 10) : undefined,
+                    aluguelValor: parseFloat(data['Aluguel Fixo (R$)']?.replace('R$ ', '')) || 0,
+                    quantidadePelucia: data['Qtd. Pelúcias'] ? parseInt(data['Qtd. Pelúcias'], 10) : undefined,
+                });
+            }
 
             const newCustomerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'> = {
                 name: data['Nome'] || '',
@@ -606,27 +659,51 @@ const App: React.FC = () => {
 
     let message = '';
     if (billing) {
-        const isMesa = billing.equipmentType === 'mesa';
         const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO', fiado: 'FIADO (ANOTADO)' };
+        let equipmentDetails = '';
+        if (billing.equipmentType === 'mesa') {
+            equipmentDetails = `*EQUIPAMENTO:* MESA ${billing.equipmentNumero}\n` +
+                               `Leitura Anterior: ${billing.relogioAnterior}\n` +
+                               `Leitura Atual: ${billing.relogioAtual}\n` +
+                               `--------------------------------\n` +
+                               `Partidas Jogadas: ${billing.partidasJogadas}\n` +
+                               `Partidas Desconto: ${billing.descontoPartidas}\n` +
+                               `Partidas Cobradas: ${billing.partidasCobradas}\n` +
+                               `Valor Ficha: R$ ${(billing.valorFicha ?? 0).toFixed(2)}\n` +
+                               `--------------------------------\n` +
+                               `Valor Bruto: R$ ${(billing.parteFirma! + billing.parteCliente!).toFixed(2)}\n` +
+                               `Parte Cliente: R$ ${billing.parteCliente!.toFixed(2)}\n` +
+                               `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*`;
+        } else if (billing.equipmentType === 'jukebox') {
+            equipmentDetails = `*EQUIPAMENTO:* JUKEBOX ${billing.equipmentNumero}\n` +
+                               `Leitura Anterior: ${billing.relogioAnterior}\n` +
+                               `Leitura Atual: ${billing.relogioAtual}\n` +
+                               `--------------------------------\n` +
+                               `Valor Bruto: R$ ${(billing.parteFirma! + billing.parteCliente!).toFixed(2)}\n` +
+                               `Parte Cliente: R$ ${billing.parteCliente!.toFixed(2)}\n` +
+                               `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*`;
+        } else if (billing.equipmentType === 'grua') {
+             equipmentDetails = `*EQUIPAMENTO:* GRUA ${billing.equipmentNumero}\n` +
+                                `Leitura Anterior: ${billing.relogioAnterior}\n` +
+                                `Leitura Atual: ${billing.relogioAtual}\n` +
+                                `--------------------------------\n` +
+                                `SALDO: R$ ${(billing.saldo || 0).toFixed(2)}\n` +
+                                `Reposição Pelúcias: ${billing.reposicaoPelucia || 0}\n` +
+                                `Recebido Espécie: R$ ${(billing.recebimentoEspecie || 0).toFixed(2)}\n` +
+                                `Recebido PIX: R$ ${(billing.recebimentoPix || 0).toFixed(2)}\n` +
+                                `--------------------------------\n` +
+                                `ALUGUEL (PAGO AO CLIENTE): R$ ${(billing.aluguelValor || 0).toFixed(2)}\n` +
+                                `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*`;
+        }
+
         message = `*RECIBO - MONTANHA BILHAR & JUKEBOX*\n` +
                   `--------------------------------\n` +
                   `*CLIENTE:* ${billing.customerName}\n` +
                   `*DATA:* ${new Date(billing.settledAt).toLocaleString('pt-BR')}\n` +
                   `--------------------------------\n` +
-                  `*EQUIPAMENTO:* ${isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}\n` +
-                  `Leitura Anterior: ${billing.relogioAnterior}\n` +
-                  `Leitura Atual: ${billing.relogioAtual}\n` +
-                  (isMesa ?
-                  `--------------------------------\n` +
-                  `Partidas Jogadas: ${billing.partidasJogadas}\n` +
-                  `Partidas Desconto: ${billing.descontoPartidas}\n` +
-                  `Partidas Cobradas: ${billing.partidasCobradas}\n` +
-                  `Valor Ficha: R$ ${billing.valorFicha?.toFixed(2)}\n` : '') +
-                  `--------------------------------\n` +
-                  `Valor Bruto: R$ ${(billing.parteFirma + billing.parteCliente).toFixed(2)}\n` +
-                  `Parte Cliente: R$ ${billing.parteCliente.toFixed(2)}\n` +
-                  `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*\n` +
+                   equipmentDetails + `\n` +
                   `*PAGAMENTO:* ${paymentMethodText[billing.paymentMethod]}`;
+                  
     } else if (debtPayment) {
         const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO' };
         message = `*COMPROVANTE DE PAGAMENTO - MONTANHA BILHAR & JUKEBOX*\n` +
@@ -653,7 +730,7 @@ const App: React.FC = () => {
       case 'CLIENTES':
         return <ClientesView customers={customers} billings={billings} debtPayments={debtPayments} onAddCustomer={handleAddCustomer} onSettleBill={handleSettleBill} onDeleteCustomer={handleDeleteCustomer} onPayDebt={handlePayDebt} onUpdateCustomer={handleUpdateCustomer} isSaving={isSaving} />;
       case 'COBRANCAS':
-        return <CobrancasView billings={billings} onShowReceipt={setReceiptToShow} />;
+        return <CobrancasView billings={billings} customers={customers} onShowReceipt={setReceiptToShow} />;
       case 'DESPESAS':
         return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
       case 'ROTAS':

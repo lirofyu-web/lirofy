@@ -14,6 +14,7 @@ import { ShareIcon } from './icons/ShareIcon';
 import { BilliardIcon } from './icons/BilliardIcon';
 import { JukeboxIcon } from './icons/JukeboxIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { CraneIcon } from './icons/CraneIcon';
 
 
 import BillingModal from './BillingModal';
@@ -27,13 +28,7 @@ interface CustomerCardProps {
   customer: Customer & { distance?: number };
   billings: Billing[];
   debtPayments: DebtPayment[];
-  onSettleBill: (billingData: {
-    customerId: string;
-    equipmentId: string;
-    relogioAtual: number;
-    descontoPartidas: number;
-    paymentMethod: 'pix' | 'dinheiro' | 'fiado';
-  }) => void;
+  onSettleBill: (billingData: any) => void;
   onDeleteCustomer: (customerId: string) => void;
   onPayDebt: (customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => void;
   onUpdateCustomer: (customer: Customer) => Promise<void>;
@@ -105,19 +100,26 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPay
       customer.equipment.forEach(equip => {
         if(equip.type === 'mesa') {
           equipmentDataString += `
-Nº Mesa: ${equip.numero}
-Nº Relógio Mesa: ${equip.relogioNumero}
+Nº Mesa: ${equip.numero ?? '-'}
+Nº Relógio Mesa: ${equip.relogioNumero ?? '-'}
 Leitura Ant. Mesa: ${equip.relogioAnterior}
-Valor Ficha: R$ ${equip.valorFicha?.toFixed(2)}
-% Firma (Mesa): ${equip.parteFirma}
-% Cliente (Mesa): ${equip.parteCliente}`;
-        } else {
+Valor Ficha: R$ ${(equip.valorFicha ?? 0).toFixed(2)}
+% Firma (Mesa): ${equip.parteFirma ?? 0}
+% Cliente (Mesa): ${equip.parteCliente ?? 0}`;
+        } else if (equip.type === 'jukebox') {
           equipmentDataString += `
-Nº Jukebox: ${equip.numero}
-Nº Relógio Jukebox: ${equip.relogioNumero}
+Nº Jukebox: ${equip.numero ?? '-'}
+Nº Relógio Jukebox: ${equip.relogioNumero ?? '-'}
 Leitura Ant. Jukebox: ${equip.relogioAnterior}
-% Firma (Jukebox): ${equip.porcentagemJukeboxFirma}
-% Cliente (Jukebox): ${equip.porcentagemJukeboxCliente}`;
+% Firma (Jukebox): ${equip.porcentagemJukeboxFirma ?? 0}
+% Cliente (Jukebox): ${equip.porcentagemJukeboxCliente ?? 0}`;
+        } else if (equip.type === 'grua') {
+            equipmentDataString += `
+Nº Grua: ${equip.numero ?? '-'}
+Leitura Ant. Grua: ${equip.relogioAnterior}
+Aluguel (%): ${equip.aluguelPercentual ?? '-'}
+Aluguel Fixo (R$): ${(equip.aluguelValor ?? 0).toFixed(2)}
+Qtd. Pelúcias: ${equip.quantidadePelucia ?? '-'}`;
         }
       });
     }
@@ -179,15 +181,22 @@ ${equipmentDataString.trim()}
                               <h4 className="font-semibold text-cyan-400 flex items-center gap-2 text-base"><BilliardIcon className="w-4 h-4" /> Mesa {equip.numero}</h4>
                               <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
                               <DetailRow label="Nº Relógio" value={equip.relogioNumero || '-'} />
-                              <DetailRow label="Valor Ficha" value={`R$ ${equip.valorFicha?.toFixed(2)}`} />
-                              <DetailRow label="% Firma / Cliente" value={`${equip.parteFirma}% / ${equip.parteCliente}%`} />
+                              <DetailRow label="Valor Ficha" value={`R$ ${(equip.valorFicha ?? 0).toFixed(2)}`} />
+                              <DetailRow label="% Firma / Cliente" value={`${equip.parteFirma ?? 0}% / ${equip.parteCliente ?? 0}%`} />
                             </>
-                          ) : (
+                          ) : equip.type === 'jukebox' ? (
                             <>
                               <h4 className="font-semibold text-fuchsia-400 flex items-center gap-2 text-base"><JukeboxIcon className="w-4 h-4" /> Jukebox {equip.numero}</h4>
                               <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
                               <DetailRow label="Nº Relógio" value={equip.relogioNumero || '-'} />
-                              <DetailRow label="% Firma / Cliente" value={`${equip.porcentagemJukeboxFirma}% / ${equip.porcentagemJukeboxCliente}%`} />
+                              <DetailRow label="% Firma / Cliente" value={`${equip.porcentagemJukeboxFirma ?? 0}% / ${equip.porcentagemJukeboxCliente ?? 0}%`} />
+                            </>
+                          ) : (
+                             <>
+                              <h4 className="font-semibold text-orange-400 flex items-center gap-2 text-base"><CraneIcon className="w-4 h-4" /> Grua {equip.numero}</h4>
+                              <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
+                              <DetailRow label="Aluguel" value={`${equip.aluguelPercentual ?? 0}% ou R$ ${(equip.aluguelValor ?? 0).toFixed(2)}`} />
+                              <DetailRow label="Qtd. Pelúcias" value={equip.quantidadePelucia ?? 0} />
                             </>
                           )}
                         </div>

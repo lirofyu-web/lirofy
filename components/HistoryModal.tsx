@@ -46,14 +46,21 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
     const historyItems = useMemo(() => {
         const customerBillings: HistoryItem[] = billings
             .filter(b => b.customerId === customer.id)
-            .map(b => ({
-                id: b.id,
-                date: new Date(b.settledAt),
-                type: 'billing',
-                description: `Cobrança - ${b.equipment === 'mesa' ? 'Mesa' : 'Jukebox'}`,
-                amount: b.valorTotal,
-                paymentMethod: b.paymentMethod,
-            }));
+            .map(b => {
+                let description = 'Cobrança';
+                if (b.equipmentType === 'mesa') description += ' - Mesa';
+                if (b.equipmentType === 'jukebox') description += ' - Jukebox';
+                if (b.equipmentType === 'grua') description += ' - Grua';
+
+                return {
+                    id: b.id,
+                    date: new Date(b.settledAt),
+                    type: 'billing' as 'billing',
+                    description: description,
+                    amount: b.valorTotal,
+                    paymentMethod: b.paymentMethod,
+                };
+            });
 
         const customerPayments: HistoryItem[] = debtPayments
             .filter(p => p.customerId === customer.id)

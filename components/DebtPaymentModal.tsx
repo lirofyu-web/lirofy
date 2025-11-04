@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
@@ -43,8 +44,6 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
     }
   }, [amountStr, customer.debtAmount, isOpen]);
 
-  if (!isOpen) return null;
-
   const handleConfirm = useCallback(() => {
     if (error) return;
     const amountNum = parseFloat(amountStr.replace(',', '.')) || 0;
@@ -61,6 +60,8 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
     }
     setAmountStr(value);
   }, []);
+
+  if (!isOpen) return null;
 
   const PaymentButton = ({ method, label }: { method: 'pix' | 'dinheiro', label: string }) => (
     <button
