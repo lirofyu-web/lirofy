@@ -1,251 +1,136 @@
 // components/CustomerCard.tsx
-import React, { useState, useCallback } from 'react';
-import { Customer, Billing, DebtPayment, Equipment } from '../types';
-import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
-import { TrashIcon } from './icons/TrashIcon';
+import React, { useState } from 'react';
+import { Customer, Equipment } from '../types';
 import { PencilIcon } from './icons/PencilIcon';
-import { WhatsAppIcon } from './icons/WhatsAppIcon';
-import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
+import { TrashIcon } from './icons/TrashIcon';
+import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
 import { HistoryIcon } from './icons/HistoryIcon';
-import { AlertIcon } from './icons/AlertIcon';
-import { VisitedIcon } from './icons/VisitedIcon';
-import { NotVisitedIcon } from './icons/NotVisitedIcon';
-import { ShareIcon } from './icons/ShareIcon';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { LocationArrowIcon } from './icons/LocationArrowIcon';
 import { BilliardIcon } from './icons/BilliardIcon';
 import { JukeboxIcon } from './icons/JukeboxIcon';
-import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { CraneIcon } from './icons/CraneIcon';
-
-
-import BillingModal from './BillingModal';
-import DebtPaymentModal from './DebtPaymentModal';
-import EditCustomerModal from './EditCustomerModal';
-import HistoryModal from './HistoryModal';
-// FIX: Import ActionModal component to resolve 'Cannot find name' error.
-import ActionModal from './ActionModal';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { ShareIcon } from './icons/ShareIcon';
 
 interface CustomerCardProps {
-  customer: Customer & { distance?: number };
-  billings: Billing[];
-  debtPayments: DebtPayment[];
-  onSettleBill: (billingData: any) => void;
-  onDeleteCustomer: (customerId: string) => void;
-  onPayDebt: (customerId: string, amount: number, paymentMethod: 'pix' | 'dinheiro') => void;
-  onUpdateCustomer: (customer: Customer) => Promise<void>;
-  isSaving: boolean;
+  customer: Customer;
+  onBill: (customer: Customer) => void;
+  onEdit: (customer: Customer) => void;
+  onDelete: (customerId: string) => void;
+  onPayDebt: (customer: Customer) => void;
+  onHistory: (customer: Customer) => void;
+  onShare: (customer: Customer) => void;
 }
 
-const DetailRow: React.FC<{ label: string; value: string | number; valueClass?: string }> = React.memo(({ label, value, valueClass = 'text-slate-300' }) => (
-    <div className="flex justify-between items-baseline text-sm">
-        <span className="text-slate-400">{label}</span>
-        <span className={`font-mono font-medium ${valueClass}`}>{value}</span>
-    </div>
-));
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
 
-const ActionButton: React.FC<{onClick?: () => void; href?: string; title: string; children: React.ReactNode; isLink?: boolean; className?: string}> = 
-  React.memo(({onClick, href, title, children, isLink, className}) => {
-  const commonClasses = "p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-white transition-colors duration-200";
-  if (isLink) {
-      return <a href={href} target="_blank" rel="noopener noreferrer" title={title} className={`${commonClasses} ${className}`}>{children}</a>
-  }
-  return <button onClick={onClick} title={title} className={`${commonClasses} ${className}`}>{children}</button>;
-});
+    const hasDebt = customer.debtAmount > 0;
+    const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
+    const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
 
-
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, debtPayments, onSettleBill, onDeleteCustomer, onPayDebt, onUpdateCustomer, isSaving }) => {
-  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
-  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const handleSettleBill = useCallback((data: Omit<Parameters<typeof onSettleBill>[0], 'customerId'>) => {
-    onSettleBill({ ...data, customerId: customer.id });
-    setIsBillingModalOpen(false);
-  }, [onSettleBill, customer.id]);
-  
-  const handlePayDebt = useCallback((amount: number, paymentMethod: 'pix' | 'dinheiro') => {
-    onPayDebt(customer.id, amount, paymentMethod);
-    setIsDebtModalOpen(false);
-  }, [onPayDebt, customer.id]);
-
-  const handleDeleteCustomer = useCallback(() => {
-    onDeleteCustomer(customer.id);
-    setIsDeleteModalOpen(false);
-  }, [onDeleteCustomer, customer.id]);
-  
-  const handleUpdateCustomer = useCallback(async (updatedCustomer: Customer) => {
-    await onUpdateCustomer(updatedCustomer);
-    setIsEditModalOpen(false);
-  }, [onUpdateCustomer]);
-
-  const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
-  const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
-  const lastVisitedDate = customer.lastVisitedAt ? new Date(customer.lastVisitedAt).toLocaleDateString('pt-BR') : 'Nenhuma';
-
-  const hasHighDebt = customer.debtAmount > 50;
-
-  const googleMapsUrl = customer.latitude && customer.longitude
-    ? `https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${customer.endereco}, ${customer.cidade}`)}`;
-
-  const whatsAppUrl = customer.telefone 
-    ? `https://wa.me/55${customer.telefone.replace(/\D/g, '')}`
-    : '';
-
-  const handleShare = useCallback(() => {
-    let equipmentDataString = '';
-    if(customer.equipment && customer.equipment.length > 0) {
-      customer.equipment.forEach(equip => {
-        if(equip.type === 'mesa') {
-          equipmentDataString += `
-Nº Mesa: ${equip.numero ?? '-'}
-Nº Relógio Mesa: ${equip.relogioNumero ?? '-'}
-Leitura Ant. Mesa: ${equip.relogioAnterior}
-Valor Ficha: R$ ${(equip.valorFicha ?? 0).toFixed(2)}
-% Firma (Mesa): ${equip.parteFirma ?? 0}
-% Cliente (Mesa): ${equip.parteCliente ?? 0}`;
-        } else if (equip.type === 'jukebox') {
-          equipmentDataString += `
-Nº Jukebox: ${equip.numero ?? '-'}
-Nº Relógio Jukebox: ${equip.relogioNumero ?? '-'}
-Leitura Ant. Jukebox: ${equip.relogioAnterior}
-% Firma (Jukebox): ${equip.porcentagemJukeboxFirma ?? 0}
-% Cliente (Jukebox): ${equip.porcentagemJukeboxCliente ?? 0}`;
-        } else if (equip.type === 'grua') {
-            equipmentDataString += `
-Nº Grua: ${equip.numero ?? '-'}
-Leitura Ant. Grua: ${equip.relogioAnterior}
-Aluguel (%): ${equip.aluguelPercentual ?? '-'}
-Aluguel Fixo (R$): ${(equip.aluguelValor ?? 0).toFixed(2)}
-Qtd. Pelúcias: ${equip.quantidadePelucia ?? '-'}`;
+    const EquipmentIcon: React.FC<{type: Equipment['type']}> = ({ type }) => {
+        switch(type) {
+            case 'mesa': return <BilliardIcon className="w-5 h-5 text-cyan-400" />;
+            case 'jukebox': return <JukeboxIcon className="w-5 h-5 text-fuchsia-400" />;
+            case 'grua': return <CraneIcon className="w-5 h-5 text-orange-400" />;
+            default: return null;
         }
-      });
-    }
+    };
+    
+    const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, disabled?: boolean}> = ({onClick, icon, label, colorClass, disabled}) => (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${
+                disabled ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : `${colorClass} hover:opacity-90`
+            }`}
+        >
+            {icon}
+            <span className="mt-1">{label}</span>
+        </button>
+    );
 
-    const customerDataString = `
---- INÍCIO DADOS CLIENTE ---
-Nome: ${customer.name}
-CPF/RG: ${customer.cpfRg}
-Cidade: ${customer.cidade}
-Endereço: ${customer.endereco}
-Telefone: ${customer.telefone}
-Linha/Rota: ${customer.linhaNumero}
-${equipmentDataString.trim()}
---- FIM DADOS CLIENTE ---
-    `.trim();
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(customerDataString)}`;
-    window.open(whatsappUrl, '_blank');
-  }, [customer]);
-
-  return (
-    <>
-      <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col h-full transition-shadow hover:shadow-emerald-500/10">
-        <div className="flex-grow">
-          {/* Clickable Header Area */}
-          <div className="p-5 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-            <div className="flex justify-between items-start gap-2">
-              <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
-                <span title={visitIsPending ? 'Visita Pendente' : `Visitado em ${lastVisitedDate}`}>
-                  {visitIsPending ? <NotVisitedIcon className="w-5 h-5" /> : <VisitedIcon className="w-5 h-5" />}
-                </span>
-                <span>{customer.name}</span>
-              </h3>
-              <div className="flex-shrink-0 flex items-center gap-2">
-                  {hasHighDebt && !isExpanded && (
-                    <div title={`Dívida pendente: R$ ${customer.debtAmount.toFixed(2)}`}>
-                      <AlertIcon className="w-6 h-6 text-amber-400" />
+    return (
+        <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 transition-all duration-300">
+            <div className="p-3">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="text-xl font-bold text-white">{customer.name}</h3>
+                        <p className="text-sm text-slate-400">{customer.cidade} - Linha: {customer.linhaNumero}</p>
                     </div>
-                  )}
-                  <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-              </div>
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                        {visitIsPending && <span title="Visita Pendente" className="block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>}
+                        {hasDebt && (
+                            <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="text-amber-400 font-bold text-sm bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-600">
+                                R$ {customer.debtAmount.toFixed(2)}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
+                <div className="mt-4 flex flex-wrap gap-2 text-white">
+                    <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="bg-emerald-600" />
+                    <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" />
+                    <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Fiado" colorClass="bg-amber-600" disabled={!hasDebt} />
+                    <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" colorClass="bg-indigo-600" />
+                    <ActionButton onClick={() => onDelete(customer.id)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" />
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-slate-300">
+                     <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 text-center p-2 rounded-md transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                        <WhatsAppIcon className="w-5 h-5 mx-auto" />
+                    </a>
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 text-center p-2 rounded-md transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                        <LocationArrowIcon className="w-5 h-5 mx-auto" />
+                    </a>
+                    <button onClick={() => onShare(customer)} className="flex-1 p-2 rounded-md bg-slate-600 hover:bg-slate-500">
+                        <ShareIcon className="w-5 h-5 mx-auto" />
+                    </button>
+                </div>
+
             </div>
-            <p className="text-sm text-slate-400 mb-2 truncate">{customer.endereco}</p>
-            
-             {customer.distance !== undefined && customer.distance !== Infinity && (
-                   <p className="text-sm text-sky-400 font-medium">
-                      Aprox. {customer.distance.toFixed(1)} km de distância
-                  </p>
-              )}
-          </div>
 
-          {/* Expandable Content */}
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[500px] overflow-y-auto' : 'max-h-0'}`}>
-              <div className="px-5 pb-5">
-                  <div className="pt-4 border-t border-slate-700/50 space-y-4">
-                      {customer.equipment?.map((equip, index) => (
-                        <div key={equip.id} className="space-y-1.5">
-                          {equip.type === 'mesa' ? (
-                            <>
-                              <h4 className="font-semibold text-cyan-400 flex items-center gap-2 text-base"><BilliardIcon className="w-4 h-4" /> Mesa {equip.numero}</h4>
-                              <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
-                              <DetailRow label="Nº Relógio" value={equip.relogioNumero || '-'} />
-                              <DetailRow label="Valor Ficha" value={`R$ ${(equip.valorFicha ?? 0).toFixed(2)}`} />
-                              <DetailRow label="% Firma / Cliente" value={`${equip.parteFirma ?? 0}% / ${equip.parteCliente ?? 0}%`} />
-                            </>
-                          ) : equip.type === 'jukebox' ? (
-                            <>
-                              <h4 className="font-semibold text-fuchsia-400 flex items-center gap-2 text-base"><JukeboxIcon className="w-4 h-4" /> Jukebox {equip.numero}</h4>
-                              <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
-                              <DetailRow label="Nº Relógio" value={equip.relogioNumero || '-'} />
-                              <DetailRow label="% Firma / Cliente" value={`${equip.porcentagemJukeboxFirma ?? 0}% / ${equip.porcentagemJukeboxCliente ?? 0}%`} />
-                            </>
-                          ) : (
-                             <>
-                              <h4 className="font-semibold text-orange-400 flex items-center gap-2 text-base"><CraneIcon className="w-4 h-4" /> Grua {equip.numero}</h4>
-                              <DetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
-                              <DetailRow label="Aluguel" value={`${equip.aluguelPercentual ?? 0}% ou R$ ${(equip.aluguelValor ?? 0).toFixed(2)}`} />
-                              <DetailRow label="Qtd. Pelúcias" value={equip.quantidadePelucia ?? 0} />
-                            </>
-                          )}
+            {customer.equipment && customer.equipment.length > 0 && (
+                <div className="border-t border-slate-700">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-2 text-sm text-slate-300 hover:bg-slate-700/50">
+                        <span className="font-semibold">Equipamentos ({customer.equipment.length})</span>
+                        <ChevronDownIcon className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isExpanded && (
+                        <div className="p-3 bg-slate-900/50 border-t border-slate-700 space-y-3">
+                            {customer.equipment.map((equip) => (
+                                <div key={equip.id} className="flex justify-between items-center text-sm p-2 bg-slate-800 rounded-md">
+                                    <div className="flex items-center gap-2">
+                                        <EquipmentIcon type={equip.type} />
+                                        <span className="font-medium text-white capitalize">{equip.type} {equip.numero}</span>
+                                    </div>
+                                    <div className="text-slate-400">
+                                        <span>Leitura: {equip.relogioAnterior}</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                      ))}
-                      {/* Debt Details */}
-                      {customer.debtAmount > 0 && (
-                          <div className="pt-2 mt-2 border-t border-slate-700/50">
-                             <DetailRow label="Saldo Devedor" value={`R$ ${customer.debtAmount.toFixed(2)}`} valueClass="text-amber-400 font-bold" />
-                          </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-        </div>
-
-
-        <div className="bg-slate-800/50 p-3 flex flex-wrap gap-2 justify-center border-t border-slate-700">
-            <button onClick={() => setIsBillingModalOpen(true)} className="flex-1 text-sm bg-emerald-600 text-white font-bold py-2 px-3 rounded-md hover:bg-emerald-500 transition-colors min-w-[120px]">Cobrança</button>
-            {customer.debtAmount > 0 && (
-                 <button onClick={() => setIsDebtModalOpen(true)} className="flex-1 text-sm bg-amber-600 text-white font-bold py-2 px-3 rounded-md hover:bg-amber-500 transition-colors min-w-[120px]">Pagar Dívida</button>
+                    )}
+                </div>
             )}
         </div>
-        
-        <div className="bg-slate-900/40 p-1 flex justify-around items-center rounded-b-lg">
-          <ActionButton onClick={() => setIsHistoryModalOpen(true)} title="Histórico"><HistoryIcon className="w-5 h-5" /></ActionButton>
-          {whatsAppUrl && <ActionButton href={whatsAppUrl} title="WhatsApp" isLink><WhatsAppIcon className="w-5 h-5" /></ActionButton>}
-          <ActionButton onClick={handleShare} title="Compartilhar Dados"><ShareIcon className="w-5 h-5" /></ActionButton>
-          <ActionButton href={googleMapsUrl} title="Ver no Mapa" isLink><LocationMarkerIcon className="w-5 h-5" /></ActionButton>
-          <ActionButton onClick={() => setIsEditModalOpen(true)} title="Editar"><PencilIcon className="w-5 h-5" /></ActionButton>
-          <ActionButton onClick={() => setIsDeleteModalOpen(true)} title="Excluir" className="hover:text-red-500"><TrashIcon className="w-5 h-5" /></ActionButton>
-        </div>
-      </div>
-      
-      {/* Modals */}
-      <BillingModal isOpen={isBillingModalOpen} onClose={() => setIsBillingModalOpen(false)} onConfirm={handleSettleBill} customer={customer} />
-      {customer.debtAmount > 0 && <DebtPaymentModal isOpen={isDebtModalOpen} onClose={() => setIsDebtModalOpen(false)} onConfirm={handlePayDebt} customer={customer} />}
-      <EditCustomerModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onConfirm={handleUpdateCustomer} customer={customer} isSaving={isSaving} />
-      <HistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} customer={customer} billings={billings} debtPayments={debtPayments} />
-      <ActionModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteCustomer}
-        title="Confirmar Exclusão"
-        confirmText="Excluir"
-      >
-        <p>Tem certeza que deseja excluir o cliente <strong>{customer.name}</strong> e todo o seu histórico? Esta ação não pode ser desfeita.</p>
-      </ActionModal>
-    </>
-  );
+    );
 };
+// Add a missing import
+const ReceiptIcon = ({ className }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24"
+    className={className || 'w-6 h-6'}
+    role="img"
+    aria-label="Cobranças Icon"
+    fill="currentColor"
+  >
+    <path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm0 2h14v14H5V5zm2 2v2h10V7H7zm0 4v2h10v-2H7zm0 4v2h7v-2H7z" />
+  </svg>
+);
+
 
 export default CustomerCard;

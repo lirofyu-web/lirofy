@@ -20,10 +20,11 @@ const FormField: React.FC<{
   type?: string; 
   required?: boolean; 
   step?: string;
-}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step }) => (
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step, inputMode }) => (
     <div>
         <label htmlFor={`edit-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} inputMode={inputMode} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
 ));
 
@@ -134,7 +135,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
               </div>
               <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} />
               <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange}/>
-              <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange}/>
+              <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="text" inputMode="tel"/>
               <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleBaseChange}/>
               <div>
                    <label htmlFor="edit-cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
@@ -162,26 +163,26 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
                                 <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Leitura Anterior" name="relogioAnterior" type="text" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Valor da Ficha (R$)" name="valorFicha" type="text" inputMode="decimal" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Parte da Firma (%)" name="parteFirma" type="text" inputMode="numeric" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Parte do Cliente (%)" name="parteCliente" type="text" inputMode="numeric" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
                             </div>
                         ) : equip.type === 'jukebox' ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField label="Número da Jukebox" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
                                 <FormField label="Nº Relógio da Jukebox" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="number" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="number" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Leitura Anterior" name="relogioAnterior" type="text" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="text" inputMode="numeric" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="text" inputMode="numeric" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
                             </div>
                         ) : (
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField label="Número da Grua" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="number" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Leitura Anterior" name="relogioAnterior" type="text" inputMode="numeric" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="text" inputMode="numeric" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Aluguel (%)" name="aluguelPercentual" type="text" inputMode="numeric" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="text" inputMode="decimal" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
                              </div>
                         )}
                     </div>

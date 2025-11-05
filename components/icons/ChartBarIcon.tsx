@@ -1,8 +1,33 @@
-// Fix: Added ChartBarIcon component content to make the file a valid module.
+// components/icons/ChartBarIcon.tsx
 import React from 'react';
 
 export const ChartBarIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || 'w-6 h-6'}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24"
+    className={className || 'w-6 h-6'}
+    role="img"
+    aria-label="Relatórios Icon"
+  >
+    <defs>
+      <linearGradient id="bar1" x1="0.5" y1="0" x2="0.5" y2="1">
+        <stop offset="0%" stopColor="#42a5f5" />
+        <stop offset="100%" stopColor="#1e88e5" />
+      </linearGradient>
+      <linearGradient id="bar2" x1="0.5" y1="0" x2="0.5" y2="1">
+        <stop offset="0%" stopColor="#66bb6a" />
+        <stop offset="100%" stopColor="#43a047" />
+      </linearGradient>
+      <linearGradient id="bar3" x1="0.5" y1="0" x2="0.5" y2="1">
+        <stop offset="0%" stopColor="#ffee58" />
+        <stop offset="100%" stopColor="#fdd835" />
+      </linearGradient>
+    </defs>
+    {/* Base Line */}
+    <path fill="#90a4ae" d="M3 20h18v1H3z" />
+    {/* Bars */}
+    <rect x="4" y="12" width="4" height="8" rx="1" fill="url(#bar1)" />
+    <rect x="10" y="8" width="4" height="12" rx="1" fill="url(#bar2)" />
+    <rect x="16" y="4" width="4" height="16" rx="1" fill="url(#bar3)" />
   </svg>
 );

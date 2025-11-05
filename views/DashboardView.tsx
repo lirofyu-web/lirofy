@@ -2,11 +2,10 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Customer, Billing, Expense, DebtPayment } from '../types';
 import PageHeader from '../components/PageHeader';
-import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
-import { UsersIcon } from '../components/icons/UsersIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
+import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 
 interface DashboardViewProps {
   billings: Billing[];
@@ -28,7 +27,7 @@ const DateFilter: React.FC<DateFilterProps> = React.memo(({ currentDate, onMonth
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
     return (
-        <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-wrap items-center gap-4">
+        <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 flex flex-wrap items-center gap-4">
             <h3 className="text-lg font-semibold text-white">Período de Análise:</h3>
             <select value={currentDate.getMonth()} onChange={(e) => onMonthChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 {monthNames.map((month, index) => <option key={month} value={index}>{month}</option>)}
@@ -91,11 +90,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             const date = new Date(b.settledAt);
             return date.getFullYear() === year && date.getMonth() === month;
         });
-        const monthlyDebtPayments = debtPayments.filter(p => {
-            const date = new Date(p.paidAt);
+        
+        const monthlyExpenses = expenses.filter(e => {
+            const date = new Date(e.date);
             return date.getFullYear() === year && date.getMonth() === month;
         });
-        
+        const totalMonthlyExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+
         // Revenue from Tables
         const revenueMesaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'mesa' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
         const revenueMesaPix = monthlyBillings.filter(b => b.equipmentType === 'mesa' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
@@ -107,17 +108,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
         const totalRevenueJukebox = revenueJukeboxDinheiro + revenueJukeboxPix;
 
         // Revenue from Cranes
-        const revenueGruaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'grua' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
-        const revenueGruaPix = monthlyBillings.filter(b => b.equipmentType === 'grua' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+        const revenueGruaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.recebimentoEspecie || 0), 0);
+        const revenueGruaPix = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.recebimentoPix || 0), 0);
         const totalRevenueGrua = revenueGruaDinheiro + revenueGruaPix;
-
-        // Revenue from Debt Payments
-        const debtPaymentsDinheiro = monthlyDebtPayments.filter(p => p.paymentMethod === 'dinheiro').reduce((sum, p) => sum + p.amountPaid, 0);
-        const debtPaymentsPix = monthlyDebtPayments.filter(p => p.paymentMethod === 'pix').reduce((sum, p) => sum + p.amountPaid, 0);
-        const totalDebtPayments = debtPaymentsDinheiro + debtPaymentsPix;
         
-        const totalDebt = customers.reduce((sum, c) => sum + c.debtAmount, 0);
-
         return {
             revenueMesaDinheiro,
             revenueMesaPix,
@@ -128,18 +122,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             revenueGruaDinheiro,
             revenueGruaPix,
             totalRevenueGrua,
-            debtPaymentsDinheiro,
-            debtPaymentsPix,
-            totalDebtPayments,
-            totalDebt,
-            customersCount: customers.length
+            totalMonthlyExpenses
         };
-    }, [billings, customers, debtPayments, currentDate]);
+    }, [billings, expenses, currentDate]);
     
     return (
-        <div>
+        <div className="space-y-8">
             <PageHeader 
-                title="Dashboard"
+                title="INÍCIO"
                 subtitle="Visão geral e desempenho do seu negócio."
             />
             
@@ -149,7 +139,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 onYearChange={handleYearChange}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
                  <InfoCard title="Caixa (Mesas)" icon={<BilliardIcon className="w-6 h-6 text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2)}`} valueColor="text-sky-400" />
                     <InfoRow label="Receita em PIX" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-emerald-400" />
@@ -174,19 +164,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                     </div>
                 </InfoCard>
 
-                 <InfoCard title="Caixa (Dívidas)" icon={<CurrencyDollarIcon className="w-6 h-6 text-cyan-400" />}>
-                    <InfoRow label="Pago em Dinheiro" value={`R$ ${stats.debtPaymentsDinheiro.toFixed(2)}`} valueColor="text-sky-400" />
-                    <InfoRow label="Pago em PIX" value={`R$ ${stats.debtPaymentsPix.toFixed(2)}`} valueColor="text-emerald-400" />
-                    <div className="pt-3 mt-2 border-t border-slate-700/50">
-                        <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPayments.toFixed(2)}`} valueColor="text-amber-400 text-lg" />
-                    </div>
+                 <InfoCard title="Despesas do Mês" icon={<CalculatorIcon className="w-6 h-6 text-cyan-400" />}>
+                    <InfoRow label="Total Gasto no Mês" value={`R$ ${stats.totalMonthlyExpenses.toFixed(2)}`} valueColor="text-red-400 text-lg" />
                 </InfoCard>
-                 <div className="lg:col-span-2 xl:col-span-4">
-                    <InfoCard title="Situação Geral" icon={<UsersIcon className="w-6 h-6 text-cyan-400" />}>
-                         <InfoRow label="Dívida Total (Fiado)" value={`R$ ${stats.totalDebt.toFixed(2)}`} valueColor="text-red-400 text-lg" />
-                         <InfoRow label="Clientes Ativos" value={`${stats.customersCount}`} valueColor="text-slate-300 text-lg" />
-                    </InfoCard>
-                </div>
             </div>
         </div>
     );

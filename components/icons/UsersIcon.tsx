@@ -1,8 +1,32 @@
-// Fix: Added UsersIcon component content to make the file a valid module.
+// components/icons/UsersIcon.tsx
 import React from 'react';
 
 export const UsersIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || 'w-6 h-6'}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.663M5.54 5.281A7.474 7.474 0 0112 4.5c1.72 0 3.32.52 4.634 1.405M9.19 9.31a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24"
+    className={className || 'w-6 h-6'}
+    role="img"
+    aria-label="Clientes Icon"
+  >
+    <defs>
+      <linearGradient id="cardStack" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#81d4fa" />
+        <stop offset="100%" stopColor="#039be5" />
+      </linearGradient>
+    </defs>
+    {/* Back Card */}
+    <rect x="4" y="8" width="16" height="12" rx="2" fill="#78909c" />
+    {/* Middle Card */}
+    <rect x="6" y="6" width="16" height="12" rx="2" fill="#546e7a" />
+    {/* Front Card */}
+    <rect x="2" y="4" width="16" height="12" rx="2" fill="url(#cardStack)" />
+    {/* Person Icon on Front Card */}
+    <circle cx="7" cy="9" r="2" fill="#fff" />
+    <path d="M4.5 14c0-1.5 2-2.5 2.5-2.5s2.5 1 2.5 2.5v1h-5v-1z" fill="#fff" />
+    {/* Text Lines on Front Card */}
+    <rect x="11" y="8" width="5" height="1" fill="#fff" opacity="0.8"/>
+    <rect x="11" y="10" width="5" height="1" fill="#fff" opacity="0.8"/>
+    <rect x="11" y="12" width="3" height="1" fill="#fff" opacity="0.8"/>
   </svg>
 );

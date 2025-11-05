@@ -8,9 +8,10 @@ interface ReceiptModalProps {
   isOpen: boolean;
   onClose: () => void;
   billing: Billing;
+  isProvisional?: boolean;
 }
 
-const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing }) => {
+const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, isProvisional }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -59,7 +60,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
   
   const paymentMethodText = {
       pix: 'PIX',
-      dinheiro: 'DINHEiro',
+      dinheiro: 'DINHEIRO',
       fiado: 'FIADO (ANOTADO)',
   };
 
@@ -134,7 +135,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
     >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-sm border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
         <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-            <h2 id="receipt-modal-title" className="text-xl font-bold text-white">Recibo</h2>
+            <h2 id="receipt-modal-title" className="text-xl font-bold text-white">{isProvisional ? 'Demonstrativo de Cobrança' : 'Recibo'}</h2>
             <button onClick={handlePrint} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500">
                 <PrinterIcon className="w-5 h-5"/> <span>Imprimir</span>
             </button>
@@ -144,7 +145,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
             <div ref={printRef}>
               <div className="header text-center mb-4">
                   <h3 className="font-bold text-base">MONTANHA BILHAR & JUKEBOX</h3>
-                  <p>ACERTO DE CONTAS</p>
+                  <p>{isProvisional ? 'DEMONSTRATIVO DE COBRANÇA' : 'ACERTO DE CONTAS'}</p>
                   <p>--------------------------------</p>
               </div>
               
@@ -155,10 +156,19 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing })
                   
                   {isGrua ? renderGruaDetails() : renderMesaJukeboxDetails()}
                   
-                   <div className="flex justify-between pt-1">
-                      <span>Pagamento:</span>
-                      <span>{paymentMethodText[billing.paymentMethod]}</span>
-                  </div>
+                  {!isProvisional && (
+                    <div className="flex justify-between pt-1">
+                        <span>Pagamento:</span>
+                        <span>{paymentMethodText[billing.paymentMethod]}</span>
+                    </div>
+                  )}
+                  
+                  {isProvisional && (
+                     <div className="text-center font-bold mt-4 border-t border-b border-dashed border-black py-1">
+                         <p>*** COMPROVANTE PARA CONFERÊNCIA ***</p>
+                         <p>*** SEM VALOR FISCAL ***</p>
+                     </div>
+                  )}
 
                   <div className="signatures text-center mt-10">
                     <div className="signature-line w-4/s mx-auto mt-12"></div>

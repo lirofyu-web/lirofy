@@ -186,6 +186,9 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   
   const handlePrintGruaReport = useCallback(() => {
     const data = stats.monthlyGruaBillings;
+    // FIX: Explicitly type the Map to ensure correct type inference for `customer`.
+    const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
+
     const totalSaldoBruto = data.reduce((sum, b) => sum + (b.saldo || 0), 0);
     const totalAluguelCliente = data.reduce((sum, b) => sum + (b.aluguelValor || 0), 0);
     const totalValorFirma = data.reduce((sum, b) => sum + b.valorTotal, 0);
@@ -197,6 +200,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
           <tr>
             <th>Data</th>
             <th>Cliente</th>
+            <th>Cidade</th>
+            <th>Grua Nº</th>
             <th class="currency">Saldo Bruto</th>
             <th class="currency">Aluguel (Cliente)</th>
             <th class="currency">Valor (Firma)</th>
@@ -206,10 +211,15 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
           </tr>
         </thead>
         <tbody>
-          ${data.length > 0 ? data.map(b => `
+          ${data.length > 0 ? data.map(b => {
+            const customer = customerMap.get(b.customerId);
+            const cidade = customer ? customer.cidade : 'N/A';
+            return `
             <tr>
               <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
               <td>${b.customerName}</td>
+              <td>${cidade}</td>
+              <td>${b.equipmentNumero}</td>
               <td class="currency">R$ ${(b.saldo || 0).toFixed(2)}</td>
               <td class="currency">R$ ${(b.aluguelValor || 0).toFixed(2)}</td>
               <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
@@ -217,11 +227,11 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
               <td class="currency">R$ ${(b.recebimentoEspecie || 0).toFixed(2)}</td>
               <td class="currency">R$ ${(b.recebimentoPix || 0).toFixed(2)}</td>
             </tr>
-          `).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança de grua no período.</td></tr>'}
+          `}).join('') : '<tr><td colspan="10" class="no-records">Nenhuma cobrança de grua no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="2"><strong>TOTAIS</strong></td>
+            <td colspan="4"><strong>TOTAIS</strong></td>
             <td class="currency"><strong>R$ ${totalSaldoBruto.toFixed(2)}</strong></td>
             <td class="currency"><strong>R$ ${totalAluguelCliente.toFixed(2)}</strong></td>
             <td class="currency"><strong>R$ ${totalValorFirma.toFixed(2)}</strong></td>
@@ -231,7 +241,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       </table>
     `;
     printReport('Relatório de Gruas de Pelúcia', content);
-  }, [stats, printReport]);
+  }, [stats, printReport, customers]);
 
   const handlePrintDebtReport = useCallback(() => {
     const content = `

@@ -71,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                 <div className="mb-8 text-center flex flex-col items-center">
                     <LogoIcon className="w-20 h-20 text-slate-300" />
                     <h1 className="text-xl font-bold text-white mt-2">Montanha Bilhar <span className="text-emerald-400">&</span> Jukebox</h1>
-                    <p className="text-xs text-slate-400">Painel de Gestão</p>
+                    <p className="text-xs text-slate-400">SISTEMA DE LOCAÇÃO E COBRANÇA</p>
                 </div>
                 <nav className="flex-grow">
                     <ul>
