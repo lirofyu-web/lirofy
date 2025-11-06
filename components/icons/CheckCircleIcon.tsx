@@ -1,4 +1,3 @@
-// Fix: Add CheckCircleIcon component
 import React from 'react';
 
 export const CheckCircleIcon = ({ className }: { className?: string }) => (

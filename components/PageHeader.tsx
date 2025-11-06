@@ -1,5 +1,3 @@
-
-// Fix: Added a placeholder PageHeader component to make the file a valid module.
 import React from 'react';
 
 interface PageHeaderProps {

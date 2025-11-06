@@ -1,4 +1,3 @@
-// Fix: Add MapPinIcon component
 import React from 'react';
 
 export const MapPinIcon = ({ className }: { className?: string }) => (
