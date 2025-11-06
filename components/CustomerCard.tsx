@@ -12,6 +12,7 @@ import { JukeboxIcon } from './icons/JukeboxIcon';
 import { CraneIcon } from './icons/CraneIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ShareIcon } from './icons/ShareIcon';
+import { ReceiptIcon } from './icons/ReceiptIcon';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -78,15 +79,18 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     <ActionButton onClick={() => onDelete(customer.id)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" />
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2 text-slate-300">
-                     <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 text-center p-2 rounded-md transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
-                        <WhatsAppIcon className="w-5 h-5 mx-auto" />
+                <div className="mt-4 flex flex-wrap gap-2 text-white">
+                    <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                        <WhatsAppIcon className="w-5 h-5" />
+                        <span className="mt-1">WhatsApp</span>
                     </a>
-                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 text-center p-2 rounded-md transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
-                        <LocationArrowIcon className="w-5 h-5 mx-auto" />
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                        <LocationArrowIcon className="w-5 h-5" />
+                        <span className="mt-1">Localização</span>
                     </a>
-                    <button onClick={() => onShare(customer)} className="flex-1 p-2 rounded-md bg-slate-600 hover:bg-slate-500">
-                        <ShareIcon className="w-5 h-5 mx-auto" />
+                    <button onClick={() => onShare(customer)} className="flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors bg-pink-600 hover:bg-pink-500">
+                        <ShareIcon className="w-5 h-5" />
+                        <span className="mt-1">Exportar</span>
                     </button>
                 </div>
 
@@ -118,19 +122,5 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
         </div>
     );
 };
-// Add a missing import
-const ReceiptIcon = ({ className }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 24 24"
-    className={className || 'w-6 h-6'}
-    role="img"
-    aria-label="Cobranças Icon"
-    fill="currentColor"
-  >
-    <path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm0 2h14v14H5V5zm2 2v2h10V7H7zm0 4v2h10v-2H7zm0 4v2h7v-2H7z" />
-  </svg>
-);
-
 
 export default CustomerCard;

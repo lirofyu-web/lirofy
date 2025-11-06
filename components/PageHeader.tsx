@@ -1,3 +1,4 @@
+
 // Fix: Added a placeholder PageHeader component to make the file a valid module.
 import React from 'react';
 
@@ -8,7 +9,7 @@ interface PageHeaderProps {
 
 const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle }) => {
   return (
-    <div className="mb-8">
+    <div className="mb-8 hidden md:block">
       <h1 className="text-4xl font-bold text-white tracking-tight">{title}</h1>
       {subtitle && <p className="text-slate-400 mt-2">{subtitle}</p>}
     </div>

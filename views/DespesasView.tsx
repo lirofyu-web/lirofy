@@ -1,3 +1,4 @@
+
 // views/DespesasView.tsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { Expense } from '../types';
@@ -22,7 +23,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = parseFloat(amount.replace(',', '.'));
+    const amountNum = parseFloat(amount);
     if (description && amountNum > 0) {
       onAddExpense(description, amountNum);
       setDescription('');
@@ -31,9 +32,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
   }, [description, amount, onAddExpense]);
   
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    const sanitizedValue = value.replace(/[^0-9,.]/g, '').replace(',', '.');
-    setAmount(sanitizedValue);
+    setAmount(e.target.value);
   }, []);
 
   const sortedExpenses = useMemo(() => {
@@ -93,7 +92,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
       <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 mb-8">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-end gap-4">
           <div className="flex-grow w-full"><label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-1">Descrição</label><input type="text" id="description" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
-          <div className="w-full sm:w-48"><label htmlFor="amount" className="block text-sm font-medium text-slate-300 mb-1">Valor (R$)</label><input type="text" id="amount" value={amount} onChange={handleAmountChange} inputMode="decimal" required className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
+          <div className="w-full sm:w-48"><label htmlFor="amount" className="block text-sm font-medium text-slate-300 mb-1">Valor (R$)</label><input type="number" step="0.01" id="amount" value={amount} onChange={handleAmountChange} required className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
           <button type="submit" className="w-full sm:w-auto inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500"><PlusIcon className="w-5 h-5" /><span>Adicionar</span></button>
         </form>
       </div>

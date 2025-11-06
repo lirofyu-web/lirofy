@@ -1,9 +1,14 @@
+
 // components/AddCustomerForm.tsx
 import React, { useState, useCallback } from 'react';
 import { Customer, Equipment } from '../types';
 import CityAutocomplete from './CityAutocomplete';
 import { PlusIcon } from './icons/PlusIcon';
 import { TrashIcon } from './icons/TrashIcon';
+import { ChevronDownIcon } from './icons/ChevronDownIcon';
+import { BilliardIcon } from './icons/BilliardIcon';
+import { JukeboxIcon } from './icons/JukeboxIcon';
+import { CraneIcon } from './icons/CraneIcon';
 
 interface AddCustomerFormProps {
   onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => Promise<void>;
@@ -30,11 +35,10 @@ const FormField: React.FC<{
   type?: string; 
   required?: boolean; 
   step?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
-}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step, inputMode }) => (
+}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step }) => (
     <div>
         <label htmlFor={name} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} inputMode={inputMode} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
 ));
 
@@ -51,6 +55,8 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
   }>(initialFormState);
   
   const [isOpen, setIsOpen] = useState(false);
+  const [openEquipmentIndex, setOpenEquipmentIndex] = useState<number | null>(null);
+
 
   const handleBaseChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -91,11 +97,24 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
       } else { // grua
           newEquipment = { id: `new_${new Date().getTime()}`, type: 'grua', numero: '', relogioAnterior: 0, aluguelValor: 0, saldo: 0, reposicaoPelucia: 0, recebimentoEspecie: 0, recebimentoPix: 0 };
       }
-      setFormData(prev => ({...prev, equipment: [...prev.equipment, newEquipment]}));
+      setFormData(prev => {
+          const newEquipmentList = [...prev.equipment, newEquipment];
+          setOpenEquipmentIndex(newEquipmentList.length - 1);
+          return { ...prev, equipment: newEquipmentList };
+      });
   }, []);
 
   const removeEquipment = useCallback((index: number) => {
     setFormData(prev => ({...prev, equipment: prev.equipment.filter((_, i) => i !== index)}));
+    setOpenEquipmentIndex(prevOpenIndex => {
+      if (prevOpenIndex === index) {
+        return null;
+      }
+      if (prevOpenIndex !== null && prevOpenIndex > index) {
+        return prevOpenIndex - 1;
+      }
+      return prevOpenIndex;
+    });
   }, []);
 
   const handleCityChange = useCallback((value: string) => {
@@ -158,7 +177,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
             </div>
             <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} />
             <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange} />
-            <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="text" inputMode="tel" />
+            <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="tel" />
             <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleBaseChange} />
             <div>
                  <label htmlFor="cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
@@ -169,47 +188,65 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
 
         <div className="pt-4 border-t border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4">Equipamentos</h3>
-            <div className="space-y-6">
-                {formData.equipment.map((equip, index) => (
-                    <div key={equip.id} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-md font-bold text-emerald-400 capitalize">
-                                {equip.type === 'mesa' ? `Mesa de Sinuca #${index + 1}` : 
-                                 equip.type === 'jukebox' ? `Jukebox #${index + 1}` : 
-                                 `Grua de Pelúcia #${index + 1}`}
-                            </h4>
-                            <button type="button" onClick={() => removeEquipment(index)} className="text-red-500 hover:text-red-400">
-                                <TrashIcon className="w-5 h-5" />
+            <div className="space-y-2">
+                {formData.equipment.map((equip, index) => {
+                    const EquipmentIcon = equip.type === 'mesa' ? BilliardIcon : equip.type === 'jukebox' ? JukeboxIcon : CraneIcon;
+                    const equipmentTitle = equip.type === 'mesa' ? `Mesa de Sinuca` : equip.type === 'jukebox' ? `Jukebox` : `Grua de Pelúcia`;
+                    
+                    return (
+                        <div key={equip.id} className="bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden transition-all duration-300">
+                            <button
+                                type="button"
+                                onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)}
+                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <EquipmentIcon className="w-5 h-5 text-emerald-400" />
+                                    <h4 className="text-md font-bold text-white capitalize">
+                                        {equipmentTitle}: <span className="font-normal text-slate-300">{equip.numero || '(Novo)'}</span>
+                                    </h4>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); removeEquipment(index); }} className="text-slate-500 hover:text-red-500 p-1 rounded-full hover:bg-red-500/10">
+                                        <TrashIcon className="w-5 h-5" />
+                                    </button>
+                                    <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform ${openEquipmentIndex === index ? 'rotate-180' : ''}`} />
+                                </div>
                             </button>
+                            
+                            {openEquipmentIndex === index && (
+                                <div className="p-4 border-t border-slate-700 bg-slate-800/20">
+                                    {equip.type === 'mesa' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                        </div>
+                                    ) : equip.type === 'jukebox' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField label="Número da Jukebox" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Nº Relógio da Jukebox" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="number" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="number" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField label="Número da Grua" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="number" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        {equip.type === 'mesa' ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Leitura Anterior" name="relogioAnterior" type="text" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Valor da Ficha (R$)" name="valorFicha" type="text" inputMode="decimal" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Parte da Firma (%)" name="parteFirma" type="text" inputMode="numeric" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Parte do Cliente (%)" name="parteCliente" type="text" inputMode="numeric" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                            </div>
-                        ) : equip.type === 'jukebox' ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField label="Número da Jukebox" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Nº Relógio da Jukebox" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Leitura Anterior" name="relogioAnterior" type="text" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="text" inputMode="numeric" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="text" inputMode="numeric" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                            </div>
-                        ) : (
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField label="Número da Grua" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Leitura Anterior" name="relogioAnterior" type="text" inputMode="numeric" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="text" inputMode="numeric" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Aluguel (%)" name="aluguelPercentual" type="text" inputMode="numeric" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
-                                <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="text" inputMode="decimal" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
-                             </div>
-                        )}
-                    </div>
-                ))}
+                    );
+                })}
             </div>
             <div className="flex flex-wrap gap-4 mt-4">
                 <button type="button" onClick={() => addEquipment('mesa')} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Adicionar Mesa</button>

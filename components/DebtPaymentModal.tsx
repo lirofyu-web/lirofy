@@ -1,4 +1,5 @@
 
+// components/DebtPaymentModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
@@ -17,11 +18,11 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
 
   useEffect(() => {
     if (isOpen) {
-      const initialAmount = customer.debtAmount.toFixed(2).replace('.', ',');
+      const initialAmount = customer.debtAmount.toFixed(2);
       setAmountStr(initialAmount);
       setPaymentMethod('dinheiro');
 
-      const amountNum = parseFloat(initialAmount.replace(',', '.')) || 0;
+      const amountNum = parseFloat(initialAmount) || 0;
       if (amountNum <= 0) {
         setError('O valor deve ser maior que zero.');
       } else if (amountNum > customer.debtAmount) {
@@ -34,7 +35,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
 
   useEffect(() => {
     if (!isOpen) return;
-    const amountNum = parseFloat(amountStr.replace(',', '.')) || 0;
+    const amountNum = parseFloat(amountStr) || 0;
     if (amountNum <= 0) {
         setError('O valor deve ser maior que zero.');
     } else if (amountNum > customer.debtAmount) {
@@ -46,19 +47,12 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
 
   const handleConfirm = useCallback(() => {
     if (error) return;
-    const amountNum = parseFloat(amountStr.replace(',', '.')) || 0;
+    const amountNum = parseFloat(amountStr) || 0;
     onConfirm(amountNum, paymentMethod);
   }, [error, amountStr, onConfirm, paymentMethod]);
   
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    // Sanitize: allow only numbers and one comma
-    value = value.replace(/[^0-9,]/g, '');
-    const parts = value.split(',');
-    if (parts.length > 2) {
-        value = parts[0] + ',' + parts.slice(1).join('');
-    }
-    setAmountStr(value);
+    setAmountStr(e.target.value);
   }, []);
 
   if (!isOpen) return null;
@@ -92,11 +86,11 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
             <div>
               <label htmlFor="paymentAmount" className="block text-sm font-medium text-slate-300 mb-1">Valor a Pagar (R$)</label>
               <input 
-                type="text" 
+                type="number"
+                step="0.01"
                 id="paymentAmount" 
                 value={amountStr} 
                 onChange={handleAmountChange}
-                inputMode="decimal"
                 required 
                 className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white text-lg text-center font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" 
               />

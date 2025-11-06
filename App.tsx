@@ -1,3 +1,4 @@
+
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +20,7 @@ import ReceiptActionsModal from './components/ReceiptActionsModal';
 import Notification from './components/Notification';
 import BottomNavBar from './components/BottomNavBar';
 import { mockCities, mockFirstNames, mockLastNames, mockStreetNames, mockStreetTypes, mockExpenseDescriptions } from './data/seedHelper';
+import MobileHeader from './components/MobileHeader';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 
@@ -26,6 +28,16 @@ type NotificationState = {
   message: string;
   type: 'success' | 'error';
 } | null;
+
+const viewTitles: Record<View, string> = {
+    'DASHBOARD': 'Dashboard',
+    'CLIENTES': 'Clientes',
+    'COBRANCAS': 'Cobranças',
+    'DESPESAS': 'Despesas',
+    'ROTAS': 'Rotas',
+    'RELATORIOS': 'Relatórios',
+    'CONFIGURACOES': 'Configurações',
+};
 
 const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -195,8 +207,7 @@ const App: React.FC = () => {
                 
                 let newDebtAmount = customer.debtAmount;
                 if (billing.paymentMethod === 'fiado' && billing.equipmentType !== 'grua') {
-                     const totalValue = (billing.parteFirma || 0) + (billing.parteCliente || 0);
-                     newDebtAmount += totalValue;
+                     newDebtAmount += billing.valorTotal;
                 }
 
                 return { ...customer, equipment: updatedEquipment, debtAmount: newDebtAmount, lastVisitedAt: new Date() };
@@ -354,6 +365,10 @@ const App: React.FC = () => {
             <div className="flex">
                 <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
+                    <MobileHeader 
+                        title={viewTitles[currentView]}
+                        onMenuClick={() => setIsSidebarOpen(true)}
+                    />
                     {renderView()}
                 </main>
             </div>
@@ -364,7 +379,6 @@ const App: React.FC = () => {
             {(provisionalReceiptBilling && provisionalReceiptCallback) && (
                  <ReceiptActionsModal
                     isOpen={true}
-                    isProvisional={true}
                     onClose={() => {
                         provisionalReceiptCallback();
                         setProvisionalReceiptBilling(null);
@@ -402,7 +416,6 @@ const App: React.FC = () => {
             {finalizedBilling && (
                 <ReceiptActionsModal
                     isOpen={!!finalizedBilling}
-                    isProvisional={false}
                     onClose={() => setFinalizedBilling(null)}
                     onPrint={() => {
                         const modal = document.createElement('div');

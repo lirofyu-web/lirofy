@@ -11,8 +11,8 @@ export const UsersIcon = ({ className }: { className?: string }) => (
   >
     <defs>
       <linearGradient id="cardStack" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#81d4fa" />
-        <stop offset="100%" stopColor="#039be5" />
+        <stop offset="0%" stopColor="#ff7eb9" />
+        <stop offset="100%" stopColor="#ff63a5" />
       </linearGradient>
     </defs>
     {/* Back Card */}

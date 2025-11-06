@@ -32,8 +32,6 @@ const DebtReceiptModal: React.FC<DebtReceiptModalProps> = ({ isOpen, onClose, de
             .header h3 { margin: 0; font-size: 14px; }
             .header p { margin: 2px 0; }
             hr.dashed { border-top: 1px dashed #000; margin: 10px 0; }
-            .signatures { margin-top: 40px; }
-            .signature-line { border-top: 1px solid #000; margin-top: 30px; }
           </style>
         `);
         printWindow.document.write('</head><body>');
@@ -91,12 +89,6 @@ const DebtReceiptModal: React.FC<DebtReceiptModalProps> = ({ isOpen, onClose, de
                       <span>{paymentMethodText[debtPayment.paymentMethod]}</span>
                   </div>
 
-                  <div className="signatures text-center mt-10">
-                    <div className="signature-line w-4/5 mx-auto mt-12"></div>
-                    <p>Assinatura Firma</p>
-                    <div className="signature-line w-4/5 mx-auto mt-12"></div>
-                    <p>Assinatura Cliente</p>
-                  </div>
               </div>
             </div>
         </div>
