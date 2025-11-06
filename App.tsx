@@ -155,21 +155,14 @@ const App: React.FC = () => {
         }
     }, [customers, billings, expenses, debtPayments, showNotification]);
 
-    const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => {
+    const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
         setIsSaving(true);
-        // Simulate geocoding
-        const cityData = mockCities.find(c => c.name === customerData.cidade);
-        const latitude = cityData ? cityData.lat + (Math.random() - 0.5) * 0.05 : null;
-        const longitude = cityData ? cityData.lon + (Math.random() - 0.5) * 0.05 : null;
-
         const newCustomer: Customer = {
             ...customerData,
             id: uuidv4(),
             createdAt: new Date(),
             debtAmount: 0,
             lastVisitedAt: null,
-            latitude,
-            longitude,
         };
         setCustomers(prev => [...prev, newCustomer]);
         setIsSaving(false);
@@ -313,7 +306,9 @@ const App: React.FC = () => {
                     linhaNumero: parsed.linhaNumero || '',
                     assinaturaFirma: '',
                     assinaturaCliente: '',
-                    equipment: parsed.equipment.map((eq: any) => ({ ...eq, id: uuidv4() }))
+                    equipment: parsed.equipment.map((eq: any) => ({ ...eq, id: uuidv4() })),
+                    latitude: parsed.latitude || null,
+                    longitude: parsed.longitude || null,
                 };
                 handleAddCustomer(customerData);
             } else {

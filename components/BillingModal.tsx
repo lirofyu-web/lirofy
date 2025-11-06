@@ -1,4 +1,3 @@
-
 // components/BillingModal.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Customer, Equipment, Billing } from '../types';
@@ -29,6 +28,32 @@ interface BillingModalProps {
   equipment: Equipment;
   onTriggerProvisionalReceiptAction: (billing: Billing, onComplete: () => void) => void;
 }
+
+interface FormFieldProps {
+  label: string;
+  name: keyof FormState;
+  value: string;
+  onChange: (field: keyof FormState, value: string) => void;
+  equipmentId: string;
+  type?: string;
+  step?: string;
+  isInvalid?: boolean;
+}
+
+const FormField: React.FC<FormFieldProps> = React.memo(({ label, name, value, onChange, equipmentId, type = 'text', step, isInvalid = false }) => (
+  <div>
+    <label htmlFor={`${equipmentId}-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
+    <input
+      type={type}
+      id={`${equipmentId}-${name}`}
+      value={value}
+      step={step}
+      inputMode={type === 'number' ? 'numeric' : undefined}
+      onChange={(e) => onChange(name, e.target.value)}
+      className={`w-full bg-slate-700 border rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 ${isInvalid ? 'border-red-500 ring-red-500' : 'border-slate-600 focus:ring-emerald-500'}`}
+    />
+  </div>
+));
 
 const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm, customer, equipment, onTriggerProvisionalReceiptAction }) => {
   const [formState, setFormState] = useState<FormState>({} as FormState);
@@ -166,20 +191,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const isGrua = equipment.type === 'grua';
   const isReadingInvalid = (parseInt(formState.relogioAtual, 10) || 0) < equipment.relogioAnterior;
 
-  const FormField = ({ label, name, value, type = 'text', step }: { label: string, name: keyof FormState, value: string, type?: string, step?: string }) => (
-      <div>
-          <label htmlFor={`${equipment.id}-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-          <input
-              type={type}
-              id={`${equipment.id}-${name}`}
-              value={value}
-              step={step}
-              onChange={(e) => handleFormChange(name, e.target.value)}
-              className={`w-full bg-slate-700 border rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 ${isReadingInvalid && name==='relogioAtual' ? 'border-red-500 ring-red-500' : 'border-slate-600 focus:ring-emerald-500'}`}
-          />
-      </div>
-  );
-
   const PaymentButton = ({ method, label }: { method: 'pix' | 'dinheiro' | 'fiado', label: string }) => (
     <button
         onClick={() => setPaymentMethod(method)}
@@ -201,20 +212,28 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           {step === 1 && (
             <div className="space-y-4">
               <h4 className="text-md font-bold text-emerald-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-              <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" />
-              {equipment.type === 'mesa' && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" />}
+              <FormField 
+                label="Leitura Atual" 
+                name="relogioAtual" 
+                value={formState.relogioAtual} 
+                type="number" 
+                onChange={handleFormChange} 
+                equipmentId={equipment.id} 
+                isInvalid={isReadingInvalid} 
+              />
+              {equipment.type === 'mesa' && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" onChange={handleFormChange} equipmentId={equipment.id}/>}
               {isGrua && <>
-                  <FormField label="Saldo (R$)" name="saldo" value={formState.saldo} type="number" step="0.01" />
+                  <FormField label="Saldo (R$)" name="saldo" value={formState.saldo} type="number" step="0.01" onChange={handleFormChange} equipmentId={equipment.id}/>
                   {equipment.aluguelPercentual && equipment.aluguelPercentual > 0
-                      ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" />
-                      : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="number" step="0.01" />
+                      ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" onChange={handleFormChange} equipmentId={equipment.id}/>
+                      : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="number" step="0.01" onChange={handleFormChange} equipmentId={equipment.id}/>
                   }
                   <div className="col-span-2"><hr className="border-slate-700" /></div>
-                  <FormField label="Recebido Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="number" step="0.01" />
-                  <FormField label="Recebido PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="number" step="0.01" />
+                  <FormField label="Recebido Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="number" step="0.01" onChange={handleFormChange} equipmentId={equipment.id}/>
+                  <FormField label="Recebido PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="number" step="0.01" onChange={handleFormChange} equipmentId={equipment.id}/>
                   <div className="col-span-2"><hr className="border-slate-700" /></div>
-                  <FormField label="Sobra Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" />
-                  <FormField label="Reposição Pelúcias" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="number" />
+                  <FormField label="Sobra Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" onChange={handleFormChange} equipmentId={equipment.id}/>
+                  <FormField label="Reposição Pelúcias" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="number" onChange={handleFormChange} equipmentId={equipment.id}/>
               </>}
             </div>
           )}

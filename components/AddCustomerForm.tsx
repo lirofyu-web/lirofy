@@ -9,10 +9,12 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { BilliardIcon } from './icons/BilliardIcon';
 import { JukeboxIcon } from './icons/JukeboxIcon';
 import { CraneIcon } from './icons/CraneIcon';
+import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 
 interface AddCustomerFormProps {
-  onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => Promise<void>;
+  onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => Promise<void>;
   isSaving: boolean;
+  showNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
 const initialFormState = {
@@ -25,6 +27,8 @@ const initialFormState = {
     assinaturaFirma: '',
     assinaturaCliente: '',
     equipment: [],
+    latitude: null,
+    longitude: null,
 };
 
 const FormField: React.FC<{ 
@@ -43,7 +47,7 @@ const FormField: React.FC<{
 ));
 
 
-const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSaving }) => {
+const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSaving, showNotification }) => {
   const [formData, setFormData] = useState<{
     name: string;
     cpfRg: string;
@@ -52,10 +56,13 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
     telefone: string;
     linhaNumero: string;
     equipment: Partial<Equipment>[];
+    latitude: number | null;
+    longitude: number | null;
   }>(initialFormState);
   
   const [isOpen, setIsOpen] = useState(false);
   const [openEquipmentIndex, setOpenEquipmentIndex] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
 
   const handleBaseChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +128,61 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
     setFormData(prev => ({ ...prev, cidade: value }));
   }, []);
 
+  const handleGeolocate = useCallback(async () => {
+    if (!navigator.geolocation) {
+        showNotification("Geolocalização não é suportada neste navegador.", "error");
+        return;
+    }
+
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+                if (!response.ok) {
+                    throw new Error('Falha ao buscar endereço.');
+                }
+                const data = await response.json();
+                
+                if (data && data.address) {
+                    const { road, house_number, city, town, village, state, suburb } = data.address;
+                    const street = `${road || ''}${house_number ? `, ${house_number}` : ''}`;
+                    const cityName = city || town || village || suburb || '';
+                    const fullCity = `${cityName}, ${state || ''}`.replace(/^, |^ | ,$/g, '');
+
+                    setFormData(prev => ({
+                        ...prev,
+                        endereco: street,
+                        cidade: fullCity,
+                        latitude,
+                        longitude,
+                    }));
+                    showNotification("Endereço preenchido com sucesso!", "success");
+                } else {
+                    throw new Error("Não foi possível encontrar o endereço para esta localização.");
+                }
+            } catch (err) {
+                console.error("Erro na geolocalização inversa:", err);
+                showNotification(err instanceof Error ? err.message : "Erro desconhecido.", "error");
+                // Still set lat/lon even if address fetch fails
+                setFormData(prev => ({ ...prev, latitude, longitude }));
+            } finally {
+                setIsLocating(false);
+            }
+        },
+        (error) => {
+            let message = "Erro ao obter localização.";
+            if (error.code === 1) message = "Permissão de localização negada.";
+            showNotification(message, "error");
+            setIsLocating(false);
+        },
+        { enableHighAccuracy: true }
+    );
+  }, [showNotification]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalEquipment = formData.equipment.map(e => ({
@@ -145,10 +207,17 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
     }));
 
     await onAddCustomer({
-        ...formData,
-        equipment: finalEquipment,
+        name: formData.name,
+        cpfRg: formData.cpfRg,
+        cidade: formData.cidade,
+        endereco: formData.endereco,
+        telefone: formData.telefone,
+        linhaNumero: formData.linhaNumero,
+        equipment: finalEquipment as Equipment[],
         assinaturaFirma: '',
         assinaturaCliente: '',
+        latitude: formData.latitude,
+        longitude: formData.longitude,
     });
     setFormData(initialFormState);
     setIsOpen(false);
@@ -178,7 +247,35 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
             <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} />
             <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange} />
             <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="tel" />
-            <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleBaseChange} />
+            <div>
+                <label htmlFor="endereco" className="block text-sm font-medium text-slate-300 mb-1">Endereço</label>
+                <div className="relative flex items-center">
+                    <input 
+                        type="text" 
+                        id="endereco" 
+                        name="endereco" 
+                        value={formData.endereco} 
+                        onChange={handleBaseChange} 
+                        className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-3 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                    />
+                    <button
+                        type="button"
+                        onClick={handleGeolocate}
+                        disabled={isLocating}
+                        className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-emerald-400 disabled:text-slate-600 disabled:cursor-wait flex items-center"
+                        title="Preencher endereço com localização atual"
+                    >
+                        {isLocating ? (
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        ) : (
+                            <LocationMarkerIcon className="w-5 h-5" />
+                        )}
+                    </button>
+                </div>
+            </div>
             <div>
                  <label htmlFor="cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
                  <CityAutocomplete id="cidade" value={formData.cidade} onChange={handleCityChange} required />

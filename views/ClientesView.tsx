@@ -14,7 +14,7 @@ import EquipmentSelectionModal from '../components/EquipmentSelectionModal';
 
 interface ClientesViewProps {
   customers: Customer[];
-  onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'latitude' | 'longitude' | 'lastVisitedAt'>) => Promise<void>;
+  onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => Promise<void>;
   onUpdateCustomer: (customer: Customer) => Promise<void>;
   onDeleteCustomer: (customerId: string) => void;
   onAddBilling: (billing: Billing) => void;
@@ -96,6 +96,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       endereco: customer.endereco,
       telefone: customer.telefone,
       linhaNumero: customer.linhaNumero,
+      latitude: customer.latitude,
+      longitude: customer.longitude,
       equipment: customer.equipment.map(({ id, ...rest }) => rest) // Remove runtime ID
     };
 
@@ -131,7 +133,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       <PageHeader title="Clientes" subtitle="Gerencie seus clientes e equipamentos." />
 
       <div className="mb-8">
-        <AddCustomerForm onAddCustomer={onAddCustomer} isSaving={isSaving} />
+        <AddCustomerForm onAddCustomer={onAddCustomer} isSaving={isSaving} showNotification={showNotification} />
       </div>
 
       <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8">
@@ -213,6 +215,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             }}
             customer={editingCustomer}
             isSaving={isSaving}
+            showNotification={showNotification}
         />
       )}
 
