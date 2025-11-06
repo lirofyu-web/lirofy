@@ -186,8 +186,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   
   const handlePrintGruaReport = useCallback(() => {
     const data = stats.monthlyGruaBillings;
-    // FIX: Explicitly type the Map to ensure correct type inference for `customer`.
-    const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
+    {/* FIX: Explicitly typing customerMap to fix type inference issue */}
+    const customerMap: Map<string, Customer> = new Map(customers.map(c => [c.id, c]));
 
     const totalSaldoBruto = data.reduce((sum, b) => sum + (b.saldo || 0), 0);
     const totalAluguelCliente = data.reduce((sum, b) => sum + (b.aluguelValor || 0), 0);

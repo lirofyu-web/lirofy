@@ -1,5 +1,5 @@
 // data/brazilianCities.ts
-// FIX: Replaced invalid file content with a valid exportable array of Brazilian cities.
+// A list of Brazilian cities for the autocomplete component.
 export const brazilianCities: string[] = [
   "São Paulo, SP",
   "Rio de Janeiro, RJ",

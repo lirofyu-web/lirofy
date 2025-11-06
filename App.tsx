@@ -1,9 +1,7 @@
-
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Customer, Billing, Expense, DebtPayment, Equipment } from './types';
-// Fix: Add createRoot import to fix 'require' error.
 import { createRoot } from 'react-dom/client';
 
 import Sidebar from './components/Sidebar';
@@ -382,7 +380,6 @@ const App: React.FC = () => {
                     onPrint={() => {
                         const modal = document.createElement('div');
                         document.body.appendChild(modal);
-                        // Fix: Use createRoot from import instead of require.
                         const root = createRoot(modal);
                         const PrintComponent = () => (
                              <ReceiptModal
@@ -415,7 +412,6 @@ const App: React.FC = () => {
                     onPrint={() => {
                         const modal = document.createElement('div');
                         document.body.appendChild(modal);
-                        // Fix: Use createRoot from import instead of require.
                         const root = createRoot(modal);
                         const PrintComponent = () => (
                              <ReceiptModal
