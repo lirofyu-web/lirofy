@@ -1,4 +1,3 @@
-
 // components/EditCustomerModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Customer, Equipment } from '../types';
@@ -8,6 +7,7 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { BilliardIcon } from './icons/BilliardIcon';
 import { JukeboxIcon } from './icons/JukeboxIcon';
 import { CraneIcon } from './icons/CraneIcon';
+import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 
 interface EditCustomerModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ interface EditCustomerModalProps {
   onConfirm: (customer: Customer) => Promise<void>;
   customer: Customer;
   isSaving: boolean;
+  showNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
 const FormField: React.FC<{ 
@@ -33,9 +34,10 @@ const FormField: React.FC<{
 ));
 
 
-const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, isSaving }) => {
+const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, isSaving, showNotification }) => {
   const [formData, setFormData] = useState<Omit<Customer, 'equipment'> & { equipment: Partial<Equipment>[] }>(customer);
   const [openEquipmentIndex, setOpenEquipmentIndex] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -110,6 +112,61 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
   const handleCityChange = useCallback((value: string) => {
     setFormData(prev => ({ ...prev, cidade: value }));
   }, []);
+  
+  const handleGeolocate = useCallback(async () => {
+    if (!navigator.geolocation) {
+        showNotification("Geolocalização não é suportada neste navegador.", "error");
+        return;
+    }
+
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+                if (!response.ok) {
+                    throw new Error('Falha ao buscar endereço.');
+                }
+                const data = await response.json();
+                
+                if (data && data.address) {
+                    const { road, house_number, city, town, village, state, suburb } = data.address;
+                    const street = `${road || ''}${house_number ? `, ${house_number}` : ''}`;
+                    const cityName = city || town || village || suburb || '';
+                    const fullCity = `${cityName}, ${state || ''}`.replace(/^, |^ | ,$/g, '');
+
+                    setFormData(prev => ({
+                        ...prev,
+                        endereco: street,
+                        cidade: fullCity,
+                        latitude,
+                        longitude,
+                    }));
+                    showNotification("Endereço atualizado com sucesso!", "success");
+                } else {
+                    throw new Error("Não foi possível encontrar o endereço para esta localização.");
+                }
+            } catch (err) {
+                console.error("Erro na geolocalização inversa:", err);
+                showNotification(err instanceof Error ? err.message : "Erro desconhecido.", "error");
+                setFormData(prev => ({ ...prev, latitude, longitude }));
+            } finally {
+                setIsLocating(false);
+            }
+        },
+        (error) => {
+            let message = "Erro ao obter localização.";
+            if (error.code === 1) message = "Permissão de localização negada.";
+            showNotification(message, "error");
+            setIsLocating(false);
+        },
+        { enableHighAccuracy: true }
+    );
+  }, [showNotification]);
+
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,7 +216,35 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
               <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} />
               <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange}/>
               <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="tel"/>
-              <FormField label="Endereço" name="endereco" value={formData.endereco} onChange={handleBaseChange}/>
+              <div>
+                  <label htmlFor="edit-endereco" className="block text-sm font-medium text-slate-300 mb-1">Endereço</label>
+                  <div className="relative flex items-center">
+                      <input 
+                          type="text" 
+                          id="edit-endereco" 
+                          name="endereco" 
+                          value={formData.endereco} 
+                          onChange={handleBaseChange} 
+                          className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-3 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                      />
+                      <button
+                          type="button"
+                          onClick={handleGeolocate}
+                          disabled={isLocating}
+                          className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-emerald-400 disabled:text-slate-600 disabled:cursor-wait flex items-center"
+                          title="Atualizar endereço com localização atual"
+                      >
+                          {isLocating ? (
+                              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                          ) : (
+                              <LocationMarkerIcon className="w-5 h-5" />
+                          )}
+                      </button>
+                  </div>
+              </div>
               <div>
                    <label htmlFor="edit-cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
                    <CityAutocomplete id="edit-cidade" value={formData.cidade} onChange={handleCityChange} required />
