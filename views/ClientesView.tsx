@@ -1,4 +1,3 @@
-
 // views/ClientesView.tsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { Customer, Billing, DebtPayment, Equipment } from '../types';
@@ -216,6 +215,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             }}
             customer={editingCustomer}
             isSaving={isSaving}
+            showNotification={showNotification}
         />
       )}
 
