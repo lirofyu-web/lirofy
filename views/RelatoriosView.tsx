@@ -186,7 +186,6 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   
   const handlePrintGruaReport = useCallback(() => {
     const data = stats.monthlyGruaBillings;
-    {/* FIX: Explicitly typing customerMap to fix type inference issue */}
     const customerMap: Map<string, Customer> = new Map(customers.map(c => [c.id, c]));
 
     const totalSaldoBruto = data.reduce((sum, b) => sum + (b.saldo || 0), 0);
