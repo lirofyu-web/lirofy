@@ -113,6 +113,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
     if (!mapInstance.current || !L) return;
 
     // Deselect all markers first
+    // FIX: Explicitly type marker object as 'any' to resolve TypeScript errors with Leaflet methods,
+    // and store the element in a variable to avoid calling getElement() twice.
     Object.values(markerRefs.current).forEach((m: any) => {
         const element = m.getElement();
         if (element) {

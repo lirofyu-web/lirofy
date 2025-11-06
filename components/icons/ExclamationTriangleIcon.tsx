@@ -1,3 +1,4 @@
+// Fix: Add ExclamationTriangleIcon component
 import React from 'react';
 
 export const ExclamationTriangleIcon = ({ className }: { className?: string }) => (

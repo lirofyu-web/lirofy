@@ -1,3 +1,4 @@
+// Fix: Add EyeIcon component
 import React from 'react';
 
 export const EyeIcon = ({ className }: { className?: string }) => (

@@ -1,3 +1,4 @@
+// Fix: Add ListBulletIcon component
 import React from 'react';
 
 export const ListBulletIcon = ({ className }: { className?: string }) => (
