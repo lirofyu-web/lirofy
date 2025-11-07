@@ -7,11 +7,14 @@ import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
+import { TrashIcon } from '../components/icons/TrashIcon';
+import ActionModal from '../components/ActionModal';
 
 interface CobrancasViewProps {
     billings: Billing[];
     customers: Customer[];
     onShowReceipt: (billing: Billing) => void;
+    onDeleteBilling: (billingId: string) => void;
 }
 
 type SortKey = 'settledAt' | 'customerName' | 'valorTotal';
@@ -37,11 +40,13 @@ const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> =
     );
 });
 
-const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onShowReceipt }) => {
+const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onShowReceipt, onDeleteBilling }) => {
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [searchQuery, setSearchQuery] = useState('');
     const [equipmentFilter, setEquipmentFilter] = useState<Filter>('all');
+    const [deletingBilling, setDeletingBilling] = useState<Billing | null>(null);
+
 
     const filteredBillings = useMemo(() => {
         return billings
@@ -158,12 +163,19 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         }
       }, [debtorCustomers, totalDebt, billings]);
 
+    const handleConfirmDelete = () => {
+        if (deletingBilling) {
+            onDeleteBilling(deletingBilling.id);
+            setDeletingBilling(null);
+        }
+    };
+
 
     return (
         <>
             <PageHeader title="Histórico de Cobranças" subtitle="Visualize todas as cobranças realizadas e dívidas pendentes." />
             
-            <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <div className="bg-slate-800/75 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
                  <div className="relative flex-grow w-full sm:w-auto">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <SearchIcon className="w-5 h-5 text-slate-400" />
@@ -184,9 +196,9 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 </div>
             </div>
 
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden mb-10">
+            <div className="bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden mb-10">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-300 min-w-[720px]">
+                    <table className="w-full text-sm text-left text-slate-300 min-w-[800px]">
                         <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
                             <tr>
                                 <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('settledAt')}>Data {renderSortArrow('settledAt')}</th>
@@ -195,6 +207,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                 <th scope="col" className="px-6 py-3">Pagamento</th>
                                 <th scope="col" className="px-6 py-3 text-right cursor-pointer" onClick={() => handleSort('valorTotal')}>Valor (Firma) {renderSortArrow('valorTotal')}</th>
                                 <th scope="col" className="px-6 py-3 text-center">Recibo</th>
+                                <th scope="col" className="px-6 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -219,10 +232,15 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                     <td className="px-6 py-4 text-center">
                                          <button onClick={() => onShowReceipt(billing)} className="text-slate-400 hover:text-emerald-400">Ver</button>
                                     </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <button onClick={() => setDeletingBilling(billing)} className="text-slate-400 hover:text-red-400" title="Excluir Cobrança">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-16 text-slate-400 italic">Nenhuma cobrança encontrada para os filtros selecionados.</td>
+                                    <td colSpan={7} className="text-center py-16 text-slate-400 italic">Nenhuma cobrança encontrada para os filtros selecionados.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -231,13 +249,14 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                 <td colSpan={4} className="text-right px-6 py-3 uppercase">Total Filtrado</td>
                                 <td className="text-right px-6 py-3 font-mono text-lg text-emerald-400">R$ {totalBilled.toFixed(2)}</td>
                                 <td></td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
 
-            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
+            <div className="bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden">
                 <div className="flex justify-between items-center p-4 bg-slate-700/50">
                     <h3 className="text-lg font-semibold text-white">Clientes Devedores (Fiado)</h3>
                     <button 
@@ -288,6 +307,19 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                     </table>
                 </div>
             </div>
+
+            {deletingBilling && (
+                <ActionModal
+                    isOpen={!!deletingBilling}
+                    onClose={() => setDeletingBilling(null)}
+                    onConfirm={handleConfirmDelete}
+                    title="Confirmar Exclusão"
+                    confirmText="Sim, Excluir"
+                >
+                    <p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toFixed(2)}</strong>?</p>
+                    <p className="mt-2 text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p>
+                </ActionModal>
+            )}
         </>
     );
 };

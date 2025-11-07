@@ -1,4 +1,3 @@
-
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -215,6 +214,39 @@ const App: React.FC = () => {
         }
     };
     
+    const handleDeleteBilling = (billingId: string) => {
+        const billingToDelete = billings.find(b => b.id === billingId);
+        if (!billingToDelete) {
+            showNotification("Cobrança não encontrada.", "error");
+            return;
+        }
+
+        // Revert customer state
+        setCustomers(prevCustomers => prevCustomers.map(customer => {
+            if (customer.id === billingToDelete.customerId) {
+                const updatedEquipment = customer.equipment.map(equip => {
+                    if (equip.id === billingToDelete.equipmentId) {
+                        // Revert the meter reading
+                        return { ...equip, relogioAnterior: billingToDelete.relogioAnterior };
+                    }
+                    return equip;
+                });
+
+                let newDebtAmount = customer.debtAmount;
+                if (billingToDelete.paymentMethod === 'fiado' && billingToDelete.equipmentType !== 'grua') {
+                    newDebtAmount -= billingToDelete.valorTotal;
+                }
+                
+                return { ...customer, equipment: updatedEquipment, debtAmount: Math.max(0, newDebtAmount) };
+            }
+            return customer;
+        }));
+
+        setBillings(prevBillings => prevBillings.filter(b => b.id !== billingId));
+
+        showNotification("Cobrança excluída com sucesso!", "success");
+    };
+
     const handleAddExpense = (description: string, amount: number) => {
         const newExpense: Expense = {
             id: uuidv4(),
@@ -332,7 +364,7 @@ const App: React.FC = () => {
             case 'CLIENTES':
                 return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} />;
             case 'COBRANCAS':
-                return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling}/>;
+                return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling} onDeleteBilling={handleDeleteBilling}/>;
             case 'DESPESAS':
                 return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
             case 'ROTAS':
@@ -356,7 +388,7 @@ const App: React.FC = () => {
 
 
     return (
-        <div className="bg-slate-900 text-slate-100 min-h-screen">
+        <div className="text-slate-100 min-h-screen">
             <div className="flex">
                 <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
