@@ -1,8 +1,9 @@
 // views/ConfiguracoesView.tsx
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import { CloudUploadIcon } from '../components/icons/CloudUploadIcon';
 import ActionModal from '../components/ActionModal';
+import { InstallIcon } from '../components/icons/InstallIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
@@ -18,6 +19,19 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [customerText, setCustomerText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
 
   const handleImportClick = useCallback(() => {
     setIsImportModalOpen(true);
@@ -41,6 +55,21 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       setCustomerText('');
     }
   }, [customerText, onAddCustomerFromText]);
+
+  const handleInstallClick = useCallback(() => {
+    if (!installPrompt) {
+      return;
+    }
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the PWA installation');
+      } else {
+        console.log('User dismissed the PWA installation');
+      }
+      setInstallPrompt(null);
+    });
+  }, [installPrompt]);
   
   return (
     <>
@@ -50,6 +79,24 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       />
 
       <div className="space-y-12">
+        {/* PWA Install Section */}
+        {installPrompt && (
+          <section>
+            <h2 className="text-2xl font-semibold text-white mb-6 border-b border-slate-700 pb-2">Aplicativo</h2>
+            <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 flex flex-col">
+              <h3 className="text-xl font-bold text-white mb-2">Instalar Aplicativo</h3>
+              <p className="text-slate-400 mb-4 flex-grow">Instale o aplicativo em seu dispositivo para uma experiência mais rápida e integrada, sem a barra de endereço do navegador.</p>
+              <button
+                onClick={handleInstallClick}
+                className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors self-start"
+              >
+                <InstallIcon className="w-5 h-5" />
+                <span>Instalar Agora</span>
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Data Management Section */}
         <section>
           <h2 className="text-2xl font-semibold text-white mb-6 border-b border-slate-700 pb-2">Backup de Dados</h2>
