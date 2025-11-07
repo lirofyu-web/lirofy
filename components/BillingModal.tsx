@@ -130,8 +130,46 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [formState, equipment]);
   
   const handleFormChange = useCallback((field: keyof FormState, value: string) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
-  }, []);
+    setFormState(prev => {
+        const newState = { ...prev, [field]: value };
+
+        if (equipment.type === 'grua') {
+            // PIX Calculation Logic
+            const isPixTriggerField = ['saldo', 'aluguelValor', 'aluguelPercentual', 'recebimentoEspecie'].includes(field);
+            if (isPixTriggerField) {
+                const saldo = parseFloat(newState.saldo || '0');
+                const recebimentoEspecie = parseFloat(newState.recebimentoEspecie || '0');
+                let aluguelValor: number;
+                
+                if (equipment.aluguelPercentual && equipment.aluguelPercentual > 0) {
+                    const percent = parseFloat(newState.aluguelPercentual || '0');
+                    aluguelValor = saldo * (percent / 100);
+                    newState.aluguelValor = aluguelValor.toFixed(2);
+                } else {
+                    aluguelValor = parseFloat(newState.aluguelValor || '0');
+                }
+                
+                const valorTotalFirma = saldo - aluguelValor;
+                const newPix = valorTotalFirma - recebimentoEspecie;
+                newState.recebimentoPix = newPix.toFixed(2);
+            }
+            
+            // Plushie Replenishment Logic
+            const isPlushieTriggerField = ['sobraPelucia', 'quantidadePelucia'].includes(field);
+            if (isPlushieTriggerField) {
+                const quantidadeTotal = parseInt(newState.quantidadePelucia || '0', 10);
+                const sobras = parseInt(newState.sobraPelucia || '0', 10);
+                
+                if (!isNaN(quantidadeTotal) && !isNaN(sobras)) {
+                    const reposicao = Math.max(0, quantidadeTotal - sobras);
+                    newState.reposicaoPelucia = String(reposicao);
+                }
+            }
+        }
+        
+        return newState;
+    });
+  }, [equipment]);
 
   const generateBillingObject = useCallback((): Billing | null => {
     const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
@@ -240,6 +278,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   <FormField label="Recebido Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="number" step="0.01" equipmentId={equipment.id} isReadingInvalid={false} onChange={handleFormChange} />
                   <FormField label="Recebido PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="number" step="0.01" equipmentId={equipment.id} isReadingInvalid={false} onChange={handleFormChange} />
                   <div className="col-span-2"><hr className="border-slate-700" /></div>
+                  <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" equipmentId={equipment.id} isReadingInvalid={false} onChange={handleFormChange} />
                   <FormField label="Sobra Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" equipmentId={equipment.id} isReadingInvalid={false} onChange={handleFormChange} />
                   <FormField label="Reposição Pelúcias" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="number" equipmentId={equipment.id} isReadingInvalid={false} onChange={handleFormChange} />
               </>}
