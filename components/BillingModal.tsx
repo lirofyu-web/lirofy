@@ -94,10 +94,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     if (equipment.type === 'mesa') {
       const descontoPartidas = parseInt(formState.descontoPartidas || '0', 10);
       const partidasCobradas = Math.max(0, partidasJogadas - descontoPartidas);
-      const valorBruto = partidasCobradas * (equipment.valorFicha || 0);
+      const valorFicha = equipment.valorFicha || 0;
+      const valorBruto = partidasCobradas * valorFicha;
       const parteFirma = valorBruto * ((equipment.parteFirma || 0) / 100);
       const parteCliente = valorBruto * ((equipment.parteCliente || 0) / 100);
-      result = { partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente };
+      result = { partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha };
     } else if (equipment.type === 'jukebox') {
       const valorBruto = partidasJogadas; // Assume 1 tick = R$ 1,00
       const parteFirma = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
@@ -150,7 +151,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 }
                 
                 const valorTotalFirma = saldo - aluguelValor;
-                const newPix = valorTotalFirma - recebimentoEspecie;
+                const newPix = Math.max(0, valorTotalFirma - recebimentoEspecie);
                 newState.recebimentoPix = newPix.toFixed(2);
             }
             

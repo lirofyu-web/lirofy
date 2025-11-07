@@ -33,9 +33,9 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
 
     const EquipmentIcon: React.FC<{type: Equipment['type']}> = ({ type }) => {
         switch(type) {
-            case 'mesa': return <BilliardIcon className="w-5 h-5 text-cyan-400" />;
-            case 'jukebox': return <JukeboxIcon className="w-5 h-5 text-fuchsia-400" />;
-            case 'grua': return <CraneIcon className="w-5 h-5 text-orange-400" />;
+            case 'mesa': return <BilliardIcon className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />;
+            case 'jukebox': return <JukeboxIcon className="w-5 h-5 text-fuchsia-500 dark:text-fuchsia-400" />;
+            case 'grua': return <CraneIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />;
             default: return null;
         }
     };
@@ -44,8 +44,8 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${
-                disabled ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : `${colorClass} hover:opacity-90`
+            className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors text-white ${
+                disabled ? 'bg-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed' : `${colorClass} hover:opacity-90`
             }`}
         >
             {icon}
@@ -54,24 +54,24 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
     );
 
     return (
-        <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 transition-all duration-300">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
             <div className="p-3">
                 <div className="flex justify-between items-start">
                     <div>
-                        <h3 className="text-xl font-bold text-white">{customer.name}</h3>
-                        <p className="text-sm text-slate-400">{customer.cidade} - Linha: {customer.linhaNumero}</p>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">{customer.name}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{customer.cidade} - Linha: {customer.linhaNumero}</p>
                     </div>
                     <div className="flex-shrink-0 flex items-center gap-2">
                         {visitIsPending && <span title="Visita Pendente" className="block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>}
                         {hasDebt && (
-                            <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="text-amber-400 font-bold text-sm bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-600">
+                            <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
                                 R$ {customer.debtAmount.toFixed(2)}
                             </div>
                         )}
                     </div>
                 </div>
                 
-                <div className="mt-4 flex flex-wrap gap-2 text-white">
+                <div className="mt-4 flex flex-wrap gap-2">
                     <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="bg-emerald-600" />
                     <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" />
                     <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Fiado" colorClass="bg-amber-600" disabled={!hasDebt} />
@@ -80,11 +80,11 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2 text-white">
-                    <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                    <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'}`}>
                         <WhatsAppIcon className="w-5 h-5" />
                         <span className="mt-1">WhatsApp</span>
                     </a>
-                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600' : 'bg-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'}`}>
                         <LocationArrowIcon className="w-5 h-5" />
                         <span className="mt-1">Localização</span>
                     </a>
@@ -97,20 +97,20 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
             </div>
 
             {customer.equipment && customer.equipment.length > 0 && (
-                <div className="border-t border-slate-700">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-2 text-sm text-slate-300 hover:bg-slate-700/50">
+                <div className="border-t border-slate-200 dark:border-slate-700">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center p-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50">
                         <span className="font-semibold">Equipamentos ({customer.equipment.length})</span>
                         <ChevronDownIcon className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     {isExpanded && (
-                        <div className="p-3 bg-slate-900/50 border-t border-slate-700 space-y-3">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 space-y-3">
                             {customer.equipment.map((equip) => (
-                                <div key={equip.id} className="flex justify-between items-center text-sm p-2 bg-slate-800 rounded-md">
+                                <div key={equip.id} className="flex justify-between items-center text-sm p-2 bg-white dark:bg-slate-800 rounded-md">
                                     <div className="flex items-center gap-2">
                                         <EquipmentIcon type={equip.type} />
-                                        <span className="font-medium text-white capitalize">{equip.type} {equip.numero}</span>
+                                        <span className="font-medium text-slate-800 dark:text-white capitalize">{equip.type} {equip.numero}</span>
                                     </div>
-                                    <div className="text-slate-400">
+                                    <div className="text-slate-500 dark:text-slate-400">
                                         <span>Leitura: {equip.relogioAnterior}</span>
                                     </div>
                                 </div>

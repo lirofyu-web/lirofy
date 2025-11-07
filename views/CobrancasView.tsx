@@ -23,9 +23,9 @@ type Filter = 'all' | 'mesa' | 'jukebox' | 'grua';
 
 const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> = React.memo(({ method }) => {
     const styles = {
-        pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
-        dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
-        fiado: 'bg-amber-900/50 text-amber-300 border-amber-600',
+        pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
+        dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
+        fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
     };
     const text = {
         pix: 'PIX',
@@ -46,6 +46,8 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
     const [searchQuery, setSearchQuery] = useState('');
     const [equipmentFilter, setEquipmentFilter] = useState<Filter>('all');
     const [deletingBilling, setDeletingBilling] = useState<Billing | null>(null);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
 
     const filteredBillings = useMemo(() => {
@@ -57,9 +59,20 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 if (searchQuery && !billing.customerName.toLowerCase().includes(searchQuery.toLowerCase())) {
                     return false;
                 }
+                const billingDate = new Date(billing.settledAt);
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    if (billingDate < filterStartDate) return false;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    if (billingDate > filterEndDate) return false;
+                }
                 return true;
             });
-    }, [billings, equipmentFilter, searchQuery]);
+    }, [billings, equipmentFilter, searchQuery, startDate, endDate]);
     
     const sortedBillings = useMemo(() => {
         return [...filteredBillings].sort((a, b) => {
@@ -175,7 +188,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         <>
             <PageHeader title="Histórico de Cobranças" subtitle="Visualize todas as cobranças realizadas e dívidas pendentes." />
             
-            <div className="bg-slate-800/75 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center flex-wrap">
                  <div className="relative flex-grow w-full sm:w-auto">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <SearchIcon className="w-5 h-5 text-slate-400" />
@@ -185,21 +198,29 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         placeholder="Filtrar por nome do cliente..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <button onClick={() => setEquipmentFilter('all')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Todos</button>
-                    <button onClick={() => setEquipmentFilter('mesa')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Mesas</button>
-                    <button onClick={() => setEquipmentFilter('jukebox')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Jukebox</button>
-                    <button onClick={() => setEquipmentFilter('grua')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Gruas</button>
+                    <button onClick={() => setEquipmentFilter('all')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Todos</button>
+                    <button onClick={() => setEquipmentFilter('mesa')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Mesas</button>
+                    <button onClick={() => setEquipmentFilter('jukebox')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Jukebox</button>
+                    <button onClick={() => setEquipmentFilter('grua')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Gruas</button>
+                </div>
+                <div className="flex-grow w-full sm:w-auto">
+                    <label htmlFor="startDate" className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">De:</label>
+                    <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div className="flex-grow w-full sm:w-auto">
+                    <label htmlFor="endDate" className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Até:</label>
+                    <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
             </div>
 
-            <div className="bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden mb-10">
+            <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-10">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-300 min-w-[800px]">
-                        <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
+                    <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300 min-w-[800px]">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
                             <tr>
                                 <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('settledAt')}>Data {renderSortArrow('settledAt')}</th>
                                 <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('customerName')}>Cliente {renderSortArrow('customerName')}</th>
@@ -212,14 +233,14 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         </thead>
                         <tbody>
                             {sortedBillings.length > 0 ? sortedBillings.map(billing => (
-                                <tr key={billing.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
+                                <tr key={billing.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                                     <td className="px-6 py-4">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
-                                    <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{billing.customerName}</td>
+                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{billing.customerName}</td>
                                     <td className="px-6 py-4">
                                         <span className="flex items-center gap-2">
-                                            {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-400" /> : 
-                                             billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-400" /> :
-                                             <CraneIcon className="w-4 h-4 text-orange-400" />}
+                                            {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
+                                             billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
+                                             <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
                                             {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
                                              billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
                                              `Grua ${billing.equipmentNumero}`}
@@ -228,26 +249,26 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                     <td className="px-6 py-4">
                                         <PaymentMethodDisplay method={billing.paymentMethod} />
                                     </td>
-                                    <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400">R$ {billing.valorTotal.toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {billing.valorTotal.toFixed(2)}</td>
                                     <td className="px-6 py-4 text-center">
-                                         <button onClick={() => onShowReceipt(billing)} className="text-slate-400 hover:text-emerald-400">Ver</button>
+                                         <button onClick={() => onShowReceipt(billing)} className="text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400">Ver</button>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <button onClick={() => setDeletingBilling(billing)} className="text-slate-400 hover:text-red-400" title="Excluir Cobrança">
+                                        <button onClick={() => setDeletingBilling(billing)} className="text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Excluir Cobrança">
                                             <TrashIcon className="w-5 h-5" />
                                         </button>
                                     </td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-16 text-slate-400 italic">Nenhuma cobrança encontrada para os filtros selecionados.</td>
+                                    <td colSpan={7} className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada para os filtros selecionados.</td>
                                 </tr>
                             )}
                         </tbody>
-                        <tfoot className="bg-slate-700/50">
-                            <tr className="font-bold text-white">
+                        <tfoot className="bg-slate-100 dark:bg-slate-700/50">
+                            <tr className="font-bold text-slate-900 dark:text-white">
                                 <td colSpan={4} className="text-right px-6 py-3 uppercase">Total Filtrado</td>
-                                <td className="text-right px-6 py-3 font-mono text-lg text-emerald-400">R$ {totalBilled.toFixed(2)}</td>
+                                <td className="text-right px-6 py-3 font-mono text-lg text-emerald-600 dark:text-emerald-400">R$ {totalBilled.toFixed(2)}</td>
                                 <td></td>
                                 <td></td>
                             </tr>
@@ -256,9 +277,9 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 </div>
             </div>
 
-            <div className="bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden">
-                <div className="flex justify-between items-center p-4 bg-slate-700/50">
-                    <h3 className="text-lg font-semibold text-white">Clientes Devedores (Fiado)</h3>
+            <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores (Fiado)</h3>
                     <button 
                         onClick={handlePrintDebtors}
                         className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-1.5 px-3 rounded-md hover:bg-cyan-500 transition-colors text-sm"
@@ -268,8 +289,8 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                     </button>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-300 min-w-[720px]">
-                        <thead className="text-xs text-slate-400 uppercase bg-slate-700/50">
+                    <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300 min-w-[720px]">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
                             <tr>
                                 <th scope="col" className="px-6 py-3">Cliente</th>
                                 <th scope="col" className="px-6 py-3">Cidade</th>
@@ -285,21 +306,21 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                 const uniqueItems = [...new Set(debtItems)].join(', ');
 
                                 return (
-                                    <tr key={customer.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
-                                        <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{customer.name}</td>
+                                    <tr key={customer.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{customer.name}</td>
                                         <td className="px-6 py-4">{customer.cidade}</td>
                                         <td className="px-6 py-4">{uniqueItems || 'N/A'}</td>
-                                        <td className="px-6 py-4 text-right font-mono text-red-400 font-bold">R$ {customer.debtAmount.toFixed(2)}</td>
+                                        <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400 font-bold">R$ {customer.debtAmount.toFixed(2)}</td>
                                     </tr>
                                 )
                             }) : (
                                 <tr>
-                                    <td colSpan={4} className="text-center py-16 text-slate-400 italic">Nenhum cliente com dívidas.</td>
+                                    <td colSpan={4} className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhum cliente com dívidas.</td>
                                 </tr>
                             )}
                         </tbody>
-                         <tfoot className="bg-slate-700/50">
-                            <tr className="font-bold text-white">
+                         <tfoot className="bg-slate-100 dark:bg-slate-700/50">
+                            <tr className="font-bold text-slate-900 dark:text-white">
                                 <td colSpan={3} className="text-right px-6 py-3 uppercase">Total Geral de Dívidas</td>
                                 <td className="text-right px-6 py-3 font-mono text-lg">R$ {totalDebt.toFixed(2)}</td>
                             </tr>
@@ -317,7 +338,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                     confirmText="Sim, Excluir"
                 >
                     <p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toFixed(2)}</strong>?</p>
-                    <p className="mt-2 text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p>
+                    <p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p>
                 </ActionModal>
             )}
         </>

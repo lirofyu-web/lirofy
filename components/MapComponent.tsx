@@ -75,8 +75,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
             const marker = L.marker([customer.latitude, customer.longitude], { icon: customIcon });
             
             const popupContent = `
-                <div style="font-family: Inter, sans-serif; min-width: 180px; color: #374151;">
-                    <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 4px; color: #111827;">${customer.name}</h3>
+                <div style="font-family: Inter, sans-serif; min-width: 180px;">
+                    <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 4px;">${customer.name}</h3>
                     <p style="font-size: 0.875rem; margin: 0 0 8px 0; color: #6b7280;">${isVisitedRecently ? `Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}` : 'Visita pendente'}</p>
                     ${customer.debtAmount > 0 ? `<p style="font-size: 0.875rem; margin: 0 0 8px 0; color: #ef4444; font-weight: 600;">Dívida: R$ ${customer.debtAmount.toFixed(2)}</p>` : ''}
                     <a 
@@ -113,8 +113,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
     if (!mapInstance.current || !L) return;
 
     // Deselect all markers first
-    // FIX: Explicitly type marker object as 'any' to resolve TypeScript errors with Leaflet methods,
-    // and store the element in a variable to avoid calling getElement() twice.
     Object.values(markerRefs.current).forEach((m: any) => {
         const element = m.getElement();
         if (element) {
@@ -142,7 +140,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
   }, [selectedCustomerId, L]);
 
   return (
-    <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 h-full w-full flex flex-col">
+    <div className="bg-slate-200 dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full w-full flex flex-col">
       <div ref={mapRef} className="w-full h-full rounded-lg" />
     </div>
   );

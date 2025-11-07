@@ -20,7 +20,7 @@ const navItems = [
 
 const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView }) => {
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 shadow-lg md:hidden z-20 no-print">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shadow-lg md:hidden z-20 no-print">
             <div className="flex justify-around items-center h-16">
                 {navItems.map(item => {
                     const Icon = item.icon;
@@ -30,7 +30,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView }) => 
                             key={item.view}
                             onClick={() => setView(item.view)}
                             className={`flex flex-col items-center justify-center w-full h-full transition-colors duration-200 ${
-                                isActive ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                                isActive ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                             }`}
                         >
                             <Icon className="w-6 h-6 mb-1" />

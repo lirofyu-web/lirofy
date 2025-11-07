@@ -4,17 +4,24 @@ import PageHeader from '../components/PageHeader';
 import { CloudUploadIcon } from '../components/icons/CloudUploadIcon';
 import ActionModal from '../components/ActionModal';
 import { InstallIcon } from '../components/icons/InstallIcon';
+import { Theme } from '../App';
+import { SunIcon } from '../components/icons/SunIcon';
+import { MoonIcon } from '../components/icons/MoonIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
   onMergeData: (file: File) => void;
   onAddCustomerFromText: (text: string) => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 }
 
 const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   onExportData,
   onMergeData,
   onAddCustomerFromText,
+  theme,
+  setTheme
 }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [customerText, setCustomerText] = useState('');
@@ -70,6 +77,10 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       setInstallPrompt(null);
     });
   }, [installPrompt]);
+
+  const handleThemeChange = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
   
   return (
     <>
@@ -79,13 +90,53 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       />
 
       <div className="space-y-12">
+        {/* Appearance Section */}
+        <section>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Aparência</h2>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Tema do Aplicativo</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Escolha entre o tema claro ou escuro.</p>
+            <div className="flex items-center gap-4">
+              <span className="text-slate-500 dark:text-slate-400">Claro</span>
+              <button
+                onClick={handleThemeChange}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 ${
+                  theme === 'dark' ? 'bg-emerald-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    theme === 'dark' ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                >
+                  <span
+                    className={`absolute inset-0 flex h-full w-full items-center justify-center transition-opacity ${
+                      theme === 'light' ? 'opacity-100 ease-in duration-200' : 'opacity-0 ease-out duration-100'
+                    }`}
+                  >
+                    <SunIcon className="h-3 w-3 text-slate-500" />
+                  </span>
+                  <span
+                    className={`absolute inset-0 flex h-full w-full items-center justify-center transition-opacity ${
+                      theme === 'dark' ? 'opacity-100 ease-in duration-200' : 'opacity-0 ease-out duration-100'
+                    }`}
+                  >
+                    <MoonIcon className="h-3 w-3 text-emerald-600" />
+                  </span>
+                </span>
+              </button>
+              <span className="text-slate-500 dark:text-slate-400">Escuro</span>
+            </div>
+          </div>
+        </section>
+
         {/* PWA Install Section */}
         {installPrompt && (
           <section>
-            <h2 className="text-2xl font-semibold text-white mb-6 border-b border-slate-700 pb-2">Aplicativo</h2>
-            <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 flex flex-col">
-              <h3 className="text-xl font-bold text-white mb-2">Instalar Aplicativo</h3>
-              <p className="text-slate-400 mb-4 flex-grow">Instale o aplicativo em seu dispositivo para uma experiência mais rápida e integrada, sem a barra de endereço do navegador.</p>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Aplicativo</h2>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Instalar Aplicativo</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4 flex-grow">Instale o aplicativo em seu dispositivo para uma experiência mais rápida e integrada, sem a barra de endereço do navegador.</p>
               <button
                 onClick={handleInstallClick}
                 className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors self-start"
@@ -99,12 +150,12 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
 
         {/* Data Management Section */}
         <section>
-          <h2 className="text-2xl font-semibold text-white mb-6 border-b border-slate-700 pb-2">Backup de Dados</h2>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Backup de Dados</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Export Card */}
-            <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 flex flex-col">
-              <h3 className="text-xl font-bold text-white mb-2">Exportar (Backup)</h3>
-              <p className="text-slate-400 mb-4 flex-grow">Salve todos os seus dados (clientes, cobranças, etc.) em um arquivo JSON. Guarde-o em um local seguro.</p>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Exportar (Backup)</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4 flex-grow">Salve todos os seus dados (clientes, cobranças, etc.) em um arquivo JSON. Guarde-o em um local seguro.</p>
               <button
                 onClick={onExportData}
                 className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors self-start"
@@ -114,9 +165,9 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
               </button>
             </div>
             {/* Import Card */}
-            <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 flex flex-col">
-              <h3 className="text-xl font-bold text-white mb-2">Importar e Mesclar</h3>
-              <p className="text-slate-400 mb-4 flex-grow">Importe dados de um arquivo de backup. As informações serão mescladas com os dados existentes, adicionando novos registros e atualizando os existentes.</p>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar e Mesclar</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4 flex-grow">Importe dados de um arquivo de backup. As informações serão mescladas com os dados existentes, adicionando novos registros e atualizando os existentes.</p>
               <button
                 onClick={handleImportClick}
                 className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors self-start"
@@ -131,15 +182,15 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
         
         {/* Import from Text Section */}
         <section>
-           <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
-             <h3 className="text-xl font-bold text-white mb-2">Importar Cliente via Texto</h3>
-             <p className="text-slate-400 mb-4">Cole os dados de um cliente (copiados da função "Compartilhar") para adicioná-lo rapidamente.</p>
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar Cliente via Texto</h3>
+             <p className="text-slate-500 dark:text-slate-400 mb-4">Cole os dados de um cliente (copiados da função "Compartilhar") para adicioná-lo rapidamente.</p>
              <textarea
               value={customerText}
               onChange={(e) => setCustomerText(e.target.value)}
               placeholder="Cole os dados do cliente aqui..."
               rows={8}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
              />
              <button
               onClick={handleTextImport}

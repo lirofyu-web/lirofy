@@ -23,9 +23,9 @@ type HistoryItem = {
 
 const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> = React.memo(({ method }) => {
     const styles = {
-        pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
-        dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
-        fiado: 'bg-amber-900/50 text-amber-300 border-amber-600',
+        pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
+        dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
+        fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
     };
     const text = {
         pix: 'PIX',
@@ -86,29 +86,29 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
           aria-modal="true"
           aria-labelledby="history-modal-title"
         >
-            <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-slate-700">
-                    <h2 id="history-modal-title" className="text-2xl font-bold text-white">Histórico do Cliente</h2>
-                    <p className="text-slate-400">{customer.name}</p>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                    <h2 id="history-modal-title" className="text-2xl font-bold text-slate-900 dark:text-white">Histórico do Cliente</h2>
+                    <p className="text-slate-500 dark:text-slate-400">{customer.name}</p>
                 </div>
                 <div className="p-6 overflow-y-auto">
                     {historyItems.length > 0 ? (
                         <ul className="space-y-4">
                             {historyItems.map(item => (
-                                <li key={item.id} className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                    <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${item.type === 'billing' ? 'bg-cyan-900/50' : 'bg-emerald-900/50'}`}>
+                                <li key={item.id} className="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${item.type === 'billing' ? 'bg-cyan-100 dark:bg-cyan-900/50' : 'bg-emerald-100 dark:bg-emerald-900/50'}`}>
                                         {item.type === 'billing' 
-                                            ? <ReceiptIcon className="w-5 h-5 text-cyan-400" />
-                                            : <CurrencyDollarIcon className="w-5 h-5 text-emerald-400" />
+                                            ? <ReceiptIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                                            : <CurrencyDollarIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                                         }
                                     </div>
                                     <div className="flex-grow">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-semibold text-white">{item.description}</p>
-                                                <p className="text-sm text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
+                                                <p className="font-semibold text-slate-900 dark:text-white">{item.description}</p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
                                             </div>
-                                            <p className={`font-mono font-bold text-lg ${item.type === 'billing' ? 'text-cyan-300' : 'text-emerald-300'}`}>
+                                            <p className={`font-mono font-bold text-lg ${item.type === 'billing' ? 'text-cyan-700 dark:text-cyan-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
                                                 R$ {item.amount.toFixed(2)}
                                             </p>
                                         </div>
@@ -122,13 +122,13 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                             ))}
                         </ul>
                     ) : (
-                        <div className="text-center py-12 text-slate-400">
+                        <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                             <p>Nenhuma transação registrada para este cliente.</p>
                         </div>
                     )}
                 </div>
-                <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-700">
-                    <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Fechar</button>
+                <div className="p-6 mt-auto bg-slate-50 dark:bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-200 dark:border-slate-700">
+                    <button onClick={onClose} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500 transition-colors">Fechar</button>
                 </div>
             </div>
             <style>{`

@@ -18,8 +18,8 @@ interface InfoCardProps {
     children: React.ReactNode;
 }
 const InfoCard: React.FC<InfoCardProps> = React.memo(({ title, children }) => (
-    <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 h-full flex flex-col">
-        <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-3">{title}</h3>
+    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full flex flex-col">
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">{title}</h3>
         <div className="flex-grow">
             <dl className="space-y-3">
                 {children}
@@ -33,9 +33,9 @@ interface InfoRowProps {
     value: string;
     valueColor?: string;
 }
-const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor = 'text-slate-300' }) => (
+const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor = 'text-slate-700 dark:text-slate-300' }) => (
     <div className="flex justify-between items-baseline">
-        <dt className="text-slate-400">{label}</dt>
+        <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
         <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
     </div>
 ));
@@ -43,60 +43,75 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
 // --- Main View Component ---
 
 const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, expenses, debtPayments }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const getInitialDateRange = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return {
+        start: firstDay.toISOString().split('T')[0],
+        end: lastDay.toISOString().split('T')[0]
+    };
+  };
 
-  const handleMonthChange = useCallback((month: number) => {
-    setCurrentDate(prevDate => new Date(prevDate.getFullYear(), month, 1));
-  }, []);
+  const [dateRange, setDateRange] = useState(getInitialDateRange);
 
-  const handleYearChange = useCallback((year: number) => {
-    setCurrentDate(prevDate => new Date(year, prevDate.getMonth(), 1));
+  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setDateRange(prev => ({ ...prev, [name]: value }));
   }, []);
 
   const stats = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const start = dateRange.start ? new Date(dateRange.start) : null;
+    if (start) start.setHours(0, 0, 0, 0);
 
-    const monthlyBillings = billings.filter(b => {
-      const date = new Date(b.settledAt);
-      return date.getFullYear() === year && date.getMonth() === month;
-    });
+    const end = dateRange.end ? new Date(dateRange.end) : null;
+    if (end) end.setHours(23, 59, 59, 999);
+    
+    const filterByDate = (itemDateStr: Date) => {
+        const itemDate = new Date(itemDateStr);
+        if (start && itemDate < start) return false;
+        if (end && itemDate > end) return false;
+        return true;
+    };
 
-    const monthlyDebtPayments = debtPayments.filter(p => {
-      const date = new Date(p.paidAt);
-      return date.getFullYear() === year && date.getMonth() === month;
-    });
-
-    const monthlyExpenses = expenses.filter(e => {
-      const date = new Date(e.date);
-      return date.getFullYear() === year && date.getMonth() === month;
-    });
+    const periodBillings = billings.filter(b => filterByDate(b.settledAt));
+    const periodDebtPayments = debtPayments.filter(p => filterByDate(p.paidAt));
+    const periodExpenses = expenses.filter(e => filterByDate(e.date));
     
     // Filtered Billings
-    const monthlyMesaBillings = monthlyBillings.filter(b => b.equipmentType === 'mesa');
-    const monthlyJukeboxBillings = monthlyBillings.filter(b => b.equipmentType === 'jukebox');
-    const monthlyGruaBillings = monthlyBillings.filter(b => b.equipmentType === 'grua');
+    const periodMesaBillings = periodBillings.filter(b => b.equipmentType === 'mesa');
+    const periodJukeboxBillings = periodBillings.filter(b => b.equipmentType === 'jukebox');
+    const periodGruaBillings = periodBillings.filter(b => b.equipmentType === 'grua');
 
-    // Revenue by Equipment (Cash Box)
-    const revenueMesa = monthlyMesaBillings.filter(b => b.paymentMethod !== 'fiado').reduce((sum, b) => sum + b.valorTotal, 0);
-    const revenueJukebox = monthlyJukeboxBillings.filter(b => b.paymentMethod !== 'fiado').reduce((sum, b) => sum + b.valorTotal, 0);
+    // Revenue by Equipment
+    const revenueMesaDinheiro = periodMesaBillings.filter(b => b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
+    const revenueMesaPix = periodMesaBillings.filter(b => b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+    const revenueMesaTotal = revenueMesaDinheiro + revenueMesaPix;
     
+    const revenueJukeboxDinheiro = periodJukeboxBillings.filter(b => b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
+    const revenueJukeboxPix = periodJukeboxBillings.filter(b => b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+    const revenueJukeboxTotal = revenueJukeboxDinheiro + revenueJukeboxPix;
+
     // Detailed Grua Stats
-    const revenueGruaPix = monthlyGruaBillings.reduce((sum, b) => sum + (b.recebimentoPix || 0), 0);
-    const revenueGruaEspecie = monthlyGruaBillings.reduce((sum, b) => sum + (b.recebimentoEspecie || 0), 0);
-    const totalAluguelPagoGrua = monthlyGruaBillings.reduce((sum, b) => sum + (b.aluguelValor || 0), 0);
+    const revenueGruaPix = periodGruaBillings.reduce((sum, b) => sum + (b.recebimentoPix || 0), 0);
+    const revenueGruaEspecie = periodGruaBillings.reduce((sum, b) => sum + (b.recebimentoEspecie || 0), 0);
+    const totalAluguelPagoGrua = periodGruaBillings.reduce((sum, b) => sum + (b.aluguelValor || 0), 0);
 
 
     // Debt Generated by Equipment
-    const debtGeneratedMesa = monthlyMesaBillings.filter(b => b.paymentMethod === 'fiado').reduce((sum, b) => sum + (b.parteFirma || 0) + (b.parteCliente || 0), 0);
-    const debtGeneratedJukebox = monthlyJukeboxBillings.filter(b => b.paymentMethod === 'fiado').reduce((sum, b) => sum + (b.parteFirma || 0) + (b.parteCliente || 0), 0);
+    const debtGeneratedMesa = periodMesaBillings.filter(b => b.paymentMethod === 'fiado').reduce((sum, b) => sum + (b.parteFirma || 0) + (b.parteCliente || 0), 0);
+    const debtGeneratedJukebox = periodJukeboxBillings.filter(b => b.paymentMethod === 'fiado').reduce((sum, b) => sum + (b.parteFirma || 0) + (b.parteCliente || 0), 0);
     
-    const totalDebtPaymentsReceived = monthlyDebtPayments.reduce((sum, p) => sum + p.amountPaid, 0);
-    const totalExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalDebtPaymentsReceived = periodDebtPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+    const totalExpenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
     
     return {
-      revenueMesa,
-      revenueJukebox,
+      revenueMesaDinheiro,
+      revenueMesaPix,
+      revenueMesaTotal,
+      revenueJukeboxDinheiro,
+      revenueJukeboxPix,
+      revenueJukeboxTotal,
       revenueGruaPix,
       revenueGruaEspecie,
       totalAluguelPagoGrua,
@@ -104,23 +119,23 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       debtGeneratedJukebox,
       totalDebtPaymentsReceived,
       totalExpenses,
-      monthlyMesaBillings,
-      monthlyJukeboxBillings,
-      monthlyGruaBillings,
-      monthlyDebtPayments,
-      monthlyExpenses,
+      periodMesaBillings,
+      periodJukeboxBillings,
+      periodGruaBillings,
+      periodDebtPayments,
+      periodExpenses,
     };
-  }, [billings, expenses, debtPayments, currentDate]);
-
-  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  }, [billings, expenses, debtPayments, dateRange]);
   
   const printReport = useCallback((title: string, content: string) => {
+    const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início';
+    const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').toLocaleDateString('pt-BR') : 'Fim';
+    const dateTitle = `${startDate} a ${endDate}`;
+
     const reportHtml = `
       <html>
         <head>
-          <title>${title} - ${monthNames[currentDate.getMonth()]}/${currentDate.getFullYear()}</title>
+          <title>${title} - ${dateTitle}</title>
           <style>
             body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
             @page { size: A4 landscape; margin: 15mm; }
@@ -137,7 +152,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         </head>
         <body>
           <h1>Montanha Bilhar & Jukebox</h1>
-          <h2>${title} - ${monthNames[currentDate.getMonth()]} de ${currentDate.getFullYear()}</h2>
+          <h2>${title} - Período: ${dateTitle}</h2>
           ${content}
         </body>
       </html>
@@ -149,44 +164,107 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         printWindow.focus();
         printWindow.print();
     }
-  }, [currentDate, monthNames]);
-
-  const generateBillingTable = (title: string, data: Billing[], total: number) => `
-    <h3>${title}</h3>
-    <table>
-      <thead><tr><th>Data</th><th>Cliente</th><th>Pgto</th><th class="currency">Valor (Firma)</th></tr></thead>
-      <tbody>
-        ${data.length > 0 ? data.map(b => `
-          <tr>
-            <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
-            <td>${b.customerName}</td>
-            <td>${b.paymentMethod}</td>
-            <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
-          </tr>
-        `).join('') : '<tr><td colspan="4" class="no-records">Nenhuma cobrança no período.</td></tr>'}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3"><strong>Total Recebido (Caixa)</strong></td>
-          <td class="currency"><strong>R$ ${total.toFixed(2)}</strong></td>
-        </tr>
-      </tfoot>
-    </table>
-  `;
+  }, [dateRange]);
 
   const handlePrintMesaReport = useCallback(() => {
-    const content = generateBillingTable('Receitas - Mesas de Sinuca', stats.monthlyMesaBillings, stats.revenueMesa);
+    const data = stats.periodMesaBillings;
+    const total = stats.revenueMesaTotal;
+    const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
+
+    const content = `
+      <h3>Receitas - Mesas de Sinuca</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th>Cidade</th>
+            <th class="currency">Rel. Ant.</th>
+            <th class="currency">Rel. Atual</th>
+            <th class="currency">Jogadas</th>
+            <th>Recebido</th>
+            <th class="currency">Valor (Firma)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.length > 0 ? data.map(b => {
+            const customer = customerMap.get(b.customerId);
+            const cidade = customer ? customer.cidade : 'N/A';
+            const paymentMethodDisplay = b.paymentMethod === 'fiado' ? 'Fiado' : (b.paymentMethod === 'pix' ? 'PIX' : 'Dinheiro');
+            return `
+              <tr>
+                <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
+                <td>${b.customerName}</td>
+                <td>${cidade}</td>
+                <td class="currency">${b.relogioAnterior}</td>
+                <td class="currency">${b.relogioAtual}</td>
+                <td class="currency">${b.partidasJogadas}</td>
+                <td>${paymentMethodDisplay}</td>
+                <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+              </tr>
+            `}).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7"><strong>Total Recebido (Caixa)</strong></td>
+            <td class="currency"><strong>R$ ${total.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
     printReport('Relatório de Mesas de Sinuca', content);
-  }, [stats, printReport, generateBillingTable]);
+  }, [stats, printReport, customers]);
 
   const handlePrintJukeboxReport = useCallback(() => {
-    const content = generateBillingTable('Receitas - Jukebox', stats.monthlyJukeboxBillings, stats.revenueJukebox);
+    const data = stats.periodJukeboxBillings;
+    const total = stats.revenueJukeboxTotal;
+    const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
+
+    const content = `
+      <h3>Receitas - Jukebox</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Cliente</th>
+            <th>Cidade</th>
+            <th class="currency">Rel. Ant.</th>
+            <th class="currency">Rel. Atual</th>
+            <th class="currency">Jogadas</th>
+            <th>Pgto</th>
+            <th class="currency">Valor (Firma)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.length > 0 ? data.map(b => {
+            const customer = customerMap.get(b.customerId);
+            const cidade = customer ? customer.cidade : 'N/A';
+            return `
+              <tr>
+                <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
+                <td>${b.customerName}</td>
+                <td>${cidade}</td>
+                <td class="currency">${b.relogioAnterior}</td>
+                <td class="currency">${b.relogioAtual}</td>
+                <td class="currency">${b.partidasJogadas}</td>
+                <td>${b.paymentMethod}</td>
+                <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+              </tr>
+            `}).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7"><strong>Total Recebido (Caixa)</strong></td>
+            <td class="currency"><strong>R$ ${total.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
     printReport('Relatório de Jukebox', content);
-  }, [stats, printReport, generateBillingTable]);
+  }, [stats, printReport, customers]);
   
   const handlePrintGruaReport = useCallback(() => {
-    const data = stats.monthlyGruaBillings;
-    // FIX: Explicitly type the Map to ensure correct type inference for `customer`.
+    const data = stats.periodGruaBillings;
     const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
 
     const totalSaldoBruto = data.reduce((sum, b) => sum + (b.saldo || 0), 0);
@@ -202,6 +280,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <th>Cliente</th>
             <th>Cidade</th>
             <th>Grua Nº</th>
+            <th class="currency">Rel. Ant.</th>
+            <th class="currency">Rel. Atual</th>
             <th class="currency">Saldo Bruto</th>
             <th class="currency">Aluguel (Cliente)</th>
             <th class="currency">Valor (Firma)</th>
@@ -220,6 +300,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
               <td>${b.customerName}</td>
               <td>${cidade}</td>
               <td>${b.equipmentNumero}</td>
+              <td class="currency">${b.relogioAnterior}</td>
+              <td class="currency">${b.relogioAtual}</td>
               <td class="currency">R$ ${(b.saldo || 0).toFixed(2)}</td>
               <td class="currency">R$ ${(b.aluguelValor || 0).toFixed(2)}</td>
               <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
@@ -227,11 +309,11 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
               <td class="currency">R$ ${(b.recebimentoEspecie || 0).toFixed(2)}</td>
               <td class="currency">R$ ${(b.recebimentoPix || 0).toFixed(2)}</td>
             </tr>
-          `}).join('') : '<tr><td colspan="10" class="no-records">Nenhuma cobrança de grua no período.</td></tr>'}
+          `}).join('') : '<tr><td colspan="12" class="no-records">Nenhuma cobrança de grua no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="4"><strong>TOTAIS</strong></td>
+            <td colspan="6"><strong>TOTAIS</strong></td>
             <td class="currency"><strong>R$ ${totalSaldoBruto.toFixed(2)}</strong></td>
             <td class="currency"><strong>R$ ${totalAluguelCliente.toFixed(2)}</strong></td>
             <td class="currency"><strong>R$ ${totalValorFirma.toFixed(2)}</strong></td>
@@ -248,7 +330,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       <table>
         <thead><tr><th>Data</th><th>Cliente</th><th>Pgto</th><th class="currency">Valor Pago</th></tr></thead>
         <tbody>
-          ${stats.monthlyDebtPayments.length > 0 ? stats.monthlyDebtPayments.map(p => `
+          ${stats.periodDebtPayments.length > 0 ? stats.periodDebtPayments.map(p => `
             <tr>
               <td>${new Date(p.paidAt).toLocaleDateString('pt-BR')}</td>
               <td>${p.customerName}</td>
@@ -273,7 +355,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       <table>
         <thead><tr><th>Data</th><th>Descrição</th><th class="currency">Valor</th></tr></thead>
         <tbody>
-          ${stats.monthlyExpenses.length > 0 ? stats.monthlyExpenses.map(e => `
+          ${stats.periodExpenses.length > 0 ? stats.periodExpenses.map(e => `
             <tr>
               <td>${new Date(e.date).toLocaleDateString('pt-BR')}</td>
               <td>${e.description}</td>
@@ -293,7 +375,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   }, [stats, printReport]);
 
   const PrintButton = ({ onClick, label }: { onClick: () => void, label: string }) => (
-     <div className="mt-4 pt-4 border-t border-slate-700/50">
+     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
         <button
             onClick={onClick}
             className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-3 rounded-md hover:bg-cyan-500 transition-colors"
@@ -311,43 +393,48 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         subtitle="Análise detalhada do desempenho financeiro."
       />
       
-      <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8 flex flex-wrap items-center gap-4">
-        <h3 className="text-lg font-semibold text-white">Selecione o Período:</h3>
-        <select value={currentDate.getMonth()} onChange={(e) => handleMonthChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-          {monthNames.map((month, index) => <option key={month} value={index}>{month}</option>)}
-        </select>
-        <select value={currentDate.getFullYear()} onChange={(e) => handleYearChange(parseInt(e.target.value))} className="bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-           {years.map(year => <option key={year} value={year}>{year}</option>)}
-        </select>
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-wrap items-center gap-4">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Selecione o Período:</h3>
+        <input name="start" type="date" value={dateRange.start} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        <span className="text-slate-500 dark:text-slate-400">até</span>
+        <input name="end" type="date" value={dateRange.end} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <InfoCard title="Desempenho: Mesas de Sinuca">
-            <InfoRow label="Receita (Caixa)" value={`R$ ${stats.revenueMesa.toFixed(2)}`} valueColor="text-emerald-400" />
-            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedMesa.toFixed(2)}`} valueColor="text-amber-400" />
+            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+            <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedMesa.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400" />
+            <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
+                <InfoRow label="Total (Caixa)" value={`R$ ${stats.revenueMesaTotal.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
+            </div>
             <PrintButton onClick={handlePrintMesaReport} label="Imprimir Relatório de Mesas" />
         </InfoCard>
 
         <InfoCard title="Desempenho: Jukebox">
-            <InfoRow label="Receita (Caixa)" value={`R$ ${stats.revenueJukebox.toFixed(2)}`} valueColor="text-emerald-400" />
-            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedJukebox.toFixed(2)}`} valueColor="text-amber-400" />
+            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+            <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueJukeboxPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedJukebox.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400" />
+            <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
+                <InfoRow label="Total (Caixa)" value={`R$ ${stats.revenueJukeboxTotal.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
+            </div>
             <PrintButton onClick={handlePrintJukeboxReport} label="Imprimir Relatório de Jukebox" />
         </InfoCard>
 
          <InfoCard title="Desempenho: Gruas">
-            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2)}`} valueColor="text-sky-400" />
-            <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-emerald-400" />
-            <InfoRow label="Aluguel Pago (p/ Cliente)" value={`R$ ${stats.totalAluguelPagoGrua.toFixed(2)}`} valueColor="text-amber-400" />
+            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+            <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+            <InfoRow label="Aluguel Pago (p/ Cliente)" value={`R$ ${stats.totalAluguelPagoGrua.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400" />
             <PrintButton onClick={handlePrintGruaReport} label="Imprimir Relatório de Gruas" />
         </InfoCard>
 
         <InfoCard title="Pagamentos de Dívidas">
-            <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2)}`} valueColor="text-green-400" />
+            <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400" />
              <PrintButton onClick={handlePrintDebtReport} label="Imprimir Relatório de Dívidas" />
         </InfoCard>
         
         <InfoCard title="Despesas do Período">
-            <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2)}`} valueColor="text-red-400" />
+            <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
             <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" />
         </InfoCard>
       </div>

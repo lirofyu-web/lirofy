@@ -136,7 +136,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         <AddCustomerForm onAddCustomer={onAddCustomer} isSaving={isSaving} showNotification={showNotification} />
       </div>
 
-      <div className="bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-700 mb-8">
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
          <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <SearchIcon className="w-5 h-5 text-slate-400" />
@@ -146,7 +146,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                 placeholder="Filtrar por nome, cidade ou linha..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
         </div>
       </div>
@@ -154,7 +154,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       <div className="space-y-8">
         {sortedCities.length > 0 ? sortedCities.map(city => (
             <section key={city}>
-                <h2 className="text-xl font-bold text-emerald-400 mb-4 border-b-2 border-slate-700 pb-2 capitalize">{city}</h2>
+                <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-2 capitalize">{city}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {customersByCity[city].map(customer => (
                         <CustomerCard
@@ -171,7 +171,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                 </div>
             </section>
         )) : (
-            <p className="text-center py-10 text-slate-400">
+            <p className="text-center py-10 text-slate-500 dark:text-slate-400">
                 Nenhum cliente encontrado.
             </p>
         )}

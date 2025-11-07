@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Customer, Billing, Expense, DebtPayment, Equipment } from './types';
-// Fix: Add createRoot import to fix 'require' error.
 import { createRoot } from 'react-dom/client';
 
 import Sidebar from './components/Sidebar';
@@ -22,6 +21,7 @@ import { mockCities, mockFirstNames, mockLastNames, mockStreetNames, mockStreetT
 import MobileHeader from './components/MobileHeader';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
+export type Theme = 'light' | 'dark';
 
 type NotificationState = {
   message: string;
@@ -46,6 +46,7 @@ const App: React.FC = () => {
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
     const [currentView, setCurrentView] = useState<View>('DASHBOARD');
     const [isSaving, setIsSaving] = useState(false);
+    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
 
     const [notification, setNotification] = useState<NotificationState>(null);
     
@@ -54,6 +55,13 @@ const App: React.FC = () => {
     const [provisionalReceiptCallback, setProvisionalReceiptCallback] = useState<(() => void) | null>(null);
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        root.classList.remove(theme === 'dark' ? 'light' : 'dark');
+        root.classList.add(theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setNotification({ message, type });
@@ -372,7 +380,7 @@ const App: React.FC = () => {
             case 'RELATORIOS':
                 return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'CONFIGURACOES':
-                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} />;
+                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
             default:
                 return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
         }
@@ -388,7 +396,7 @@ const App: React.FC = () => {
 
 
     return (
-        <div className="text-slate-100 min-h-screen">
+        <div className="text-slate-800 dark:text-slate-100 min-h-screen">
             <div className="flex">
                 <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
@@ -414,7 +422,6 @@ const App: React.FC = () => {
                     onPrint={() => {
                         const modal = document.createElement('div');
                         document.body.appendChild(modal);
-                        // Fix: Use createRoot from import instead of require.
                         const root = createRoot(modal);
                         const PrintComponent = () => (
                              <ReceiptModal
@@ -447,7 +454,6 @@ const App: React.FC = () => {
                     onPrint={() => {
                         const modal = document.createElement('div');
                         document.body.appendChild(modal);
-                        // Fix: Use createRoot from import instead of require.
                         const root = createRoot(modal);
                         const PrintComponent = () => (
                              <ReceiptModal

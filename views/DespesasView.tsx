@@ -1,4 +1,3 @@
-
 // views/DespesasView.tsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { Expense } from '../types';
@@ -71,14 +70,14 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
   };
 
   const renderExpenseCard = (expense: Expense) => (
-    <div key={expense.id} className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
+    <div key={expense.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex justify-between items-center">
       <div>
-        <p className="font-bold text-white">{expense.description}</p>
-        <p className="text-sm text-slate-400">{new Date(expense.date).toLocaleDateString('pt-BR')}</p>
+        <p className="font-bold text-slate-900 dark:text-white">{expense.description}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(expense.date).toLocaleDateString('pt-BR')}</p>
       </div>
       <div className="text-right">
-        <p className="font-mono font-bold text-red-400 text-lg">R$ {expense.amount.toFixed(2)}</p>
-        <button onClick={() => onDeleteExpense(expense.id)} className="text-slate-500 hover:text-red-500 mt-1" title="Excluir Despesa">
+        <p className="font-mono font-bold text-red-600 dark:text-red-400 text-lg">R$ {expense.amount.toFixed(2)}</p>
+        <button onClick={() => onDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500 dark:text-slate-500 mt-1" title="Excluir Despesa">
           <TrashIcon className="w-4 h-4" />
         </button>
       </div>
@@ -89,27 +88,27 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
     <div>
       <PageHeader title="Controle de Despesas" subtitle="Adicione e gerencie as despesas do seu negócio." />
 
-      <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700 mb-8">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-end gap-4">
-          <div className="flex-grow w-full"><label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-1">Descrição</label><input type="text" id="description" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
-          <div className="w-full sm:w-48"><label htmlFor="amount" className="block text-sm font-medium text-slate-300 mb-1">Valor (R$)</label><input type="number" step="0.01" id="amount" value={amount} onChange={handleAmountChange} required className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
+          <div className="flex-grow w-full"><label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Descrição</label><input type="text" id="description" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
+          <div className="w-full sm:w-48"><label htmlFor="amount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Valor (R$)</label><input type="number" step="0.01" id="amount" value={amount} onChange={handleAmountChange} required className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
           <button type="submit" className="w-full sm:w-auto inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500"><PlusIcon className="w-5 h-5" /><span>Adicionar</span></button>
         </form>
       </div>
       
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
-        {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseCard) : <p className="text-center py-10 text-slate-400">Nenhuma despesa registrada.</p>}
-        <div className="mt-4 pt-4 border-t border-slate-700 flex justify-between items-center font-bold text-white">
+        {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseCard) : <p className="text-center py-10 text-slate-500 dark:text-slate-400">Nenhuma despesa registrada.</p>}
+        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center font-bold text-slate-900 dark:text-white">
             <span className="text-lg">TOTAL DE DESPESAS</span>
-            <span className="font-mono text-xl text-red-400">R$ {totalExpenses.toFixed(2)}</span>
+            <span className="font-mono text-xl text-red-600 dark:text-red-400">R$ {totalExpenses.toFixed(2)}</span>
         </div>
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
-        <div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-300">
-          <thead className="text-xs text-slate-400 uppercase bg-slate-700/50"><tr>
+      <div className="hidden md:block bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+          <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50"><tr>
               <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('date')}>Data {renderSortArrow('date')}</th>
               <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('description')}>Descrição {renderSortArrow('description')}</th>
               <th scope="col" className="px-6 py-3 text-right cursor-pointer" onClick={() => handleSort('amount')}>Valor {renderSortArrow('amount')}</th>
@@ -117,19 +116,19 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
           </tr></thead>
           <tbody>
             {sortedExpenses.length > 0 ? sortedExpenses.map(expense => (
-              <tr key={expense.id} className="bg-slate-800 border-b border-slate-700 hover:bg-slate-700/50">
+              <tr key={expense.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                 <td className="px-6 py-4">{new Date(expense.date).toLocaleDateString('pt-BR')}</td>
-                <td className="px-6 py-4 font-medium text-white">{expense.description}</td>
-                <td className="px-6 py-4 text-right font-mono text-red-400">R$ {expense.amount.toFixed(2)}</td>
+                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{expense.description}</td>
+                <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400">R$ {expense.amount.toFixed(2)}</td>
                 <td className="px-6 py-4 text-center"><button onClick={() => onDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500" title="Excluir Despesa"><TrashIcon className="w-5 h-5" /></button></td>
               </tr>
             )) : (
-              <tr><td colSpan={4} className="text-center py-16 text-slate-400">Nenhuma despesa registrada.</td></tr>
+              <tr><td colSpan={4} className="text-center py-16 text-slate-500 dark:text-slate-400">Nenhuma despesa registrada.</td></tr>
             )}
           </tbody>
-          <tfoot className="bg-slate-700/50"><tr className="font-bold text-white">
+          <tfoot className="bg-slate-100 dark:bg-slate-700/50"><tr className="font-bold text-slate-900 dark:text-white">
               <td colSpan={2} className="text-right px-6 py-3 uppercase">Total de Despesas</td>
-              <td className="text-right px-6 py-3 font-mono text-lg text-red-400">R$ {totalExpenses.toFixed(2)}</td><td></td>
+              <td className="text-right px-6 py-3 font-mono text-lg text-red-600 dark:text-red-400">R$ {totalExpenses.toFixed(2)}</td><td></td>
           </tr></tfoot>
         </table></div>
       </div>

@@ -1,4 +1,3 @@
-// Fix: Implement the Notification component.
 import React, { useEffect } from 'react';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';

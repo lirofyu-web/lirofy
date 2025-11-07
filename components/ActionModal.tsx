@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface ActionModalProps {
@@ -20,21 +19,21 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, t
       aria-modal="true"
       aria-labelledby="action-modal-title"
     >
-      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 animate-fade-in-up">
         <div className="p-6">
-          <h2 id="action-modal-title" className="text-2xl font-bold text-white">{title}</h2>
-          <div className="text-slate-400 mt-4">{children}</div>
+          <h2 id="action-modal-title" className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h2>
+          <div className="text-slate-600 dark:text-slate-400 mt-4">{children}</div>
         </div>
-        <div className="p-6 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
           <button
             onClick={onClose}
-            className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-slate-500 transition-colors duration-200"
+            className="bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-white font-bold py-2 px-6 rounded-md hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 focus:ring-slate-500 transition-colors duration-200"
           >
             Cancelar
           </button>
           <button
             onClick={onConfirm}
-            className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-emerald-500 transition-colors duration-200"
+            className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 focus:ring-emerald-500 transition-colors duration-200"
           >
             {confirmText}
           </button>

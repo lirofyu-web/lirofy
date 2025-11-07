@@ -25,18 +25,18 @@ const FilterCard: React.FC<{
     onClick: () => void;
     isActive: boolean;
 }> = ({ title, count, icon, onClick, isActive }) => {
-    const baseClasses = "bg-slate-800 p-4 rounded-lg shadow-lg border-2 flex-1 text-left transition-all duration-200 min-w-[200px]";
-    const activeClasses = "border-emerald-500 bg-emerald-900/50 scale-105";
-    const inactiveClasses = "border-slate-700 hover:border-slate-600";
+    const baseClasses = "bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border-2 flex-1 text-left transition-all duration-200 min-w-[200px]";
+    const activeClasses = "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/50 scale-105";
+    const inactiveClasses = "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
     return (
         <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
             <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-full ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                <div className={`p-3 rounded-full ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                     {icon}
                 </div>
                 <div>
-                    <h4 className="font-semibold text-white text-lg">{title}</h4>
-                    <p className="text-slate-400 text-sm">{count} clientes</p>
+                    <h4 className="font-semibold text-slate-900 dark:text-white text-lg">{title}</h4>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">{count} clientes</p>
                 </div>
             </div>
         </button>
@@ -293,26 +293,26 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         </div>
 
         {/* Customer List Panel */}
-        <div className="flex-grow min-h-0 w-full md:w-1/3 lg:w-1/4 bg-slate-800 rounded-lg shadow-lg border border-slate-700 flex flex-col">
-          <div className="p-4 border-b border-slate-700 flex justify-between items-center flex-shrink-0">
-            <h3 className="text-lg font-semibold text-white">Clientes ({geocodedCustomers.length})</h3>
+        <div className="flex-grow min-h-0 w-full md:w-1/3 lg:w-1/4 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes ({geocodedCustomers.length})</h3>
             <div className="flex gap-2">
-               <button onClick={handleCalculateDistances} title="Calcular Distâncias" disabled={isCalculating} className="p-2 text-slate-400 hover:text-white disabled:text-slate-600">
+               <button onClick={handleCalculateDistances} title="Calcular Distâncias" disabled={isCalculating} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:text-slate-400 dark:disabled:text-slate-600">
                  <RulerIcon className="w-5 h-5"/>
                </button>
-               <button onClick={handlePrintRoute} title="Imprimir Rota" className="p-2 text-slate-400 hover:text-white">
+               <button onClick={handlePrintRoute} title="Imprimir Rota" className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
                  <PrinterIcon className="w-5 h-5"/>
                </button>
             </div>
           </div>
           <div className="overflow-y-auto flex-grow p-2 space-y-4">
             {sortedCities.length > 0 ? sortedCities.map(city => (
-              <div key={city} className="bg-slate-900/50 rounded-lg">
-                <h4 className="text-md font-semibold text-emerald-400 p-3 border-b border-slate-700 capitalize flex items-center gap-2">
+              <div key={city} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg">
+                <h4 className="text-md font-semibold text-emerald-600 dark:text-emerald-400 p-3 border-b border-slate-200 dark:border-slate-700 capitalize flex items-center gap-2">
                     <LocationMarkerIcon className="w-5 h-5" />
                     {city}
                 </h4>
-                <ul className="divide-y divide-slate-800">
+                <ul className="divide-y divide-slate-200 dark:divide-slate-800">
                     {customersByCity[city].map(customer => {
                       const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
                       const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
@@ -323,7 +323,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                             <button
                               onClick={() => handleCustomerSelect(customer.id)}
                               className={`w-full text-left p-3 transition-colors ${
-                                selectedCustomerId === customer.id ? 'bg-emerald-600/20' : 'hover:bg-slate-700/50'
+                                selectedCustomerId === customer.id ? 'bg-emerald-600/10 dark:bg-emerald-600/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/50'
                               }`}
                             >
                               <div className="flex items-center gap-2 mb-1">
@@ -337,10 +337,10 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                                         <span title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="block w-2.5 h-2.5 bg-amber-400 rounded-full"></span>
                                     )}
                                 </div>
-                                <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-emerald-400' : 'text-white'}`}>{customer.name}</p>
+                                <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{customer.name}</p>
                               </div>
-                              <p className="text-sm text-slate-400 truncate">{customer.endereco}</p>
-                              {distances[customer.id] != null && <p className="text-xs text-sky-400 mt-1">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}
+                              <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{customer.endereco}</p>
+                              {distances[customer.id] != null && <p className="text-xs text-sky-500 dark:text-sky-400 mt-1">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}
                             </button>
                         </li>
                       );
@@ -348,7 +348,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                 </ul>
               </div>
             )) : (
-              <div className="p-4 text-center text-slate-400">
+              <div className="p-4 text-center text-slate-500 dark:text-slate-400">
                 Nenhum cliente com endereço geocodificado encontrado para o filtro selecionado.
               </div>
             )}

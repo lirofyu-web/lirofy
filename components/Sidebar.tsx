@@ -46,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                     className={`w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium ${
                         isActive 
                         ? 'bg-emerald-600 text-white shadow-lg' 
-                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                        : 'text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                     }`}
                 >
                     <Icon className="w-5 h-5 mr-4" />
@@ -67,11 +67,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                 }`}
             ></div>
 
-            <aside className={`fixed inset-y-0 left-0 w-64 bg-slate-800 p-4 flex flex-col border-r border-slate-700 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 no-print ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-800 p-4 flex flex-col border-r border-slate-200 dark:border-slate-700 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 no-print ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="mb-8 text-center flex flex-col items-center">
-                    <LogoIcon className="w-20 h-20 text-slate-300" />
-                    <h1 className="text-xl font-bold text-white mt-2">Montanha Bilhar <span className="text-emerald-400">&</span> Jukebox</h1>
-                    <p className="text-xs text-slate-400">SISTEMA DE LOCAÇÃO E COBRANÇA</p>
+                    <LogoIcon className="w-20 h-20 text-slate-700 dark:text-slate-300" />
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-white mt-2">Montanha Bilhar <span className="text-emerald-500 dark:text-emerald-400">&</span> Jukebox</h1>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">SISTEMA DE LOCAÇÃO E COBRANÇA</p>
                 </div>
                 <nav className="flex-grow">
                     <ul>
@@ -84,7 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                             {secondaryNavItems.map(item => <NavButton key={item.view} item={item} />)}
                         </ul>
                     </nav>
-                    <div className="text-center text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700">
+                    <div className="text-center text-xs text-slate-400 dark:text-slate-500 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                         <p>&copy; {new Date().getFullYear()} All rights reserved.</p>
                     </div>
                 </div>

@@ -1,5 +1,4 @@
 // data/brazilianCities.ts
-// FIX: Replaced invalid file content with a valid exportable array of Brazilian cities.
 export const brazilianCities: string[] = [
   "São Paulo, SP",
   "Rio de Janeiro, RJ",

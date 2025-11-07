@@ -1,4 +1,3 @@
-
 // components/AddCustomerForm.tsx
 import React, { useState, useCallback } from 'react';
 import { Customer, Equipment } from '../types';
@@ -41,8 +40,8 @@ const FormField: React.FC<{
   step?: string;
 }> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step }) => (
     <div>
-        <label htmlFor={name} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        <label htmlFor={name} className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{label}</label>
+        <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </div>
 ));
 
@@ -238,17 +237,17 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
   }
 
   return (
-    <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
+    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-3">
-                <h3 className="text-lg font-semibold text-white border-b border-slate-700 pb-2 mb-4">Informações do Cliente</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2 mb-4">Informações do Cliente</h3>
             </div>
             <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} />
             <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange} />
             <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="tel" />
             <div>
-                <label htmlFor="endereco" className="block text-sm font-medium text-slate-300 mb-1">Endereço</label>
+                <label htmlFor="endereco" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Endereço</label>
                 <div className="relative flex items-center">
                     <input 
                         type="text" 
@@ -256,7 +255,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
                         name="endereco" 
                         value={formData.endereco} 
                         onChange={handleBaseChange} 
-                        className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-3 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-3 pr-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
                     />
                     <button
                         type="button"
@@ -266,7 +265,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
                         title="Preencher endereço com localização atual"
                     >
                         {isLocating ? (
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg className="animate-spin h-5 w-5 text-slate-800 dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -277,42 +276,42 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
                 </div>
             </div>
             <div>
-                 <label htmlFor="cidade" className="block text-sm font-medium text-slate-300 mb-1">Cidade</label>
+                 <label htmlFor="cidade" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cidade</label>
                  <CityAutocomplete id="cidade" value={formData.cidade} onChange={handleCityChange} required />
             </div>
             <FormField label="Número da Linha/Rota" name="linhaNumero" value={formData.linhaNumero} onChange={handleBaseChange} />
         </div>
 
-        <div className="pt-4 border-t border-slate-700">
-            <h3 className="text-lg font-semibold text-white mb-4">Equipamentos</h3>
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Equipamentos</h3>
             <div className="space-y-2">
                 {formData.equipment.map((equip, index) => {
                     const EquipmentIcon = equip.type === 'mesa' ? BilliardIcon : equip.type === 'jukebox' ? JukeboxIcon : CraneIcon;
                     const equipmentTitle = equip.type === 'mesa' ? `Mesa de Sinuca` : equip.type === 'jukebox' ? `Jukebox` : `Grua de Pelúcia`;
                     
                     return (
-                        <div key={equip.id} className="bg-slate-900/50 rounded-lg border border-slate-700 overflow-hidden transition-all duration-300">
+                        <div key={equip.id} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300">
                             <button
                                 type="button"
                                 onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)}
-                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500"
+                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-100 dark:hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500"
                             >
                                 <div className="flex items-center gap-3">
-                                    <EquipmentIcon className="w-5 h-5 text-emerald-400" />
-                                    <h4 className="text-md font-bold text-white capitalize">
-                                        {equipmentTitle}: <span className="font-normal text-slate-300">{equip.numero || '(Novo)'}</span>
+                                    <EquipmentIcon className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                                    <h4 className="text-md font-bold text-slate-900 dark:text-white capitalize">
+                                        {equipmentTitle}: <span className="font-normal text-slate-600 dark:text-slate-300">{equip.numero || '(Novo)'}</span>
                                     </h4>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button type="button" onClick={(e) => { e.stopPropagation(); removeEquipment(index); }} className="text-slate-500 hover:text-red-500 p-1 rounded-full hover:bg-red-500/10">
                                         <TrashIcon className="w-5 h-5" />
                                     </button>
-                                    <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform ${openEquipmentIndex === index ? 'rotate-180' : ''}`} />
+                                    <ChevronDownIcon className={`w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform ${openEquipmentIndex === index ? 'rotate-180' : ''}`} />
                                 </div>
                             </button>
                             
                             {openEquipmentIndex === index && (
-                                <div className="p-4 border-t border-slate-700 bg-slate-800/20">
+                                <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20">
                                     {equip.type === 'mesa' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
@@ -352,8 +351,8 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
             </div>
         </div>
         
-        <div className="flex justify-end gap-4 pt-4 border-t border-slate-700">
-          <button type="button" onClick={() => setIsOpen(false)} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">
+        <div className="flex justify-end gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <button type="button" onClick={() => setIsOpen(false)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500">
             Cancelar
           </button>
           <button type="submit" disabled={isSaving} className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 disabled:bg-slate-500 disabled:cursor-wait">
