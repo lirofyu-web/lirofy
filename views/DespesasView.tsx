@@ -22,7 +22,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = parseFloat(amount);
+    const amountNum = parseFloat(amount.replace(',', '.'));
     if (description && amountNum > 0) {
       onAddExpense(description, amountNum);
       setDescription('');
@@ -31,7 +31,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
   }, [description, amount, onAddExpense]);
   
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount(e.target.value);
+    setAmount(e.target.value.replace(/[^0-9,.]/g, ''));
   }, []);
 
   const sortedExpenses = useMemo(() => {
@@ -76,7 +76,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
         <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(expense.date).toLocaleDateString('pt-BR')}</p>
       </div>
       <div className="text-right">
-        <p className="font-mono font-bold text-red-600 dark:text-red-400 text-lg">R$ {expense.amount.toFixed(2)}</p>
+        <p className="font-mono font-bold text-red-600 dark:text-red-400 text-lg">R$ {expense.amount.toFixed(2).replace('.', ',')}</p>
         <button onClick={() => onDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500 dark:text-slate-500 mt-1" title="Excluir Despesa">
           <TrashIcon className="w-4 h-4" />
         </button>
@@ -91,7 +91,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
       <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-end gap-4">
           <div className="flex-grow w-full"><label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Descrição</label><input type="text" id="description" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
-          <div className="w-full sm:w-48"><label htmlFor="amount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Valor (R$)</label><input type="number" step="0.01" id="amount" value={amount} onChange={handleAmountChange} required className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
+          <div className="w-full sm:w-48"><label htmlFor="amount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Valor (R$)</label><input type="text" inputMode="decimal" id="amount" value={amount} onChange={handleAmountChange} required className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div>
           <button type="submit" className="w-full sm:w-auto inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500"><PlusIcon className="w-5 h-5" /><span>Adicionar</span></button>
         </form>
       </div>
@@ -101,7 +101,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
         {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseCard) : <p className="text-center py-10 text-slate-500 dark:text-slate-400">Nenhuma despesa registrada.</p>}
         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center font-bold text-slate-900 dark:text-white">
             <span className="text-lg">TOTAL DE DESPESAS</span>
-            <span className="font-mono text-xl text-red-600 dark:text-red-400">R$ {totalExpenses.toFixed(2)}</span>
+            <span className="font-mono text-xl text-red-600 dark:text-red-400">R$ {totalExpenses.toFixed(2).replace('.', ',')}</span>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
               <tr key={expense.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                 <td className="px-6 py-4">{new Date(expense.date).toLocaleDateString('pt-BR')}</td>
                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{expense.description}</td>
-                <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400">R$ {expense.amount.toFixed(2)}</td>
+                <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400">R$ {expense.amount.toFixed(2).replace('.', ',')}</td>
                 <td className="px-6 py-4 text-center"><button onClick={() => onDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500" title="Excluir Despesa"><TrashIcon className="w-5 h-5" /></button></td>
               </tr>
             )) : (
@@ -128,7 +128,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
           </tbody>
           <tfoot className="bg-slate-100 dark:bg-slate-700/50"><tr className="font-bold text-slate-900 dark:text-white">
               <td colSpan={2} className="text-right px-6 py-3 uppercase">Total de Despesas</td>
-              <td className="text-right px-6 py-3 font-mono text-lg text-red-600 dark:text-red-400">R$ {totalExpenses.toFixed(2)}</td><td></td>
+              <td className="text-right px-6 py-3 font-mono text-lg text-red-600 dark:text-red-400">R$ {totalExpenses.toFixed(2).replace('.', ',')}</td><td></td>
           </tr></tfoot>
         </table></div>
       </div>

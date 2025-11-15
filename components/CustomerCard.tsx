@@ -13,6 +13,9 @@ import { CraneIcon } from './icons/CraneIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ShareIcon } from './icons/ShareIcon';
 import { ReceiptIcon } from './icons/ReceiptIcon';
+import { RedBilliardBallIcon } from './icons/RedBilliardBallIcon';
+import { GreenBilliardBallIcon } from './icons/GreenBilliardBallIcon';
+import { YellowBilliardBallIcon } from './icons/YellowBilliardBallIcon';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -61,11 +64,20 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white">{customer.name}</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">{customer.cidade} - Linha: {customer.linhaNumero}</p>
                     </div>
-                    <div className="flex-shrink-0 flex items-center gap-2">
-                        {visitIsPending && <span title="Visita Pendente" className="block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>}
+                    <div className="flex-shrink-0 flex items-center gap-3">
+                        {visitIsPending ? (
+                            <div title="Visita Pendente">
+                                <RedBilliardBallIcon className="w-4 h-4 text-red-500 pulse-indicator" />
+                            </div>
+                        ) : (
+                             <div title={`Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}`}>
+                                <GreenBilliardBallIcon className="w-4 h-4 text-green-500 pulse-indicator" />
+                            </div>
+                        )}
                         {hasDebt && (
-                            <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
-                                R$ {customer.debtAmount.toFixed(2)}
+                            <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
+                               <YellowBilliardBallIcon className="w-4 h-4 text-amber-500 pulse-indicator" />
+                               <span>R$ {customer.debtAmount.toFixed(2)}</span>
                             </div>
                         )}
                     </div>

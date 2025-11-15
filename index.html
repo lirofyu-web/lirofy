@@ -80,6 +80,22 @@
         }
       }
 
+      /* Pulsing indicator animation */
+      @keyframes pulse-indicator {
+        0%, 100% {
+          transform: scale(1);
+          filter: drop-shadow(0 0 2px currentColor);
+        }
+        50% {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 6px currentColor);
+        }
+      }
+      .pulse-indicator {
+        animation: pulse-indicator 2s infinite ease-in-out;
+      }
+
+
       /* Hide number input spinners */
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {

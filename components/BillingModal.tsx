@@ -3,8 +3,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Customer, Equipment, Billing } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertIcon } from './icons/AlertIcon';
-import { WhatsAppIcon } from './icons/WhatsAppIcon';
-import { PrinterIcon } from './icons/PrinterIcon';
 
 type FormState = {
   relogioAtual: string;
@@ -35,6 +33,10 @@ interface BillingModalProps {
   onTriggerProvisionalReceiptAction: (billing: Billing, onComplete: () => void) => void;
 }
 
+const safeParseFloat = (str: string | number | undefined): number => {
+    return parseFloat(String(str || '0').replace(',', '.')) || 0;
+};
+
 const FormField: React.FC<{
     label: string;
     name: keyof FormState;
@@ -53,9 +55,9 @@ const FormField: React.FC<{
             id={`${equipmentId}-${name}`}
             value={value}
             step={step}
-            inputMode={type === 'number' ? 'numeric' : 'text'}
+            inputMode={type === 'number' ? 'decimal' : 'text'}
             readOnly={readOnly}
-            onChange={(e) => !readOnly && onChange(name, e.target.value)}
+            onChange={(e) => !readOnly && onChange(name, e.target.value.replace(/[^0-9,.]/g, ''))}
             className={`w-full bg-slate-700 border rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 ${isReadingInvalid && name === 'relogioAtual' ? 'border-red-500 ring-red-500' : 'border-slate-600 focus:ring-emerald-500'} ${readOnly ? 'bg-slate-600 cursor-not-allowed' : ''}`}
         />
     </div>
@@ -70,13 +72,12 @@ const PaymentField: React.FC<{
     <div>
         <label htmlFor={`payment-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
         <input
-            type="number"
-            step="0.01"
+            type="text"
             id={`payment-${name}`}
             value={value}
-            placeholder="0.00"
+            placeholder="0,00"
             inputMode="decimal"
-            onChange={(e) => onChange(name, e.target.value)}
+            onChange={(e) => onChange(name, e.target.value.replace(/[^0-9,.]/g, ''))}
             className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
     </div>
@@ -97,7 +98,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         relogioAtual: '',
         descontoPartidas: '0',
         aluguelPercentual: String(equipment.aluguelPercentual || ''),
-        aluguelValor: String(equipment.aluguelValor || '0'),
+        aluguelValor: String(equipment.aluguelValor || '0').replace('.',','),
         saldo: '',
         quantidadePelucia: String(equipment.quantidadePelucia || ''),
         sobraPelucia: '',
@@ -138,10 +139,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       const parteCliente = valorBruto * ((equipment.porcentagemJukeboxCliente || 0) / 100);
       result = { partidasJogadas, valorTotal: parteFirma, parteFirma, parteCliente };
     } else if (equipment.type === 'grua') {
-      const saldo = parseFloat(formState.saldo || '0');
-      const recebimentoEspecie = parseFloat(formState.recebimentoEspecie || '0');
-      const recebimentoPix = parseFloat(formState.recebimentoPix || '0');
-      let aluguelValor = parseFloat(formState.aluguelValor || '0');
+      const saldo = safeParseFloat(formState.saldo);
+      const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
+      const recebimentoPix = safeParseFloat(formState.recebimentoPix);
+      let aluguelValor = safeParseFloat(formState.aluguelValor);
       
       if(equipment.aluguelPercentual && equipment.aluguelPercentual > 0){
           aluguelValor = saldo * (equipment.aluguelPercentual / 100);
@@ -162,48 +163,51 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
     return result;
   }, [formState, equipment]);
+  
+  const valorTotalParaFirma = useMemo(() => calculation.valorTotal || 0, [calculation]);
+  const valorFiado = useMemo(() => safeParseFloat(paymentValues.fiado), [paymentValues.fiado]);
+  const liquidoAReceber = useMemo(() => Math.max(0, valorTotalParaFirma - valorFiado), [valorTotalParaFirma, valorFiado]);
+  const valorDinheiro = useMemo(() => safeParseFloat(paymentValues.dinheiro), [paymentValues.dinheiro]);
+  const valorPix = useMemo(() => safeParseFloat(paymentValues.pix), [paymentValues.pix]);
+  const totalPagoEmCaixa = useMemo(() => valorDinheiro + valorPix, [valorDinheiro, valorPix]);
+  const remainingAmountLiquido = useMemo(() => liquidoAReceber - totalPagoEmCaixa, [liquidoAReceber, totalPagoEmCaixa]);
 
   useEffect(() => {
-    if (mesaStep === 2 && calculation.valorTotal && equipment.type !== 'grua') {
-        setPaymentValues(prev => ({ ...prev, dinheiro: calculation.valorTotal!.toFixed(2), pix: '', fiado: '' }));
+    if (mesaStep === 2 && equipment.type !== 'grua') {
+      const initialTotal = calculation.valorTotal || 0;
+      setPaymentValues({ dinheiro: initialTotal.toFixed(2).replace('.', ','), pix: '', fiado: '' });
     }
-  }, [mesaStep, calculation.valorTotal, equipment.type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mesaStep, equipment.type]);
   
   const handleFormChange = useCallback((field: keyof FormState, value: string) => {
     setFormState(prev => {
         const newState = { ...prev, [field]: value };
 
         if (equipment.type === 'grua') {
-            // Plushie logic
-            const isPlushieTriggerField = ['sobraPelucia', 'quantidadePelucia'].includes(field);
-            if (isPlushieTriggerField) {
+            if (['sobraPelucia', 'quantidadePelucia'].includes(field)) {
                 const quantidadeTotal = parseInt(newState.quantidadePelucia || '0', 10);
                 const sobras = parseInt(newState.sobraPelucia || '0', 10);
-                if (!isNaN(quantidadeTotal) && !isNaN(sobras)) {
-                    newState.reposicaoPelucia = String(Math.max(0, quantidadeTotal - sobras));
-                }
+                newState.reposicaoPelucia = String(Math.max(0, quantidadeTotal - sobras));
             }
 
-            // Financial Calculations
             const relogioAtualNum = parseInt(newState.relogioAtual, 10) || 0;
             const relogioAnteriorNum = equipment.relogioAnterior || 0;
             const saldoBruto = (relogioAtualNum >= relogioAnteriorNum) ? relogioAtualNum - relogioAnteriorNum : 0;
             newState.saldo = String(saldoBruto);
 
-            // Calculate 'Total para a Firma' (Net Amount) based on current state
-            let aluguelValorNum = parseFloat(newState.aluguelValor || '0');
+            let aluguelValorNum = safeParseFloat(newState.aluguelValor);
             if (equipment.aluguelPercentual && equipment.aluguelPercentual > 0) {
                 aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
+                newState.aluguelValor = String(aluguelValorNum.toFixed(2).replace('.', ','));
             }
+            
             const totalParaFirma = saldoBruto - aluguelValorNum;
 
-            // The sum of cash and PIX should equal the NET amount (totalParaFirma)
-            const recebidoEspecieNum = parseFloat(newState.recebimentoEspecie || '0');
-
-            // Allow user to manually edit the PIX field, otherwise auto-calculate it
             if (field !== 'recebimentoPix') {
+                const recebidoEspecieNum = safeParseFloat(newState.recebimentoEspecie);
                 const recebidoPix = totalParaFirma - recebidoEspecieNum;
-                newState.recebimentoPix = recebidoPix >= 0 ? recebidoPix.toFixed(2) : '0.00';
+                newState.recebimentoPix = recebidoPix >= 0 ? recebidoPix.toFixed(2).replace('.', ',') : '0,00';
             }
         }
         
@@ -214,16 +218,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const handlePaymentChange = useCallback((field: keyof PaymentState, value: string) => {
     setPaymentValues(prev => {
         const newValues = { ...prev, [field]: value };
-        if (field === 'dinheiro') {
-            return newValues;
-        }
-
-        const valorTotal = calculation.valorTotal || 0;
-        const pixValue = parseFloat(newValues.pix) || 0;
-        const fiadoValue = parseFloat(newValues.fiado) || 0;
-        const dinheiroRestante = valorTotal - pixValue - fiadoValue;
         
-        newValues.dinheiro = Math.max(0, dinheiroRestante).toFixed(2);
+        if (field !== 'dinheiro') {
+            const currentValorTotal = calculation.valorTotal || 0;
+            const currentFiadoValue = safeParseFloat(newValues.fiado);
+            const currentLiquidoAReceber = Math.max(0, currentValorTotal - currentFiadoValue);
+            const currentPixValue = safeParseFloat(newValues.pix);
+            const dinheiroRestante = currentLiquidoAReceber - currentPixValue;
+            
+            newValues.dinheiro = Math.max(0, dinheiroRestante).toFixed(2).replace('.', ',');
+        }
         
         return newValues;
     });
@@ -238,14 +242,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     let billingData: Partial<Billing> = {};
     if (equipment.type === 'grua') {
         billingData = {
-          paymentMethod: 'dinheiro', // Not really relevant for grua
-          recebimentoEspecie: parseFloat(formState.recebimentoEspecie || '0'),
-          recebimentoPix: parseFloat(formState.recebimentoPix || '0'),
+          paymentMethod: 'dinheiro',
+          recebimentoEspecie: safeParseFloat(formState.recebimentoEspecie),
+          recebimentoPix: safeParseFloat(formState.recebimentoPix),
         };
     } else {
-        const valorPagoDinheiro = parseFloat(paymentValues.dinheiro) || 0;
-        const valorPagoPix = parseFloat(paymentValues.pix) || 0;
-        const valorPagoFiado = parseFloat(paymentValues.fiado) || 0;
+        const valorPagoDinheiro = safeParseFloat(paymentValues.dinheiro);
+        const valorPagoPix = safeParseFloat(paymentValues.pix);
+        const valorPagoFiado = safeParseFloat(paymentValues.fiado);
         let paymentMethod: Billing['paymentMethod'] = 'dinheiro';
         const methodsUsed = [valorPagoDinheiro > 0 && 'dinheiro', valorPagoPix > 0 && 'pix', valorPagoFiado > 0 && 'fiado'].filter(Boolean);
         if (methodsUsed.length > 1) { paymentMethod = 'misto'; }
@@ -297,15 +301,20 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
   };
 
-  const totalPaid = useMemo(() => (parseFloat(paymentValues.dinheiro) || 0) + (parseFloat(paymentValues.pix) || 0) + (parseFloat(paymentValues.fiado) || 0), [paymentValues]);
-  const remainingAmount = useMemo(() => (calculation.valorTotal || 0) - totalPaid, [calculation.valorTotal, totalPaid]);
-
   const handleFinalize = () => {
     if (!validateAndProceed()) return;
-    if (equipment.type !== 'grua' && Math.abs(remainingAmount) > 0.01) {
-      setError("A soma dos pagamentos deve ser igual ao valor total para a firma.");
+
+    if (equipment.type === 'grua') {
+        const totalRecebido = safeParseFloat(formState.recebimentoEspecie) + safeParseFloat(formState.recebimentoPix);
+        if (Math.abs(totalRecebido - valorTotalParaFirma) > 0.01) {
+            setError("A soma de Espécie e PIX deve ser igual ao Total para a Firma.");
+            return;
+        }
+    } else if (Math.abs(remainingAmountLiquido) > 0.01) {
+      setError("A soma de Dinheiro e PIX deve ser igual ao valor 'Líquido a Receber'.");
       return;
     }
+
     const billing = generateBillingObject();
     if (billing) onConfirm(billing);
   };
@@ -332,10 +341,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     <div className="space-y-4">
       <h4 className="text-md font-bold text-emerald-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
       <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} />
-      <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="number" step="0.01" equipmentId={equipment.id} onChange={handleFormChange} readOnly />
+      <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly />
       {equipment.aluguelPercentual && equipment.aluguelPercentual > 0
           ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
-          : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="number" step="0.01" equipmentId={equipment.id} onChange={handleFormChange} />
+          : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
       }
     </div>
   );
@@ -345,16 +354,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         <h4 className="text-lg font-bold text-white mb-3 text-center">Conferência para o Cliente</h4>
         <div className="flex justify-between text-slate-300 text-base">
             <span>Saldo Bruto:</span>
-            <span className="font-mono">R$ {(calculation.saldo || 0).toFixed(2)}</span>
+            <span className="font-mono">R$ {(calculation.saldo || 0).toFixed(2).replace('.', ',')}</span>
         </div>
         <div className="flex justify-between text-slate-300 text-base">
             <span>Parte da Firma:</span>
-            <span className="font-mono text-amber-400">- R$ {(calculation.valorTotal || 0).toFixed(2)}</span>
+            <span className="font-mono text-amber-400">- R$ {(calculation.valorTotal || 0).toFixed(2).replace('.', ',')}</span>
         </div>
         <hr className="border-dashed border-slate-600 my-2" />
         <div className="flex justify-between font-bold text-xl text-emerald-400">
             <span>TOTAL PARA O CLIENTE:</span>
-            <span className="font-mono">R$ {(calculation.aluguelValor || 0).toFixed(2)}</span>
+            <span className="font-mono">R$ {(calculation.aluguelValor || 0).toFixed(2).replace('.', ',')}</span>
         </div>
     </div>
   );
@@ -362,8 +371,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const renderGruaStep3 = () => (
       <div className="space-y-4">
           <h4 className="text-md font-bold text-emerald-400">Detalhes Finais</h4>
-          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="number" step="0.01" equipmentId={equipment.id} onChange={handleFormChange} />
-          <FormField label="Recebido em PIX (Automático)" name="recebimentoPix" value={formState.recebimentoPix} type="number" step="0.01" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
+          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
+          <FormField label="Recebido em PIX (Automático)" name="recebimentoPix" value={formState.recebimentoPix} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
           <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} />
           <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} />
@@ -400,22 +409,30 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                       <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Total de Fichas:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
                       <div className="flex justify-between text-slate-300"><span>Desconto (Fichas):</span><span className="font-mono text-amber-400">-{calculation.descontoPartidas || 0}</span></div>
                       <div className="flex justify-between font-semibold text-white"><span>Fichas Cobradas:</span><span className="font-mono">{calculation.partidasCobradas || 0}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {(calculation.valorFicha || 0).toFixed(2)}</span></div>
-                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {(calculation.valorBruto || 0).toFixed(2)}</span></div>
-                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {(calculation.parteCliente || 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between font-bold text-emerald-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2)}</span></div>
+                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {(calculation.valorFicha || 0).toFixed(2).replace('.', ',')}</span></div>
+                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {(calculation.valorBruto || 0).toFixed(2).replace('.', ',')}</span></div>
+                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {(calculation.parteCliente || 0).toFixed(2).replace('.', ',')}</span></div>
+                      <div className="flex justify-between font-bold text-emerald-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span></div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-4 animate-fade-in">
                   <h4 className="block text-md font-bold text-emerald-400 mb-2">Observações e Pagamento Dividido</h4>
+                  <PaymentField label="Deixar Fiado (R$)" name="fiado" value={paymentValues.fiado} onChange={handlePaymentChange} />
+                  
+                  {valorFiado > 0 && (
+                    <div className="text-right py-2 border-t border-b border-slate-700">
+                        <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toFixed(2).replace('.', ',')}</span></p>
+                    </div>
+                  )}
+
                   <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-                  <PaymentField label="Deixar Fiado (R$)" name="fiado" value={paymentValues.fiado} onChange={handlePaymentChange} />
-                  {Math.abs(remainingAmount) > 0.01 && (
-                      <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmount > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
-                          {remainingAmount > 0 ? `Falta alocar: R$ ${remainingAmount.toFixed(2)}` : `Valor excedido: R$ ${Math.abs(remainingAmount).toFixed(2)}`}
+                  
+                  {Math.abs(remainingAmountLiquido) > 0.01 && (
+                      <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
+                          {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toFixed(2).replace('.', ',')}`}
                       </div>
                   )}
                 </div>
@@ -432,7 +449,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
         <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex flex-col gap-4 border-t border-slate-700">
            <div className="text-right">
-                <p className="text-slate-400">Total para a Firma: <span className="font-mono font-bold text-emerald-400 text-lg">R$ {(calculation?.valorTotal || 0).toFixed(2)}</span></p>
+                <p className="text-slate-400">Total para a Firma: <span className="font-mono font-bold text-emerald-400 text-lg">R$ {valorTotalParaFirma.toFixed(2).replace('.', ',')}</span></p>
             </div>
             <div className="flex justify-end gap-4">
               <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
@@ -452,7 +469,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                  ) : (
                   <button 
                     onClick={handleFinalize} 
-                    disabled={Math.abs(remainingAmount) > 0.01}
+                    disabled={Math.abs(remainingAmountLiquido) > 0.01}
                     className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 disabled:bg-slate-500 disabled:cursor-not-allowed"
                   >
                     Finalizar Cobrança

@@ -111,7 +111,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         return sortDirection === 'asc' ? '▲' : '▼';
     };
 
-    const totalBilled = useMemo(() => sortedBillings.reduce((sum, b) => sum + b.valorTotal, 0), [sortedBillings]);
+    const totalBilled = useMemo(() => sortedBillings.reduce((sum, b) => sum + (b.valorTotal - (b.valorPagoFiado || 0)), 0), [sortedBillings]);
     
     const { debtorCustomers, totalDebt } = useMemo(() => {
         const debtors = customers.filter(c => c.debtAmount > 0).sort((a,b) => b.debtAmount - a.debtAmount);
@@ -147,7 +147,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
         const today = new Date();
 
-        const totalBilled = customerBillings.reduce((sum, b) => sum + b.valorTotal, 0);
+        const totalBilled = customerBillings.reduce((sum, b) => sum + (b.valorTotal - (b.valorPagoFiado || 0)), 0);
 
         const reportHtml = `
           <html>
@@ -192,7 +192,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                       <td class="currency">${b.equipmentType === 'mesa' ? b.relogioAtual : '-'}</td>
                       <td class="currency">${b.equipmentType === 'mesa' ? b.partidasJogadas : '-'}</td>
                       <td>${{pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod]}</td>
-                      <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+                      <td class="currency">R$ ${(b.valorTotal - (b.valorPagoFiado || 0)).toFixed(2)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -350,7 +350,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                     <td className="px-6 py-4">
                                         <PaymentMethodDisplay method={billing.paymentMethod} />
                                     </td>
-                                    <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {billing.valorTotal.toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
                                     <td className="px-6 py-4 text-center">
                                          <button onClick={() => onShowReceipt(billing)} className="text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400">Ver</button>
                                     </td>
@@ -437,7 +437,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                                             <td colSpan={3} className="px-4 py-2 text-center text-slate-400">-</td>
                                                         )}
                                                         <td className="px-4 py-2"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
-                                                        <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {billing.valorTotal.toFixed(2)}</td>
+                                                        <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>

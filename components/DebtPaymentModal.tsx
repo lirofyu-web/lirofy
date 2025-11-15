@@ -1,4 +1,3 @@
-
 // components/DebtPaymentModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
@@ -16,26 +15,21 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('dinheiro');
   const [error, setError] = useState('');
 
+  const safeParseFloat = (str: string): number => {
+    return parseFloat(String(str || '0').replace(',', '.')) || 0;
+  };
+
   useEffect(() => {
     if (isOpen) {
-      const initialAmount = customer.debtAmount.toFixed(2);
+      const initialAmount = customer.debtAmount.toFixed(2).replace('.', ',');
       setAmountStr(initialAmount);
       setPaymentMethod('dinheiro');
-
-      const amountNum = parseFloat(initialAmount) || 0;
-      if (amountNum <= 0) {
-        setError('O valor deve ser maior que zero.');
-      } else if (amountNum > customer.debtAmount) {
-        setError('O valor não pode ser maior que a dívida.');
-      } else {
-        setError('');
-      }
     }
   }, [isOpen, customer]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const amountNum = parseFloat(amountStr) || 0;
+    const amountNum = safeParseFloat(amountStr);
     if (amountNum <= 0) {
         setError('O valor deve ser maior que zero.');
     } else if (amountNum > customer.debtAmount) {
@@ -47,12 +41,12 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
 
   const handleConfirm = useCallback(() => {
     if (error) return;
-    const amountNum = parseFloat(amountStr) || 0;
+    const amountNum = safeParseFloat(amountStr);
     onConfirm(amountNum, paymentMethod);
   }, [error, amountStr, onConfirm, paymentMethod]);
   
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmountStr(e.target.value);
+    setAmountStr(e.target.value.replace(/[^0-9,.]/g, ''));
   }, []);
 
   if (!isOpen) return null;
@@ -81,13 +75,13 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
         <div className="p-6 space-y-6">
             <div className="text-center">
                 <p className="text-slate-400">Dívida Atual</p>
-                <p className="text-3xl font-mono font-bold text-red-400">R$ {customer.debtAmount.toFixed(2)}</p>
+                <p className="text-3xl font-mono font-bold text-red-400">R$ {customer.debtAmount.toFixed(2).replace('.', ',')}</p>
             </div>
             <div>
               <label htmlFor="paymentAmount" className="block text-sm font-medium text-slate-300 mb-1">Valor a Pagar (R$)</label>
               <input 
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 id="paymentAmount" 
                 value={amountStr} 
                 onChange={handleAmountChange}

@@ -128,27 +128,39 @@ const App: React.FC = () => {
     }, [showNotification]);
 
 
-    useEffect(() => {
-        try {
-            const storedCustomers = localStorage.getItem('customers');
-            const storedBillings = localStorage.getItem('billings');
-            const storedExpenses = localStorage.getItem('expenses');
-            const storedDebtPayments = localStorage.getItem('debtPayments');
+   useEffect(() => {
+    try {
+        const parseWithDates = (jsonString: string | null, dateFields: string[]): any[] => {
+            if (!jsonString) return [];
+            const items = JSON.parse(jsonString);
+            if (!Array.isArray(items)) return [];
+            return items.map(item => {
+                for (const field of dateFields) {
+                    if (item[field]) {
+                        item[field] = new Date(item[field]);
+                    }
+                }
+                return item;
+            });
+        };
 
-            if (storedCustomers) {
-                setCustomers(JSON.parse(storedCustomers));
-            } else {
-                handleSeedData();
-            }
-            if (storedBillings) setBillings(JSON.parse(storedBillings));
-            if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
-            if (storedDebtPayments) setDebtPayments(JSON.parse(storedDebtPayments));
-
-        } catch (error) {
-            console.error("Failed to load data from localStorage", error);
-            showNotification("Erro ao carregar os dados.", "error");
+        const storedCustomers = localStorage.getItem('customers');
+        if (storedCustomers) {
+            setCustomers(parseWithDates(storedCustomers, ['createdAt', 'lastVisitedAt']));
+        } else {
+            handleSeedData(); // Seeds data only if customers don't exist
         }
-    }, [handleSeedData, showNotification]);
+        
+        setBillings(parseWithDates(localStorage.getItem('billings'), ['settledAt']));
+        setExpenses(parseWithDates(localStorage.getItem('expenses'), ['date']));
+        setDebtPayments(parseWithDates(localStorage.getItem('debtPayments'), ['paidAt']));
+
+    } catch (error) {
+        console.error("Failed to load data from localStorage", error);
+        showNotification("Erro ao carregar os dados.", "error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []); // Run only once on initial mount
 
     useEffect(() => {
         try {
@@ -195,25 +207,34 @@ const App: React.FC = () => {
     const handleAddBilling = (billing: Billing) => {
         setBillings(prev => [...prev, billing]);
 
-        // Update customer's equipment with new 'relogioAnterior'
-        setCustomers(prevCustomers => prevCustomers.map(customer => {
-            if (customer.id === billing.customerId) {
-                const updatedEquipment = customer.equipment.map(equip => {
-                    if (equip.id === billing.equipmentId) {
-                        return { ...equip, relogioAnterior: billing.relogioAtual };
-                    }
-                    return equip;
-                });
-                
-                let newDebtAmount = customer.debtAmount;
-                if (billing.valorPagoFiado && billing.valorPagoFiado > 0 && billing.equipmentType !== 'grua') {
-                     newDebtAmount += billing.valorPagoFiado;
-                }
+        setCustomers(prevCustomers => {
+            return prevCustomers.map(customer => {
+                if (customer.id === billing.customerId) {
+                    const updatedEquipment = customer.equipment.map(equip => {
+                        if (equip.id === billing.equipmentId) {
+                            return { ...equip, relogioAnterior: billing.relogioAtual };
+                        }
+                        return equip;
+                    });
+    
+                    const existingDebt = Number(customer.debtAmount) || 0;
+                    const newFiado = Number(billing.valorPagoFiado) || 0;
+                    let finalDebt = existingDebt;
 
-                return { ...customer, equipment: updatedEquipment, debtAmount: newDebtAmount, lastVisitedAt: new Date() };
-            }
-            return customer;
-        }));
+                    if (newFiado > 0 && billing.equipmentType !== 'grua') {
+                        finalDebt = existingDebt + newFiado;
+                    }
+    
+                    return { 
+                        ...customer, 
+                        equipment: updatedEquipment, 
+                        debtAmount: finalDebt, 
+                        lastVisitedAt: new Date() 
+                    };
+                }
+                return customer;
+            });
+        });
         
         if (billing.equipmentType !== 'grua') {
             setFinalizedBilling(billing);
@@ -228,30 +249,34 @@ const App: React.FC = () => {
             showNotification("Cobrança não encontrada.", "error");
             return;
         }
-
-        // Revert customer state
+    
         setCustomers(prevCustomers => prevCustomers.map(customer => {
             if (customer.id === billingToDelete.customerId) {
                 const updatedEquipment = customer.equipment.map(equip => {
                     if (equip.id === billingToDelete.equipmentId) {
-                        // Revert the meter reading
                         return { ...equip, relogioAnterior: billingToDelete.relogioAnterior };
                     }
                     return equip;
                 });
+    
+                const existingDebt = Number(customer.debtAmount) || 0;
+                const fiadoToReverse = Number(billingToDelete.valorPagoFiado) || 0;
+                let finalDebt = existingDebt;
 
-                let newDebtAmount = customer.debtAmount;
-                if (billingToDelete.valorPagoFiado && billingToDelete.valorPagoFiado > 0 && billingToDelete.equipmentType !== 'grua') {
-                    newDebtAmount -= billingToDelete.valorPagoFiado;
+                if (fiadoToReverse > 0 && billingToDelete.equipmentType !== 'grua') {
+                    finalDebt = existingDebt - fiadoToReverse;
                 }
                 
-                return { ...customer, equipment: updatedEquipment, debtAmount: Math.max(0, newDebtAmount) };
+                return { 
+                    ...customer, 
+                    equipment: updatedEquipment, 
+                    debtAmount: Math.max(0, finalDebt) 
+                };
             }
             return customer;
         }));
-
+    
         setBillings(prevBillings => prevBillings.filter(b => b.id !== billingId));
-
         showNotification("Cobrança excluída com sucesso!", "success");
     };
 
@@ -282,7 +307,7 @@ const App: React.FC = () => {
         };
         setDebtPayments(prev => [...prev, newPayment]);
         setCustomers(prev => prev.map(c => 
-            c.id === customerId ? { ...c, debtAmount: c.debtAmount - amountPaid } : c
+            c.id === customerId ? { ...c, debtAmount: (Number(c.debtAmount) || 0) - amountPaid } : c
         ));
         setFinalizedDebtPayment(newPayment);
     };

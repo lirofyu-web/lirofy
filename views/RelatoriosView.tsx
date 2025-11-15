@@ -191,6 +191,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             const customer = customerMap.get(b.customerId);
             const cidade = customer ? customer.cidade : 'N/A';
             const paymentMethodDisplay = {pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod];
+            const valorLiquido = b.valorTotal - (b.valorPagoFiado || 0);
             return `
               <tr>
                 <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
@@ -200,14 +201,14 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
                 <td class="currency">${b.relogioAtual}</td>
                 <td class="currency">${b.partidasJogadas}</td>
                 <td>${paymentMethodDisplay}</td>
-                <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+                <td class="currency">R$ ${valorLiquido.toFixed(2).replace('.', ',')}</td>
               </tr>
             `}).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
             <td colspan="7"><strong>Total Recebido (Caixa)</strong></td>
-            <td class="currency"><strong>R$ ${total.toFixed(2)}</strong></td>
+            <td class="currency"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
       </table>
@@ -240,6 +241,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             const customer = customerMap.get(b.customerId);
             const cidade = customer ? customer.cidade : 'N/A';
             const paymentMethodDisplay = {pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod];
+            const valorLiquido = b.valorTotal - (b.valorPagoFiado || 0);
             return `
               <tr>
                 <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
@@ -249,14 +251,14 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
                 <td class="currency">${b.relogioAtual}</td>
                 <td class="currency">${b.partidasJogadas}</td>
                 <td>${paymentMethodDisplay}</td>
-                <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+                <td class="currency">R$ ${valorLiquido.toFixed(2).replace('.', ',')}</td>
               </tr>
             `}).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
             <td colspan="7"><strong>Total Recebido (Caixa)</strong></td>
-            <td class="currency"><strong>R$ ${total.toFixed(2)}</strong></td>
+            <td class="currency"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
       </table>
@@ -305,21 +307,21 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
               <td class="currency">${b.relogioAnterior}</td>
               <td class="currency">${b.relogioAtual}</td>
               <td class="currency">${b.partidasJogadas}</td>
-              <td class="currency">R$ ${(b.saldo || 0).toFixed(2)}</td>
-              <td class="currency">R$ ${(b.aluguelValor || 0).toFixed(2)}</td>
-              <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+              <td class="currency">R$ ${(b.saldo || 0).toFixed(2).replace('.', ',')}</td>
+              <td class="currency">R$ ${(b.aluguelValor || 0).toFixed(2).replace('.', ',')}</td>
+              <td class="currency">R$ ${b.valorTotal.toFixed(2).replace('.', ',')}</td>
               <td class="currency">${b.reposicaoPelucia || 0}</td>
-              <td class="currency">R$ ${(b.recebimentoEspecie || 0).toFixed(2)}</td>
-              <td class="currency">R$ ${(b.recebimentoPix || 0).toFixed(2)}</td>
+              <td class="currency">R$ ${(b.recebimentoEspecie || 0).toFixed(2).replace('.', ',')}</td>
+              <td class="currency">R$ ${(b.recebimentoPix || 0).toFixed(2).replace('.', ',')}</td>
             </tr>
           `}).join('') : '<tr><td colspan="13" class="no-records">Nenhuma cobrança de grua no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
             <td colspan="7"><strong>TOTAIS</strong></td>
-            <td class="currency"><strong>R$ ${totalSaldoBruto.toFixed(2)}</strong></td>
-            <td class="currency"><strong>R$ ${totalAluguelCliente.toFixed(2)}</strong></td>
-            <td class="currency"><strong>R$ ${totalValorFirma.toFixed(2)}</strong></td>
+            <td class="currency"><strong>R$ ${totalSaldoBruto.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong>R$ ${totalAluguelCliente.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong>R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</strong></td>
             <td colspan="3"></td>
           </tr>
         </tfoot>
@@ -338,14 +340,14 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
               <td>${new Date(p.paidAt).toLocaleDateString('pt-BR')}</td>
               <td>${p.customerName}</td>
               <td>${p.paymentMethod}</td>
-              <td class="currency">R$ ${p.amountPaid.toFixed(2)}</td>
+              <td class="currency">R$ ${p.amountPaid.toFixed(2).replace('.', ',')}</td>
             </tr>
           `).join('') : '<tr><td colspan="4" class="no-records">Nenhum pagamento de dívida no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
             <td colspan="3"><strong>Total Recebido</strong></td>
-            <td class="currency"><strong>R$ ${stats.totalDebtPaymentsReceived.toFixed(2)}</strong></td>
+            <td class="currency"><strong>R$ ${stats.totalDebtPaymentsReceived.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
       </table>
@@ -362,14 +364,14 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <tr>
               <td>${new Date(e.date).toLocaleDateString('pt-BR')}</td>
               <td>${e.description}</td>
-              <td class="currency">R$ ${e.amount.toFixed(2)}</td>
+              <td class="currency">R$ ${e.amount.toFixed(2).replace('.', ',')}</td>
             </tr>
           `).join('') : '<tr><td colspan="3" class="no-records">Nenhuma despesa no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
             <td colspan="2"><strong>Total de Despesas</strong></td>
-            <td class="currency"><strong>R$ ${stats.totalExpenses.toFixed(2)}</strong></td>
+            <td class="currency"><strong>R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
       </table>
@@ -405,39 +407,39 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <InfoCard title="Desempenho: Mesas de Sinuca">
-            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-            <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
-            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedMesa.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400" />
+            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
+            <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueMesaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedMesa.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                <InfoRow label="Total (Caixa)" value={`R$ ${stats.revenueMesaTotal.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
+                <InfoRow label="Total (Caixa)" value={`R$ ${stats.revenueMesaTotal.toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
             <PrintButton onClick={handlePrintMesaReport} label="Imprimir Relatório de Mesas" />
         </InfoCard>
 
         <InfoCard title="Desempenho: Jukebox">
-            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-            <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueJukeboxPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
-            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedJukebox.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400" />
+            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
+            <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueJukeboxPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+            <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedJukebox.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                <InfoRow label="Total (Caixa)" value={`R$ ${stats.revenueJukeboxTotal.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
+                <InfoRow label="Total (Caixa)" value={`R$ ${stats.revenueJukeboxTotal.toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
             <PrintButton onClick={handlePrintJukeboxReport} label="Imprimir Relatório de Jukebox" />
         </InfoCard>
 
          <InfoCard title="Desempenho: Gruas">
-            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-            <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
-            <InfoRow label="Aluguel Pago (p/ Cliente)" value={`R$ ${stats.totalAluguelPagoGrua.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400" />
+            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
+            <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+            <InfoRow label="Aluguel Pago (p/ Cliente)" value={`R$ ${stats.totalAluguelPagoGrua.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
             <PrintButton onClick={handlePrintGruaReport} label="Imprimir Relatório de Gruas" />
         </InfoCard>
 
         <InfoCard title="Pagamentos de Dívidas">
-            <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400" />
+            <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400" />
              <PrintButton onClick={handlePrintDebtReport} label="Imprimir Relatório de Dívidas" />
         </InfoCard>
         
         <InfoCard title="Despesas do Período">
-            <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
+            <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
             <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" />
         </InfoCard>
       </div>

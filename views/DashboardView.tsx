@@ -6,6 +6,7 @@ import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
+import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 
 interface DashboardViewProps {
   billings: Billing[];
@@ -95,22 +96,35 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             const date = new Date(e.date);
             return date.getFullYear() === year && date.getMonth() === month;
         });
+
+        const monthlyDebtPayments = debtPayments.filter(p => {
+            const date = new Date(p.paidAt);
+            return date.getFullYear() === year && date.getMonth() === month;
+        });
+        
         const totalMonthlyExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
 
         // Revenue from Tables
-        const revenueMesaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'mesa' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
-        const revenueMesaPix = monthlyBillings.filter(b => b.equipmentType === 'mesa' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+        const monthlyMesaBillings = monthlyBillings.filter(b => b.equipmentType === 'mesa');
+        const revenueMesaDinheiro = monthlyMesaBillings.reduce((sum, b) => sum + (b.valorPagoDinheiro || 0), 0);
+        const revenueMesaPix = monthlyMesaBillings.reduce((sum, b) => sum + (b.valorPagoPix || 0), 0);
         const totalRevenueMesa = revenueMesaDinheiro + revenueMesaPix;
 
         // Revenue from Jukeboxes
-        const revenueJukeboxDinheiro = monthlyBillings.filter(b => b.equipmentType === 'jukebox' && b.paymentMethod === 'dinheiro').reduce((sum, b) => sum + b.valorTotal, 0);
-        const revenueJukeboxPix = monthlyBillings.filter(b => b.equipmentType === 'jukebox' && b.paymentMethod === 'pix').reduce((sum, b) => sum + b.valorTotal, 0);
+        const monthlyJukeboxBillings = monthlyBillings.filter(b => b.equipmentType === 'jukebox');
+        const revenueJukeboxDinheiro = monthlyJukeboxBillings.reduce((sum, b) => sum + (b.valorPagoDinheiro || 0), 0);
+        const revenueJukeboxPix = monthlyJukeboxBillings.reduce((sum, b) => sum + (b.valorPagoPix || 0), 0);
         const totalRevenueJukebox = revenueJukeboxDinheiro + revenueJukeboxPix;
 
         // Revenue from Cranes
         const revenueGruaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.recebimentoEspecie || 0), 0);
         const revenueGruaPix = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.recebimentoPix || 0), 0);
         const totalRevenueGrua = revenueGruaDinheiro + revenueGruaPix;
+
+        // Revenue from Debt Payments
+        const debtPaymentsDinheiro = monthlyDebtPayments.filter(p => p.paymentMethod === 'dinheiro').reduce((sum, p) => sum + p.amountPaid, 0);
+        const debtPaymentsPix = monthlyDebtPayments.filter(p => p.paymentMethod === 'pix').reduce((sum, p) => sum + p.amountPaid, 0);
+        const totalDebtPayments = debtPaymentsDinheiro + debtPaymentsPix;
         
         return {
             revenueMesaDinheiro,
@@ -122,9 +136,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             revenueGruaDinheiro,
             revenueGruaPix,
             totalRevenueGrua,
+            debtPaymentsDinheiro,
+            debtPaymentsPix,
+            totalDebtPayments,
             totalMonthlyExpenses
         };
-    }, [billings, expenses, currentDate]);
+    }, [billings, expenses, debtPayments, currentDate]);
     
     return (
         <div className="space-y-8">
@@ -139,8 +156,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 onYearChange={handleYearChange}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
-                 <InfoCard title="Caixa (Mesas)" icon={<BilliardIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                 <InfoCard title="Faturamento (Mesas)" icon={<BilliardIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
                     <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
@@ -148,7 +165,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                     </div>
                 </InfoCard>
 
-                <InfoCard title="Caixa (Jukebox)" icon={<JukeboxIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
+                <InfoCard title="Faturamento (Jukebox)" icon={<JukeboxIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
                     <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueJukeboxPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
@@ -156,11 +173,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                     </div>
                 </InfoCard>
                 
-                 <InfoCard title="Caixa (Gruas)" icon={<CraneIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
+                 <InfoCard title="Faturamento (Gruas)" icon={<CraneIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueGruaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
                     <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalRevenueGrua.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400 text-lg" />
+                    </div>
+                </InfoCard>
+
+                <InfoCard title="Dívidas Recebidas (Fiado)" icon={<CurrencyDollarIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
+                    <InfoRow label="Recebido em Dinheiro" value={`R$ ${stats.debtPaymentsDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+                    <InfoRow label="Recebido em PIX" value={`R$ ${stats.debtPaymentsPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+                    <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
+                        <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPayments.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400 text-lg" />
                     </div>
                 </InfoCard>
 
