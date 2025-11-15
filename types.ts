@@ -59,6 +59,7 @@ export interface Billing {
   descontoPartidas?: number;
   partidasCobradas?: number;
   valorFicha?: number;
+  valorBruto?: number;
 
   // Mesa & Jukebox calculation result
   parteFirma?: number;
@@ -76,7 +77,10 @@ export interface Billing {
 
   // Universal
   valorTotal: number; // The final value for the company
-  paymentMethod: 'pix' | 'dinheiro' | 'fiado'; // Fiado will not be an option for grua
+  paymentMethod: 'pix' | 'dinheiro' | 'fiado' | 'misto'; // Fiado will not be an option for grua
+  valorPagoDinheiro?: number;
+  valorPagoPix?: number;
+  valorPagoFiado?: number;
 }
 
 

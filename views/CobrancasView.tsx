@@ -9,6 +9,7 @@ import { CraneIcon } from '../components/icons/CraneIcon';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import ActionModal from '../components/ActionModal';
+import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 
 interface CobrancasViewProps {
     billings: Billing[];
@@ -21,16 +22,18 @@ type SortKey = 'settledAt' | 'customerName' | 'valorTotal';
 type SortDirection = 'asc' | 'desc';
 type Filter = 'all' | 'mesa' | 'jukebox' | 'grua';
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> = React.memo(({ method }) => {
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
     const styles = {
         pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
         dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
         fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
+        misto: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-600',
     };
     const text = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
         fiado: 'Fiado',
+        misto: 'Misto',
     };
 
     return (
@@ -48,6 +51,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
     const [deletingBilling, setDeletingBilling] = useState<Billing | null>(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
 
 
     const filteredBillings = useMemo(() => {
@@ -114,11 +118,108 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         const debt = customers.reduce((sum, c) => sum + c.debtAmount, 0);
         return { debtorCustomers: debtors, totalDebt: debt };
     }, [customers]);
+    
+    const historyData = useMemo(() => {
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+        const recentBillings = billings.filter(b => new Date(b.settledAt) >= ninetyDaysAgo);
+
+        const billingsByCustomer = recentBillings.reduce((acc, billing) => {
+            if (!acc[billing.customerId]) {
+                acc[billing.customerId] = [];
+            }
+            acc[billing.customerId].push(billing);
+            return acc;
+        }, {} as Record<string, Billing[]>);
+
+        const customerIdsWithHistory = Object.keys(billingsByCustomer);
+        
+        const customersWithHistory = customers
+            .filter(c => customerIdsWithHistory.includes(c.id))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        return { billingsByCustomer, customersWithHistory };
+    }, [billings, customers]);
+    
+    const handlePrintCustomerHistory = useCallback((customer: Customer, customerBillings: Billing[]) => {
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const today = new Date();
+
+        const totalBilled = customerBillings.reduce((sum, b) => sum + b.valorTotal, 0);
+
+        const reportHtml = `
+          <html>
+            <head>
+              <title>Histórico de Cobrança - ${customer.name}</title>
+              <style>
+                body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
+                @page { size: A4 landscape; margin: 15mm; }
+                h1, h2, p { text-align: center; }
+                h1 { font-size: 16pt; margin-bottom: 5px; }
+                h2 { font-size: 12pt; margin: 0; }
+                p { font-size: 10pt; margin: 5px 0 20px 0; color: #555; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+                .currency { text-align: right; font-family: monospace; }
+                tfoot td { font-weight: bold; border-top: 2px solid #333; }
+              </style>
+            </head>
+            <body>
+              <h1>Histórico de Cobrança</h1>
+              <h2>Cliente: ${customer.name}</h2>
+              <p>Período: ${ninetyDaysAgo.toLocaleDateString('pt-BR')} - ${today.toLocaleDateString('pt-BR')}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Equipamento</th>
+                    <th class="currency">Rel. Ant.</th>
+                    <th class="currency">Rel. Atual</th>
+                    <th class="currency">Jogadas</th>
+                    <th>Pagamento</th>
+                    <th class="currency">Valor (Firma)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${customerBillings.sort((a,b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()).map(b => `
+                    <tr>
+                      <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
+                      <td>${b.equipmentType.charAt(0).toUpperCase() + b.equipmentType.slice(1)} ${b.equipmentNumero}</td>
+                      <td class="currency">${b.equipmentType === 'mesa' ? b.relogioAnterior : '-'}</td>
+                      <td class="currency">${b.equipmentType === 'mesa' ? b.relogioAtual : '-'}</td>
+                      <td class="currency">${b.equipmentType === 'mesa' ? b.partidasJogadas : '-'}</td>
+                      <td>${{pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod]}</td>
+                      <td class="currency">R$ ${b.valorTotal.toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="6"><strong>Total no Período</strong></td>
+                    <td class="currency"><strong>R$ ${totalBilled.toFixed(2)}</strong></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </body>
+          </html>
+        `;
+        const printWindow = window.open('', '', 'height=800,width=1200');
+        if (printWindow) {
+            printWindow.document.write(reportHtml);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        }
+    }, []);
 
     const handlePrintDebtors = useCallback(() => {
         const itemsByCustomer = (customerId: string) => {
             const debtItems = billings
-                .filter(b => b.customerId === customerId && b.paymentMethod === 'fiado')
+                .filter(b => b.customerId === customerId && b.valorPagoFiado && b.valorPagoFiado > 0)
                 .map(b => b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox');
             return [...new Set(debtItems)].join(', ');
         };
@@ -277,6 +378,82 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 </div>
             </div>
 
+            <div className="space-y-4 mb-10">
+                <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Histórico por Cliente (Últimos 90 dias)</h3>
+                </div>
+                {historyData.customersWithHistory.length > 0 ? historyData.customersWithHistory.map(customer => {
+                    const customerBillings = historyData.billingsByCustomer[customer.id];
+                    const isExpanded = expandedCustomerId === customer.id;
+                    return (
+                        <div key={customer.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <button
+                                onClick={() => setExpandedCustomerId(isExpanded ? null : customer.id)}
+                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                                aria-expanded={isExpanded}
+                            >
+                                <span className="font-bold text-slate-900 dark:text-white">{customer.name}</span>
+                                <div className="flex items-center gap-2">
+                                     <span className="text-sm text-slate-500 dark:text-slate-400">{customerBillings.length} cobrança(s)</span>
+                                     <ChevronDownIcon className={`w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                            {isExpanded && (
+                                <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                                    <div className="flex justify-end mb-4">
+                                        <button 
+                                            onClick={() => handlePrintCustomerHistory(customer, customerBillings)}
+                                            className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-1.5 px-3 rounded-md hover:bg-cyan-500 transition-colors text-sm"
+                                        >
+                                            <PrinterIcon className="w-4 h-4" />
+                                            <span>Imprimir Histórico</span>
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
+                                                <tr>
+                                                    <th scope="col" className="px-4 py-2">Data</th>
+                                                    <th scope="col" className="px-4 py-2">Equipamento</th>
+                                                    <th scope="col" className="px-4 py-2 text-center">Rel. Ant.</th>
+                                                    <th scope="col" className="px-4 py-2 text-center">Rel. Atual</th>
+                                                    <th scope="col" className="px-4 py-2 text-center">Jogadas</th>
+                                                    <th scope="col" className="px-4 py-2">Pagamento</th>
+                                                    <th scope="col" className="px-4 py-2 text-right">Valor (Firma)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {customerBillings.sort((a,b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()).map(billing => (
+                                                    <tr key={billing.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 last:border-b-0">
+                                                        <td className="px-4 py-2">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
+                                                        <td className="px-4 py-2">{billing.equipmentType.charAt(0).toUpperCase() + billing.equipmentType.slice(1)} {billing.equipmentNumero}</td>
+                                                        {billing.equipmentType === 'mesa' ? (
+                                                            <>
+                                                                <td className="px-4 py-2 text-center font-mono">{billing.relogioAnterior}</td>
+                                                                <td className="px-4 py-2 text-center font-mono">{billing.relogioAtual}</td>
+                                                                <td className="px-4 py-2 text-center font-mono">{billing.partidasJogadas}</td>
+                                                            </>
+                                                        ) : (
+                                                            <td colSpan={3} className="px-4 py-2 text-center text-slate-400">-</td>
+                                                        )}
+                                                        <td className="px-4 py-2"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
+                                                        <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {billing.valorTotal.toFixed(2)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }) : (
+                    <p className="text-center py-10 text-slate-500 dark:text-slate-400 italic">
+                        Nenhuma cobrança registrada nos últimos 90 dias.
+                    </p>
+                )}
+            </div>
+
             <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50">
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores (Fiado)</h3>
@@ -301,7 +478,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         <tbody>
                             {debtorCustomers.length > 0 ? debtorCustomers.map(customer => {
                                 const debtItems = billings
-                                    .filter(b => b.customerId === customer.id && b.paymentMethod === 'fiado')
+                                    .filter(b => b.customerId === customer.id && b.valorPagoFiado && b.valorPagoFiado > 0)
                                     .map(b => b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox');
                                 const uniqueItems = [...new Set(debtItems)].join(', ');
 

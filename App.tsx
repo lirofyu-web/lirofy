@@ -206,8 +206,8 @@ const App: React.FC = () => {
                 });
                 
                 let newDebtAmount = customer.debtAmount;
-                if (billing.paymentMethod === 'fiado' && billing.equipmentType !== 'grua') {
-                     newDebtAmount += billing.valorTotal;
+                if (billing.valorPagoFiado && billing.valorPagoFiado > 0 && billing.equipmentType !== 'grua') {
+                     newDebtAmount += billing.valorPagoFiado;
                 }
 
                 return { ...customer, equipment: updatedEquipment, debtAmount: newDebtAmount, lastVisitedAt: new Date() };
@@ -241,8 +241,8 @@ const App: React.FC = () => {
                 });
 
                 let newDebtAmount = customer.debtAmount;
-                if (billingToDelete.paymentMethod === 'fiado' && billingToDelete.equipmentType !== 'grua') {
-                    newDebtAmount -= billingToDelete.valorTotal;
+                if (billingToDelete.valorPagoFiado && billingToDelete.valorPagoFiado > 0 && billingToDelete.equipmentType !== 'grua') {
+                    newDebtAmount -= billingToDelete.valorPagoFiado;
                 }
                 
                 return { ...customer, equipment: updatedEquipment, debtAmount: Math.max(0, newDebtAmount) };

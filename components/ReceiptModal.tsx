@@ -60,6 +60,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, i
       pix: 'PIX',
       dinheiro: 'DINHEIRO',
       fiado: 'FIADO (ANOTADO)',
+      misto: 'MISTO',
   };
 
   const ReceiptRow: React.FC<{label: string, value: string | number}> = ({ label, value }) => (
@@ -155,10 +156,19 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, i
                   {isGrua ? renderGruaDetails() : renderMesaJukeboxDetails()}
                   
                   {!isProvisional && (
-                    <div className="flex justify-between pt-1">
-                        <span>Pagamento:</span>
-                        <span>{paymentMethodText[billing.paymentMethod]}</span>
-                    </div>
+                    billing.paymentMethod === 'misto' ? (
+                        <div className="pt-1">
+                            <p className="font-bold">PAGAMENTO:</p>
+                            {billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0 && <ReceiptRow label="- Dinheiro:" value={`R$ ${billing.valorPagoDinheiro.toFixed(2)}`} />}
+                            {billing.valorPagoPix && billing.valorPagoPix > 0 && <ReceiptRow label="- PIX:" value={`R$ ${billing.valorPagoPix.toFixed(2)}`} />}
+                            {billing.valorPagoFiado && billing.valorPagoFiado > 0 && <ReceiptRow label="- Fiado:" value={`R$ ${billing.valorPagoFiado.toFixed(2)}`} />}
+                        </div>
+                    ) : (
+                        <div className="flex justify-between pt-1">
+                            <span>Pagamento:</span>
+                            <span>{paymentMethodText[billing.paymentMethod]}</span>
+                        </div>
+                    )
                   )}
                   
                   {isProvisional && (
