@@ -299,6 +299,49 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     const saldoFinal = totalValorFirma - reportExpenses;
 
     const content = `
+      <style>
+        .fin-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 95%;
+            margin: 40px auto 0 auto;
+            page-break-inside: avoid;
+            flex-wrap: wrap;
+        }
+        .fin-box {
+            flex: 1;
+            min-width: 160px;
+            padding: 20px 10px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .fin-label {
+            display: block;
+            font-size: 10pt;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #444;
+        }
+        .fin-value {
+            display: block;
+            font-size: 16pt;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        /* Force background colors print */
+        .bg-blue { background-color: #e3f2fd !important; border-color: #90caf9 !important; color: #0d47a1 !important; }
+        .bg-red { background-color: #ffebee !important; border-color: #ef9a9a !important; color: #b71c1c !important; }
+        .bg-green { background-color: #e8f5e9 !important; border-color: #a5d6a7 !important; color: #1b5e20 !important; }
+        .bg-amber { background-color: #fff8e1 !important; border-color: #ffe082 !important; color: #ff6f00 !important; }
+        .bg-purple { background-color: #f3e5f5 !important; border-color: #ce93d8 !important; color: #7b1fa2 !important; }
+      </style>
+
       <h3>Receitas - Gruas de Pelúcia</h3>
       <table>
         <thead>
@@ -351,25 +394,28 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         </tfoot>
       </table>
 
-      <div class="summary-box">
-        <h3>Fechamento Financeiro</h3>
-        <div class="summary-row">
-            <span>Total Valor (Firma):</span>
-            <span>R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</span>
-        </div>
-        <div class="summary-row">
-            <span>(-) Despesas Totais:</span>
-            <span style="color: red;">R$ ${reportExpenses.toFixed(2).replace('.', ',')}</span>
-        </div>
-        <div class="summary-row summary-total">
-            <span>(=) SALDO FINAL:</span>
-            <span>R$ ${saldoFinal.toFixed(2).replace('.', ',')}</span>
-        </div>
-        
-        <div class="summary-row info-row">
-             <span>Depósito de Dinheiro (Informativo):</span>
-             <span><strong>R$ ${moneyDeposit.toFixed(2).replace('.', ',')}</strong></span>
-        </div>
+      <h3 style="margin-top: 40px; margin-bottom: 10px;">Fechamento Financeiro</h3>
+      <div class="fin-grid">
+          <div class="fin-box bg-blue">
+              <span class="fin-label">Total Entrada (Firma)</span>
+              <span class="fin-value">R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</span>
+          </div>
+          <div class="fin-box bg-red">
+              <span class="fin-label">(-) Despesas</span>
+              <span class="fin-value">R$ ${reportExpenses.toFixed(2).replace('.', ',')}</span>
+          </div>
+          <div class="fin-box bg-green">
+              <span class="fin-label">(=) Saldo Final</span>
+              <span class="fin-value">R$ ${saldoFinal.toFixed(2).replace('.', ',')}</span>
+          </div>
+          <div class="fin-box bg-purple">
+              <span class="fin-label">Total PIX</span>
+              <span class="fin-value">R$ ${totalPix.toFixed(2).replace('.', ',')}</span>
+          </div>
+          <div class="fin-box bg-amber">
+              <span class="fin-label">Depósito (Info)</span>
+              <span class="fin-value">R$ ${moneyDeposit.toFixed(2).replace('.', ',')}</span>
+          </div>
       </div>
     `;
     
