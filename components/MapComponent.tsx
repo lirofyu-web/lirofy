@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Customer } from '../types';
 import ReactDOMServer from 'react-dom/server';
 import { VisitedIcon } from './icons/VisitedIcon';
@@ -47,6 +47,27 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
     mapInstance.current.addLayer(markersLayer.current);
     markerRefs.current = {};
 
+    // Fix for map rendering issues: monitor container resize and invalidate map size
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstance.current) {
+        mapInstance.current.invalidateSize();
+      }
+    });
+    resizeObserver.observe(mapRef.current);
+
+    // Initial invalidation to ensure correct rendering on mount
+    setTimeout(() => {
+        mapInstance.current?.invalidateSize();
+    }, 250);
+
+    // Cleanup function
+    return () => {
+      resizeObserver.disconnect();
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
   }, [L]);
 
   useEffect(() => {
@@ -100,7 +121,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
         });
 
         if (!selectedCustomerId) {
-            mapInstance.current.fitBounds(markersLayer.current.getBounds(), { padding: [50, 50] });
+            // Only fit bounds if we are not focusing on a specific customer
+            // And only if the map isn't already zoomed/positioned by user interaction (simple check)
+            try {
+               const bounds = markersLayer.current.getBounds();
+               if (bounds.isValid()) {
+                  mapInstance.current.fitBounds(bounds, { padding: [50, 50] });
+               }
+            } catch (e) {
+               console.warn("Could not fit bounds", e);
+            }
         }
     } else {
         mapInstance.current.setView([-14.235, -51.9253], 4);
@@ -130,18 +160,20 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
             selectedMarker.setZIndexOffset(1000);
         }
 
+        // Ensure map layer is visible for the cluster if it's clustered
         markersLayer.current.zoomToShowLayer(selectedMarker, () => {
              mapInstance.current.panTo(selectedMarker.getLatLng());
-             if (!selectedMarker.isPopupOpen()) {
+             // Add a small delay for popup to ensure animation is smooth
+             setTimeout(() => {
                  selectedMarker.openPopup();
-             }
+             }, 100);
         });
     }
   }, [selectedCustomerId, L]);
 
   return (
-    <div className="bg-slate-200 dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full w-full flex flex-col">
-      <div ref={mapRef} className="w-full h-full rounded-lg" />
+    <div className="bg-slate-200 dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full w-full flex flex-col relative z-0">
+      <div ref={mapRef} className="w-full h-full rounded-lg z-0" />
     </div>
   );
 };

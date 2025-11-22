@@ -34,7 +34,12 @@ interface BillingModalProps {
 }
 
 const safeParseFloat = (str: string | number | undefined): number => {
-    return parseFloat(String(str || '0').replace(',', '.')) || 0;
+    if (typeof str === 'number') return str;
+    if (!str) return 0;
+    // Remove dots (thousands separators) and replace comma with dot (decimal separator)
+    // e.g., "1.200,50" -> "1200.50"
+    const cleanStr = String(str).replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleanStr) || 0;
 };
 
 const FormField: React.FC<{

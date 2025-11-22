@@ -1,8 +1,10 @@
+
 // views/RelatoriosView.tsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { Billing, Customer, DebtPayment, Expense } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
+import CraneReportModal from '../components/CraneReportModal';
 
 interface RelatoriosViewProps {
   customers: Customer[];
@@ -54,6 +56,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   };
 
   const [dateRange, setDateRange] = useState(getInitialDateRange);
+  const [isCraneReportModalOpen, setIsCraneReportModalOpen] = useState(false);
 
   const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -127,27 +130,31 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     };
   }, [billings, expenses, debtPayments, dateRange]);
   
-  const printReport = useCallback((title: string, content: string) => {
+  const printReport = useCallback((title: string, content: string, customDateRange?: string) => {
     const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início';
     const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').toLocaleDateString('pt-BR') : 'Fim';
-    const dateTitle = `${startDate} a ${endDate}`;
+    const dateTitle = customDateRange || `${startDate} a ${endDate}`;
 
     const reportHtml = `
       <html>
         <head>
           <title>${title} - ${dateTitle}</title>
           <style>
-            body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
-            @page { size: A4 landscape; margin: 15mm; }
-            h1, h2 { text-align: center; }
-            h1 { font-size: 16pt; }
-            h2 { font-size: 12pt; margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; }
-            th, td { border: 1px solid #ccc; padding: 4px; text-align: left; }
+            body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; text-align: center; margin-top: 20px; }
+            @page { size: A4 landscape; margin: 10mm; }
+            h1 { font-size: 18pt; margin-bottom: 5px; }
+            h2 { font-size: 14pt; margin-bottom: 20px; padding-bottom: 5px; border-bottom: 2px solid #ccc; display: inline-block; }
+            table { width: 95%; border-collapse: collapse; margin: 0 auto 20px auto; font-size: 10pt; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
             th { background-color: #f2f2f2; font-weight: bold; }
             .currency { text-align: right; font-family: monospace; }
+            .text-left { text-align: left; }
             .no-records { text-align: center; color: #777; font-style: italic; }
-            tfoot td { font-weight: bold; border-top: 2px solid #333; }
+            tfoot td { font-weight: bold; border-top: 2px solid #333; background-color: #f9f9f9; }
+            .summary-box { width: 60%; margin: 20px auto; border: 2px solid #333; padding: 15px; text-align: left; page-break-inside: avoid; }
+            .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11pt; }
+            .summary-total { font-weight: bold; font-size: 13pt; margin-top: 10px; border-top: 1px dashed #999; pt-2; }
+            .info-row { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; color: #555; font-style: italic; }
           </style>
         </head>
         <body>
@@ -177,8 +184,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         <thead>
           <tr>
             <th>Data</th>
-            <th>Cliente</th>
-            <th>Cidade</th>
+            <th class="text-left">Cliente</th>
+            <th class="text-left">Cidade</th>
             <th class="currency">Rel. Ant.</th>
             <th class="currency">Rel. Atual</th>
             <th class="currency">Jogadas</th>
@@ -195,8 +202,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             return `
               <tr>
                 <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
-                <td>${b.customerName}</td>
-                <td>${cidade}</td>
+                <td class="text-left">${b.customerName}</td>
+                <td class="text-left">${cidade}</td>
                 <td class="currency">${b.relogioAnterior}</td>
                 <td class="currency">${b.relogioAtual}</td>
                 <td class="currency">${b.partidasJogadas}</td>
@@ -207,7 +214,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="7"><strong>Total Recebido (Caixa)</strong></td>
+            <td colspan="7" class="text-left"><strong>Total Recebido (Caixa)</strong></td>
             <td class="currency"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
@@ -227,8 +234,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         <thead>
           <tr>
             <th>Data</th>
-            <th>Cliente</th>
-            <th>Cidade</th>
+            <th class="text-left">Cliente</th>
+            <th class="text-left">Cidade</th>
             <th class="currency">Rel. Ant.</th>
             <th class="currency">Rel. Atual</th>
             <th class="currency">Jogadas</th>
@@ -245,8 +252,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             return `
               <tr>
                 <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
-                <td>${b.customerName}</td>
-                <td>${cidade}</td>
+                <td class="text-left">${b.customerName}</td>
+                <td class="text-left">${cidade}</td>
                 <td class="currency">${b.relogioAnterior}</td>
                 <td class="currency">${b.relogioAtual}</td>
                 <td class="currency">${b.partidasJogadas}</td>
@@ -257,7 +264,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="7"><strong>Total Recebido (Caixa)</strong></td>
+            <td colspan="7" class="text-left"><strong>Total Recebido (Caixa)</strong></td>
             <td class="currency"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
@@ -266,22 +273,38 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     printReport('Relatório de Jukebox', content);
   }, [stats, printReport, customers]);
   
-  const handlePrintGruaReport = useCallback(() => {
-    const data = stats.periodGruaBillings;
+  const handleGenerateCraneReport = useCallback((startDate: string, endDate: string, moneyDeposit: number, reportExpenses: number) => {
+    // Filter logic specifically for this report
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    
+    const data = billings.filter(b => {
+        if (b.equipmentType !== 'grua') return false;
+        const date = new Date(b.settledAt);
+        return date >= start && date <= end;
+    });
+
     const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
 
     const totalSaldoBruto = data.reduce((sum, b) => sum + (b.saldo || 0), 0);
     const totalAluguelCliente = data.reduce((sum, b) => sum + (b.aluguelValor || 0), 0);
     const totalValorFirma = data.reduce((sum, b) => sum + b.valorTotal, 0);
+
+    const totalReposicao = data.reduce((sum, b) => sum + (b.reposicaoPelucia || 0), 0);
+    const totalEspecie = data.reduce((sum, b) => sum + (b.recebimentoEspecie || 0), 0);
+    const totalPix = data.reduce((sum, b) => sum + (b.recebimentoPix || 0), 0);
     
+    // Calculated difference
+    // Firma Total - Expenses (Deposit is just informational now)
+    const saldoFinal = totalValorFirma - reportExpenses;
+
     const content = `
       <h3>Receitas - Gruas de Pelúcia</h3>
       <table>
         <thead>
           <tr>
-            <th>Data</th>
-            <th>Cliente</th>
-            <th>Cidade</th>
+            <th class="text-left">Cliente</th>
+            <th class="text-left">Cidade</th>
             <th>Grua Nº</th>
             <th class="currency">Rel. Ant.</th>
             <th class="currency">Rel. Atual</th>
@@ -289,7 +312,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <th class="currency">Saldo Bruto</th>
             <th class="currency">Aluguel (Cliente)</th>
             <th class="currency">Valor (Firma)</th>
-            <th class="currency">Reposição Pelúcia</th>
+            <th class="currency">Rep. Pelúcia</th>
             <th class="currency">Receb. Espécie</th>
             <th class="currency">Receb. PIX</th>
           </tr>
@@ -300,9 +323,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             const cidade = customer ? customer.cidade : 'N/A';
             return `
             <tr>
-              <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
-              <td>${b.customerName}</td>
-              <td>${cidade}</td>
+              <td class="text-left">${b.customerName}</td>
+              <td class="text-left">${cidade}</td>
               <td>${b.equipmentNumero}</td>
               <td class="currency">${b.relogioAnterior}</td>
               <td class="currency">${b.relogioAtual}</td>
@@ -314,31 +336,59 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
               <td class="currency">R$ ${(b.recebimentoEspecie || 0).toFixed(2).replace('.', ',')}</td>
               <td class="currency">R$ ${(b.recebimentoPix || 0).toFixed(2).replace('.', ',')}</td>
             </tr>
-          `}).join('') : '<tr><td colspan="13" class="no-records">Nenhuma cobrança de grua no período.</td></tr>'}
+          `}).join('') : '<tr><td colspan="12" class="no-records">Nenhuma cobrança de grua no período selecionado.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="7"><strong>TOTAIS</strong></td>
+            <td colspan="6" class="text-left"><strong>TOTAIS</strong></td>
             <td class="currency"><strong>R$ ${totalSaldoBruto.toFixed(2).replace('.', ',')}</strong></td>
             <td class="currency"><strong>R$ ${totalAluguelCliente.toFixed(2).replace('.', ',')}</strong></td>
             <td class="currency"><strong>R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</strong></td>
-            <td colspan="3"></td>
+            <td class="currency"><strong>${totalReposicao}</strong></td>
+            <td class="currency"><strong>R$ ${totalEspecie.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong>R$ ${totalPix.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
       </table>
+
+      <div class="summary-box">
+        <h3>Fechamento Financeiro</h3>
+        <div class="summary-row">
+            <span>Total Valor (Firma):</span>
+            <span>R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="summary-row">
+            <span>(-) Despesas Totais:</span>
+            <span style="color: red;">R$ ${reportExpenses.toFixed(2).replace('.', ',')}</span>
+        </div>
+        <div class="summary-row summary-total">
+            <span>(=) SALDO FINAL:</span>
+            <span>R$ ${saldoFinal.toFixed(2).replace('.', ',')}</span>
+        </div>
+        
+        <div class="summary-row info-row">
+             <span>Depósito de Dinheiro (Informativo):</span>
+             <span><strong>R$ ${moneyDeposit.toFixed(2).replace('.', ',')}</strong></span>
+        </div>
+      </div>
     `;
-    printReport('Relatório de Gruas de Pelúcia', content);
-  }, [stats, printReport, customers]);
+    
+    const formattedStart = new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR');
+    const formattedEnd = new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR');
+    
+    printReport('Relatório de Gruas de Pelúcia', content, `${formattedStart} a ${formattedEnd}`);
+    setIsCraneReportModalOpen(false);
+  }, [billings, customers, printReport]);
 
   const handlePrintDebtReport = useCallback(() => {
     const content = `
       <table>
-        <thead><tr><th>Data</th><th>Cliente</th><th>Pgto</th><th class="currency">Valor Pago</th></tr></thead>
+        <thead><tr><th>Data</th><th class="text-left">Cliente</th><th>Pgto</th><th class="currency">Valor Pago</th></tr></thead>
         <tbody>
           ${stats.periodDebtPayments.length > 0 ? stats.periodDebtPayments.map(p => `
             <tr>
               <td>${new Date(p.paidAt).toLocaleDateString('pt-BR')}</td>
-              <td>${p.customerName}</td>
+              <td class="text-left">${p.customerName}</td>
               <td>${p.paymentMethod}</td>
               <td class="currency">R$ ${p.amountPaid.toFixed(2).replace('.', ',')}</td>
             </tr>
@@ -346,7 +396,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="3"><strong>Total Recebido</strong></td>
+            <td colspan="3" class="text-left"><strong>Total Recebido</strong></td>
             <td class="currency"><strong>R$ ${stats.totalDebtPaymentsReceived.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
@@ -358,19 +408,19 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   const handlePrintExpenseReport = useCallback(() => {
     const content = `
       <table>
-        <thead><tr><th>Data</th><th>Descrição</th><th class="currency">Valor</th></tr></thead>
+        <thead><tr><th>Data</th><th class="text-left">Descrição</th><th class="currency">Valor</th></tr></thead>
         <tbody>
           ${stats.periodExpenses.length > 0 ? stats.periodExpenses.map(e => `
             <tr>
               <td>${new Date(e.date).toLocaleDateString('pt-BR')}</td>
-              <td>${e.description}</td>
+              <td class="text-left">${e.description}</td>
               <td class="currency">R$ ${e.amount.toFixed(2).replace('.', ',')}</td>
             </tr>
           `).join('') : '<tr><td colspan="3" class="no-records">Nenhuma despesa no período.</td></tr>'}
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="2"><strong>Total de Despesas</strong></td>
+            <td colspan="2" class="text-left"><strong>Total de Despesas</strong></td>
             <td class="currency"><strong>R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
@@ -399,7 +449,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       />
       
       <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-wrap items-center gap-4">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Selecione o Período:</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Selecione o Período (Geral):</h3>
         <input name="start" type="date" value={dateRange.start} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
         <span className="text-slate-500 dark:text-slate-400">até</span>
         <input name="end" type="date" value={dateRange.end} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -430,7 +480,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
             <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
             <InfoRow label="Aluguel Pago (p/ Cliente)" value={`R$ ${stats.totalAluguelPagoGrua.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
-            <PrintButton onClick={handlePrintGruaReport} label="Imprimir Relatório de Gruas" />
+            <PrintButton onClick={() => setIsCraneReportModalOpen(true)} label="Imprimir Relatório de Gruas" />
         </InfoCard>
 
         <InfoCard title="Pagamentos de Dívidas">
@@ -443,6 +493,12 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" />
         </InfoCard>
       </div>
+
+      <CraneReportModal 
+        isOpen={isCraneReportModalOpen}
+        onClose={() => setIsCraneReportModalOpen(false)}
+        onConfirm={handleGenerateCraneReport}
+      />
     </div>
   );
 };

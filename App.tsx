@@ -1,3 +1,4 @@
+
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,7 +45,14 @@ const App: React.FC = () => {
     const [billings, setBillings] = useState<Billing[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
-    const [currentView, setCurrentView] = useState<View>('DASHBOARD');
+    
+    // Initialize currentView from localStorage or default to DASHBOARD
+    const [currentView, setCurrentView] = useState<View>(() => {
+        const savedView = localStorage.getItem('lastActiveView');
+        const validViews: View[] = ['DASHBOARD', 'CLIENTES', 'COBRANCAS', 'DESPESAS', 'ROTAS', 'RELATORIOS', 'CONFIGURACOES'];
+        return (savedView && validViews.includes(savedView as View)) ? (savedView as View) : 'DASHBOARD';
+    });
+
     const [isSaving, setIsSaving] = useState(false);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
 
@@ -55,6 +63,11 @@ const App: React.FC = () => {
     const [provisionalReceiptCallback, setProvisionalReceiptCallback] = useState<(() => void) | null>(null);
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
+
+    // Effect to save currentView whenever it changes
+    useEffect(() => {
+        localStorage.setItem('lastActiveView', currentView);
+    }, [currentView]);
 
     useEffect(() => {
         const root = window.document.documentElement;
