@@ -9,6 +9,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Listen for the PWA install prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Dispatch a custom event to notify the app that the prompt is available
+  const installPromptEvent = new CustomEvent('pwa-install-prompt', { detail: e });
+  window.dispatchEvent(installPromptEvent);
+  console.log('`beforeinstallprompt` event fired and dispatched.');
+});
+
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

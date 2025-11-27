@@ -6,6 +6,7 @@ import ActionModal from '../components/ActionModal';
 import { Theme } from '../App';
 import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
+import { InstallIcon } from '../components/icons/InstallIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
@@ -13,6 +14,9 @@ interface ConfiguracoesViewProps {
   onAddCustomerFromText: (text: string) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  installPrompt: any;
+  onInstallClick: () => void;
+  isStandalone: boolean;
 }
 
 const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
@@ -20,7 +24,10 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   onMergeData,
   onAddCustomerFromText,
   theme,
-  setTheme
+  setTheme,
+  installPrompt,
+  onInstallClick,
+  isStandalone
 }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [customerText, setCustomerText] = useState('');
@@ -98,6 +105,36 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
               </button>
               <span className="text-slate-500 dark:text-slate-400">Escuro</span>
             </div>
+          </div>
+        </section>
+
+        {/* PWA Install Section */}
+        <section>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Instalação do Aplicativo</h2>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Instalar no Dispositivo</h3>
+            {isStandalone ? (
+              <p className="text-emerald-500 dark:text-emerald-400 mt-4 font-semibold">
+                O aplicativo já está instalado e funcionando offline.
+              </p>
+            ) : installPrompt ? (
+              <>
+                <p className="text-slate-500 dark:text-slate-400 mb-4">
+                  Instale o aplicativo em seu dispositivo para acesso rápido pela tela de início e funcionalidades offline.
+                </p>
+                <button
+                  onClick={onInstallClick}
+                  className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
+                >
+                  <InstallIcon className="w-5 h-5" />
+                  <span>Instalar Agora</span>
+                </button>
+              </>
+            ) : (
+              <p className="text-slate-500 dark:text-slate-400 mt-4">
+                A opção de instalação não está disponível no momento. Para instalar, use o Google Chrome ou Microsoft Edge em um dispositivo compatível e navegue pelo aplicativo por alguns instantes.
+              </p>
+            )}
           </div>
         </section>
 

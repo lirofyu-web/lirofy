@@ -73,14 +73,15 @@ const App: React.FC = () => {
 
     useEffect(() => {
       const handler = (e: Event) => {
-        e.preventDefault();
-        console.log('beforeinstallprompt event fired');
-        setInstallPrompt(e);
+        const customEvent = e as CustomEvent;
+        setInstallPrompt(customEvent.detail);
+        console.log('PWA install prompt event received by App component.');
       };
-      window.addEventListener('beforeinstallprompt', handler);
+      
+      window.addEventListener('pwa-install-prompt', handler);
   
       return () => {
-        window.removeEventListener('beforeinstallprompt', handler);
+        window.removeEventListener('pwa-install-prompt', handler);
       };
     }, []);
 
@@ -453,7 +454,7 @@ const App: React.FC = () => {
             case 'RELATORIOS':
                 return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'CONFIGURACOES':
-                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
+                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} installPrompt={installPrompt} onInstallClick={handleInstallClick} isStandalone={isStandalone} />;
             default:
                 return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
         }
