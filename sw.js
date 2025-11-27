@@ -1,4 +1,4 @@
-const CACHE_NAME = 'montanha-bilhar-cache-v10';
+const CACHE_NAME = 'montanha-bilhar-cache-v11';
 
 const urlsToCache = [
     '/',
@@ -31,7 +31,7 @@ self.addEventListener('install', (event) => {
     
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('Opened cache v10');
+            console.log('Opened cache v11');
             
             // 1. Cache local assets
             try {
