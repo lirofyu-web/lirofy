@@ -1,4 +1,3 @@
-
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -63,6 +62,34 @@ const App: React.FC = () => {
     const [provisionalReceiptCallback, setProvisionalReceiptCallback] = useState<(() => void) | null>(null);
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+    useEffect(() => {
+      const handler = (e: Event) => {
+        e.preventDefault();
+        setInstallPrompt(e);
+      };
+      window.addEventListener('beforeinstallprompt', handler);
+  
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handler);
+      };
+    }, []);
+
+    const handleInstallClick = useCallback(() => {
+      if (!installPrompt) {
+        return;
+      }
+      installPrompt.prompt();
+      installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the PWA installation');
+        } else {
+          console.log('User dismissed the PWA installation');
+        }
+        setInstallPrompt(null);
+      });
+    }, [installPrompt]);
 
     // Effect to save currentView whenever it changes
     useEffect(() => {
@@ -436,7 +463,14 @@ const App: React.FC = () => {
     return (
         <div className="text-slate-800 dark:text-slate-100 min-h-screen">
             <div className="flex">
-                <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+                <Sidebar 
+                    currentView={currentView} 
+                    setView={setCurrentView} 
+                    isOpen={isSidebarOpen} 
+                    setIsOpen={setIsSidebarOpen}
+                    installPrompt={installPrompt}
+                    onInstallClick={handleInstallClick} 
+                />
                 <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
                     <MobileHeader 
                         title={viewTitles[currentView]}
