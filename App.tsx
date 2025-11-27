@@ -63,10 +63,18 @@ const App: React.FC = () => {
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
     const [installPrompt, setInstallPrompt] = useState<any>(null);
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    useEffect(() => {
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            setIsStandalone(true);
+        }
+    }, []);
 
     useEffect(() => {
       const handler = (e: Event) => {
         e.preventDefault();
+        console.log('beforeinstallprompt event fired');
         setInstallPrompt(e);
       };
       window.addEventListener('beforeinstallprompt', handler);
@@ -469,7 +477,8 @@ const App: React.FC = () => {
                     isOpen={isSidebarOpen} 
                     setIsOpen={setIsSidebarOpen}
                     installPrompt={installPrompt}
-                    onInstallClick={handleInstallClick} 
+                    onInstallClick={handleInstallClick}
+                    isStandalone={isStandalone} 
                 />
                 <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
                     <MobileHeader 

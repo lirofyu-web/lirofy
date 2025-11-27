@@ -17,6 +17,7 @@ interface SidebarProps {
   setIsOpen: (isOpen: boolean) => void;
   installPrompt: any;
   onInstallClick: () => void;
+  isStandalone: boolean;
 }
 
 const navItems = [
@@ -32,7 +33,7 @@ const secondaryNavItems = [
     { view: 'CONFIGURACOES' as View, label: 'Configurações', icon: CogIcon },
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, installPrompt, onInstallClick }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, installPrompt, onInstallClick, isStandalone }) => {
     
     const handleViewChange = (view: View) => {
         setView(view);
@@ -80,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                     <ul>
                         {navItems.map(item => <NavButton key={item.view} item={item} />)}
                     </ul>
-                    {installPrompt && (
+                    {installPrompt && !isStandalone && (
                         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                             <button 
                                 onClick={onInstallClick}
