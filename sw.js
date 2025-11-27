@@ -1,4 +1,4 @@
-const CACHE_NAME = 'montanha-bilhar-cache-v4';
+const CACHE_NAME = 'montanha-bilhar-cache-v10';
 
 const urlsToCache = [
     '/',
@@ -9,6 +9,7 @@ const urlsToCache = [
     'icon-512.png'
 ];
 
+// External resources needed for the app to look correct offline
 const externalAssets = [
     'https://cdn.tailwindcss.com',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap',
@@ -25,35 +26,36 @@ const externalAssets = [
 ];
 
 self.addEventListener('install', (event) => {
+    // Force the waiting service worker to become the active service worker.
+    self.skipWaiting();
+    
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('Opened cache');
+            console.log('Opened cache v10');
             
-            // Cache local assets (failure tolerant for icons)
-            for (const url of urlsToCache) {
-                try {
-                    await cache.add(url);
-                } catch (error) {
-                    console.warn(`Failed to cache local asset: ${url}`, error);
-                }
+            // 1. Cache local assets
+            try {
+                await cache.addAll(urlsToCache);
+            } catch (error) {
+                console.error('Failed to cache local assets:', error);
             }
 
-            // Cache external assets (CDN) - Aggressive caching
+            // 2. Cache external assets aggressively
             const externalPromises = externalAssets.map(async (url) => {
                 try {
                     const request = new Request(url, { mode: 'cors' });
                     const response = await fetch(request);
-                    if (response.ok || response.type === 'opaque') {
-                        await cache.put(url, response);
+                    if (response.ok) {
+                        await cache.put(request, response);
                     }
                 } catch (err) {
-                    // Fallback for opaque responses if CORS fails strictly
+                    // Fallback for no-cors/opaque responses
                     try {
                         const noCorsRequest = new Request(url, { mode: 'no-cors' });
                         const response = await fetch(noCorsRequest);
-                        await cache.put(url, response);
+                        await cache.put(noCorsRequest, response);
                     } catch (e) {
-                        console.warn(`Failed to cache external asset: ${url}`, e);
+                        console.warn('Failed to cache external asset:', url);
                     }
                 }
             });
@@ -61,7 +63,6 @@ self.addEventListener('install', (event) => {
             await Promise.all(externalPromises);
         })
     );
-    self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -78,22 +79,39 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
+    // Take control of all clients immediately
     self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-    // Ignore non-GET requests
+    // Only handle GET requests
     if (event.request.method !== 'GET') return;
 
     const requestUrl = new URL(event.request.url);
 
-    // 1. Map Tiles Strategy: Cache First, Network Fallback, Offline Placeholder
+    // STRATEGY 1: Navigation (HTML) - CACHE FIRST
+    // Critical for iOS offline support and ensuring app loads without network.
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            caches.match('/index.html').then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                return fetch(event.request).catch(() => {
+                    return caches.match('/index.html');
+                });
+            })
+        );
+        return;
+    }
+
+    // STRATEGY 2: Map Tiles - Cache First, Offline Fallback
     if (requestUrl.hostname.includes('openstreetmap.org')) {
         event.respondWith(
              caches.match(event.request).then((cachedResponse) => {
                 if (cachedResponse) return cachedResponse;
                 return fetch(event.request).catch(() => {
-                    // Return a 200 OK empty response to prevent console errors when panning map offline
+                    // Return empty 200 OK to prevent broken image icons on map
                     return new Response('', { status: 200, statusText: 'Offline' });
                 });
              })
@@ -101,18 +119,35 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 2. Navigation Strategy (HTML): Network First, Cache Fallback (App Shell)
-    if (event.request.mode === 'navigate') {
+    // STRATEGY 3: App Assets (Scripts, Styles, CDN) - CACHE FIRST
+    const isAsset = 
+        urlsToCache.includes(requestUrl.pathname) ||
+        externalAssets.some(url => requestUrl.href.includes(url)) ||
+        requestUrl.hostname === 'cdn.tailwindcss.com' ||
+        requestUrl.hostname === 'aistudiocdn.com' ||
+        requestUrl.hostname === 'unpkg.com';
+
+    if (isAsset) {
         event.respondWith(
-            fetch(event.request)
-                .catch(() => {
-                    return caches.match('/index.html');
-                })
+            caches.match(event.request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+                return fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
+                    }
+                    return networkResponse;
+                });
+            })
         );
         return;
     }
 
-    // 3. Stale-While-Revalidate for everything else (JS, CSS, Fonts, Images)
+    // STRATEGY 4: Default - Stale-While-Revalidate
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -123,9 +158,8 @@ self.addEventListener('fetch', (event) => {
                     });
                 }
                 return networkResponse;
-            }).catch((err) => {
-                // Network failure is expected offline, just consume the error
-                // if we have a cached response, we are good.
+            }).catch(() => {
+                // Network failed, ignore
             });
 
             return cachedResponse || fetchPromise;

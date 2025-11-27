@@ -1,21 +1,25 @@
 {
   "name": "Montanha Bilhar e Jukebox",
   "short_name": "Montanha",
-  "description": "An application to manage and bill customers for pool table and jukebox usage in an establishment. Easily add customers, track their consumption, and settle their bills.",
+  "description": "Gerenciamento de locação de mesas de bilhar, jukebox e gruas.",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0f172a",
   "theme_color": "#10b981",
   "icons": [
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ]
 }
