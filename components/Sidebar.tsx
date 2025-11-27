@@ -81,11 +81,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                     <ul>
                         {navItems.map(item => <NavButton key={item.view} item={item} />)}
                     </ul>
-                    {installPrompt && !isStandalone && (
+                    {!isStandalone && (
                         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                             <button 
                                 onClick={onInstallClick}
-                                className="w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium bg-emerald-600 text-white shadow-lg hover:bg-emerald-500"
+                                disabled={!installPrompt}
+                                title={!installPrompt ? "A opção de instalação será liberada pelo seu navegador após um tempo de uso." : "Instalar aplicativo no seu dispositivo"}
+                                className={`w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium ${
+                                    installPrompt 
+                                    ? 'bg-emerald-600 text-white shadow-lg hover:bg-emerald-500' 
+                                    : 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                                }`}
                             >
                                 <InstallIcon className="w-5 h-5 mr-4" />
                                 <span>Instalar Aplicativo</span>
