@@ -119,6 +119,17 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       });
     }
   }, [showNotification]);
+  
+  const handleBillCustomer = useCallback((customer: Customer) => {
+    if (customer.equipment?.length === 1) {
+      setBillingCustomer(customer);
+      setBillingEquipment(customer.equipment[0]);
+    } else if (customer.equipment?.length > 1) {
+      setSelectingEquipmentFor(customer);
+    } else {
+      showNotification("Este cliente não possui equipamentos para faturar.", "error");
+    }
+  }, [showNotification]);
 
   const handleEquipmentSelectForBilling = useCallback((equipment: Equipment) => {
     if (selectingEquipmentFor) {
@@ -160,7 +171,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                         <CustomerCard
                             key={customer.id}
                             customer={customer}
-                            onBill={setSelectingEquipmentFor}
+                            onBill={handleBillCustomer}
                             onEdit={setEditingCustomer}
                             onDelete={() => setDeletingCustomer(customer)}
                             onPayDebt={setPayingDebtCustomer}

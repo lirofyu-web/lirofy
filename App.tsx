@@ -83,7 +83,6 @@ const App: React.FC = () => {
       const handler = (e: Event) => {
         const customEvent = e as CustomEvent;
         setInstallPrompt(customEvent.detail);
-        console.log('PWA install prompt event received by App component.');
       };
       
       window.addEventListener('pwa-install-prompt', handler);
@@ -131,63 +130,62 @@ const App: React.FC = () => {
     }, []);
 
     const handleSeedData = useCallback(() => {
-        console.log("Seeding test data...");
-
-        const testCustomers: Customer[] = [
-            {
-                id: 'test-customer-1',
-                createdAt: new Date(),
-                name: 'Bar do Zé (Teste)',
-                cpfRg: '000.000.000-01',
-                cidade: 'São Paulo, SP',
-                endereco: 'Rua de Teste, 123',
-                telefone: '11999999991',
-                latitude: -23.5505,
-                longitude: -46.6333,
-                equipment: [
-                    { id: uuidv4(), type: 'mesa', numero: '1', relogioNumero: 'M-T1', relogioAnterior: 1000, valorFicha: 2, parteFirma: 50, parteCliente: 50 },
-                    { id: uuidv4(), type: 'jukebox', numero: 'A', relogioNumero: 'J-T1', relogioAnterior: 5000, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 },
-                    { id: uuidv4(), type: 'grua', numero: 'G1', relogioAnterior: 200, aluguelValor: 150, saldo: 0, reposicaoPelucia: 60, quantidadePelucia: 120, aluguelPercentual: 0, recebimentoEspecie: 0, recebimentoPix: 0 }
-                ],
-                linhaNumero: 'T1',
-                assinaturaFirma: '',
-                assinaturaCliente: '',
-                debtAmount: 0,
-                lastVisitedAt: new Date() // Visited recently
-            },
-            {
-                id: 'test-customer-2',
-                createdAt: new Date(),
-                name: 'Lanchonete da Maria (Teste)',
-                cpfRg: '000.000.000-02',
-                cidade: 'Rio de Janeiro, RJ',
-                endereco: 'Avenida de Teste, 456',
-                telefone: '21999999992',
-                latitude: -22.9068,
-                longitude: -43.1729,
-                equipment: [
-                    { id: uuidv4(), type: 'mesa', numero: '2', relogioNumero: 'M-T2', relogioAnterior: 2500, valorFicha: 2.5, parteFirma: 60, parteCliente: 40 },
-                    { id: uuidv4(), type: 'jukebox', numero: 'B', relogioNumero: 'J-T2', relogioAnterior: 8000, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 },
-                    { id: uuidv4(), type: 'grua', numero: 'G2', relogioAnterior: 750, aluguelValor: 0, aluguelPercentual: 20, saldo: 0, reposicaoPelucia: 50, quantidadePelucia: 100, recebimentoEspecie: 0, recebimentoPix: 0 }
-                ],
-                linhaNumero: 'T2',
-                assinaturaFirma: '',
-                assinaturaCliente: '',
-                debtAmount: 50.00,
-                lastVisitedAt: new Date(new Date().setDate(new Date().getDate() - 30)) // Visit pending
+        console.log("Seeding dynamic test data...");
+    
+        const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+        const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+    
+        const generateEquipment = (type: 'mesa' | 'jukebox' | 'grua'): Equipment => {
+            const id = uuidv4();
+            switch (type) {
+                case 'mesa':
+                    return { id, type, numero: `${getRandomInt(1, 20)}`, relogioNumero: `M-S${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(100, 5000), valorFicha: getRandom([2, 2.5, 3]), parteFirma: 50, parteCliente: 50 };
+                case 'jukebox':
+                    return { id, type, numero: `${String.fromCharCode(65 + getRandomInt(0, 5))}`, relogioNumero: `J-R${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(1000, 20000), porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
+                case 'grua':
+                    const hasPercentageRent = Math.random() > 0.5;
+                    return { id, type, numero: `G${getRandomInt(1, 5)}`, relogioAnterior: getRandomInt(100, 2000), aluguelValor: hasPercentageRent ? 0 : getRandomInt(100, 250), aluguelPercentual: hasPercentageRent ? getRandom([20, 25, 30]) : 0, quantidadePelucia: 120, reposicaoPelucia: 60, saldo:0, recebimentoEspecie:0, recebimentoPix:0 };
             }
-        ];
+        };
+    
+        const testCustomers: Customer[] = Array.from({ length: 40 }, () => {
+            const cityInfo = getRandom(mockCities);
+            const equipmentTypes: ('mesa' | 'jukebox' | 'grua')[] = ['mesa'];
+            if (Math.random() > 0.4) equipmentTypes.push('jukebox');
+            if (Math.random() > 0.8) equipmentTypes.push('grua');
+    
+            const lastVisitedDaysAgo = getRandomInt(1, 45);
+    
+            return {
+                id: uuidv4(),
+                createdAt: new Date(),
+                name: `Bar ${getRandom(mockFirstNames)} ${getRandom(mockLastNames)}`,
+                cpfRg: `${getRandomInt(100, 999)}.${getRandomInt(100, 999)}.${getRandomInt(100, 999)}-${getRandomInt(10, 99)}`,
+                cidade: cityInfo.name,
+                endereco: `${getRandom(mockStreetTypes)} ${getRandom(mockStreetNames)}, ${getRandomInt(1, 500)}`,
+                telefone: `119${getRandomInt(1000, 9999)}${getRandomInt(1000, 9999)}`,
+                latitude: cityInfo.lat + (Math.random() - 0.5) * 0.05,
+                longitude: cityInfo.lon + (Math.random() - 0.5) * 0.05,
+                equipment: equipmentTypes.map(type => generateEquipment(type)),
+                linhaNumero: `R${getRandomInt(1, 5)}`,
+                assinaturaFirma: '',
+                assinaturaCliente: '',
+                debtAmount: Math.random() > 0.7 ? getRandomInt(10, 150) : 0,
+                lastVisitedAt: new Date(new Date().setDate(new Date().getDate() - lastVisitedDaysAgo)),
+            };
+        });
+    
         setCustomers(testCustomers);
         
-        const seededExpenses: Expense[] = Array.from({ length: 15 }, (_, i) => ({
+        const seededExpenses: Expense[] = Array.from({ length: 25 }, () => ({
             id: uuidv4(),
-            description: mockExpenseDescriptions[i % mockExpenseDescriptions.length],
-            amount: Math.floor(Math.random() * 250) + 50,
-            date: new Date(new Date().setDate(new Date().getDate() - i*3)),
+            description: getRandom(mockExpenseDescriptions),
+            amount: getRandomInt(30, 300),
+            date: new Date(new Date().setDate(new Date().getDate() - getRandomInt(0, 90))),
         }));
         setExpenses(seededExpenses);
         
-        showNotification("Clientes de teste carregados com sucesso!", "success");
+        showNotification("Dados de teste dinâmicos carregados!", "success");
     }, [showNotification]);
 
 

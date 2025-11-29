@@ -27,7 +27,7 @@ const Notification: React.FC<NotificationProps> = ({ notification, onClose }) =>
   return (
     <div
       className={`fixed top-5 right-5 z-[100] p-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in-down
-        ${isSuccess ? 'bg-emerald-600' : 'bg-red-600'} text-white border ${isSuccess ? 'border-emerald-500' : 'border-red-500'}`}
+        ${isSuccess ? 'bg-lime-500' : 'bg-red-600'} text-white border ${isSuccess ? 'border-lime-600' : 'border-red-500'}`}
     >
       {isSuccess ? (
         <CheckCircleIcon className="w-6 h-6" />

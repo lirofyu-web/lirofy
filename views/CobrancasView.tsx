@@ -24,7 +24,7 @@ type Filter = 'all' | 'mesa' | 'jukebox' | 'grua';
 
 const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
     const styles = {
-        pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
+        pix: 'bg-lime-100 dark:bg-lime-900/50 text-lime-800 dark:text-lime-300 border-lime-300 dark:border-lime-600',
         dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
         fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
         misto: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-600',
@@ -299,22 +299,22 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         placeholder="Filtrar por nome do cliente..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-lime-500"
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <button onClick={() => setEquipmentFilter('all')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Todos</button>
-                    <button onClick={() => setEquipmentFilter('mesa')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Mesas</button>
-                    <button onClick={() => setEquipmentFilter('jukebox')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Jukebox</button>
-                    <button onClick={() => setEquipmentFilter('grua')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Gruas</button>
+                    <button onClick={() => setEquipmentFilter('all')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Todos</button>
+                    <button onClick={() => setEquipmentFilter('mesa')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Mesas</button>
+                    <button onClick={() => setEquipmentFilter('jukebox')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Jukebox</button>
+                    <button onClick={() => setEquipmentFilter('grua')} className={`px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Gruas</button>
                 </div>
                 <div className="flex-grow w-full sm:w-auto">
                     <label htmlFor="startDate" className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">De:</label>
-                    <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-lime-500" />
                 </div>
                 <div className="flex-grow w-full sm:w-auto">
                     <label htmlFor="endDate" className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Até:</label>
-                    <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-lime-500" />
                 </div>
             </div>
 
@@ -350,9 +350,9 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                     <td className="px-6 py-4">
                                         <PaymentMethodDisplay method={billing.paymentMethod} />
                                     </td>
-                                    <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-right font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
                                     <td className="px-6 py-4 text-center">
-                                         <button onClick={() => onShowReceipt(billing)} className="text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400">Ver</button>
+                                         <button onClick={() => onShowReceipt(billing)} className="text-slate-500 dark:text-slate-400 hover:text-lime-500 dark:hover:text-lime-400">Ver</button>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <button onClick={() => setDeletingBilling(billing)} className="text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Excluir Cobrança">
@@ -369,7 +369,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         <tfoot className="bg-slate-100 dark:bg-slate-700/50">
                             <tr className="font-bold text-slate-900 dark:text-white">
                                 <td colSpan={4} className="text-right px-6 py-3 uppercase">Total Filtrado</td>
-                                <td className="text-right px-6 py-3 font-mono text-lg text-emerald-600 dark:text-emerald-400">R$ {totalBilled.toFixed(2)}</td>
+                                <td className="text-right px-6 py-3 font-mono text-lg text-lime-600 dark:text-lime-400">R$ {totalBilled.toFixed(2)}</td>
                                 <td></td>
                                 <td></td>
                             </tr>
@@ -437,7 +437,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                                             <td colSpan={3} className="px-4 py-2 text-center text-slate-400">-</td>
                                                         )}
                                                         <td className="px-4 py-2"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
-                                                        <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
+                                                        <td className="px-4 py-2 text-right font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>

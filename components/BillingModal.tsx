@@ -51,8 +51,9 @@ const FormField: React.FC<{
     equipmentId: string;
     isReadingInvalid?: boolean;
     readOnly?: boolean;
+    autoFocus?: boolean;
     onChange: (field: keyof FormState, value: string) => void;
-}> = React.memo(({ label, name, value, type = 'text', step, equipmentId, isReadingInvalid, readOnly, onChange }) => (
+}> = React.memo(({ label, name, value, type = 'text', step, equipmentId, isReadingInvalid, readOnly, autoFocus, onChange }) => (
     <div>
         <label htmlFor={`${equipmentId}-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
         <input
@@ -62,8 +63,9 @@ const FormField: React.FC<{
             step={step}
             inputMode={type === 'number' ? 'decimal' : 'text'}
             readOnly={readOnly}
+            autoFocus={autoFocus}
             onChange={(e) => !readOnly && onChange(name, e.target.value.replace(/[^0-9,.]/g, ''))}
-            className={`w-full bg-slate-700 border rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 ${isReadingInvalid && name === 'relogioAtual' ? 'border-red-500 ring-red-500' : 'border-slate-600 focus:ring-emerald-500'} ${readOnly ? 'bg-slate-600 cursor-not-allowed' : ''}`}
+            className={`w-full bg-slate-700 border rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 ${isReadingInvalid && name === 'relogioAtual' ? 'border-red-500 ring-red-500' : 'border-slate-600 focus:ring-lime-500'} ${readOnly ? 'bg-slate-600 cursor-not-allowed' : ''}`}
         />
     </div>
 ));
@@ -83,7 +85,7 @@ const PaymentField: React.FC<{
             placeholder="0,00"
             inputMode="decimal"
             onChange={(e) => onChange(name, e.target.value.replace(/[^0-9,.]/g, ''))}
-            className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
         />
     </div>
 ));
@@ -344,8 +346,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
   const renderGruaStep1 = () => (
     <div className="space-y-4">
-      <h4 className="text-md font-bold text-emerald-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-      <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} />
+      <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
+      <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
       <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly />
       {equipment.aluguelPercentual && equipment.aluguelPercentual > 0
           ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
@@ -366,7 +368,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             <span className="font-mono text-amber-400">- R$ {(calculation.valorTotal || 0).toFixed(2).replace('.', ',')}</span>
         </div>
         <hr className="border-dashed border-slate-600 my-2" />
-        <div className="flex justify-between font-bold text-xl text-emerald-400">
+        <div className="flex justify-between font-bold text-xl text-lime-400">
             <span>TOTAL PARA O CLIENTE:</span>
             <span className="font-mono">R$ {(calculation.aluguelValor || 0).toFixed(2).replace('.', ',')}</span>
         </div>
@@ -375,7 +377,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   
   const renderGruaStep3 = () => (
       <div className="space-y-4">
-          <h4 className="text-md font-bold text-emerald-400">Detalhes Finais</h4>
+          <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
           <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
           <FormField label="Recebido em PIX (Automático)" name="recebimentoPix" value={formState.recebimentoPix} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
@@ -403,8 +405,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           ) : (
              mesaStep === 1 ? (
                 <div className="space-y-4">
-                  <h4 className="text-md font-bold text-emerald-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} />
+                  <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
+                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
                   {equipment.type === 'mesa' && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" equipmentId={equipment.id} onChange={handleFormChange} />}
                   {equipment.type === 'mesa' && !isReadingInvalid && formState.relogioAtual && (
                     <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
@@ -417,13 +419,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                       <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {(calculation.valorFicha || 0).toFixed(2).replace('.', ',')}</span></div>
                       <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {(calculation.valorBruto || 0).toFixed(2).replace('.', ',')}</span></div>
                       <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {(calculation.parteCliente || 0).toFixed(2).replace('.', ',')}</span></div>
-                      <div className="flex justify-between font-bold text-emerald-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span></div>
+                      <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span></div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-4 animate-fade-in">
-                  <h4 className="block text-md font-bold text-emerald-400 mb-2">Observações e Pagamento Dividido</h4>
+                  <h4 className="block text-md font-bold text-lime-400 mb-2">Observações e Pagamento Dividido</h4>
                   <PaymentField label="Deixar Fiado (R$)" name="fiado" value={paymentValues.fiado} onChange={handlePaymentChange} />
                   
                   {valorFiado > 0 && (
@@ -454,7 +456,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
         <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex flex-col gap-4 border-t border-slate-700">
            <div className="text-right">
-                <p className="text-slate-400">Total para a Firma: <span className="font-mono font-bold text-emerald-400 text-lg">R$ {valorTotalParaFirma.toFixed(2).replace('.', ',')}</span></p>
+                <p className="text-slate-400">Total para a Firma: <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorTotalParaFirma.toFixed(2).replace('.', ',')}</span></p>
             </div>
             <div className="flex justify-end gap-4">
               <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
@@ -464,7 +466,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   {gruaStep > 1 && <button onClick={handleGruaPrevStep} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">Voltar</button>}
                   {gruaStep === 1 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Avançar</button>}
                   {gruaStep === 2 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Confirmar e Continuar</button>}
-                  {gruaStep === 3 && <button onClick={handleFinalize} className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500">Finalizar Cobrança</button>}
+                  {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
                 </>
               ) : (
                  mesaStep === 1 ? (
@@ -475,7 +477,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   <button 
                     onClick={handleFinalize} 
                     disabled={Math.abs(remainingAmountLiquido) > 0.01}
-                    className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 disabled:bg-slate-500 disabled:cursor-not-allowed"
+                    className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                   >
                     Finalizar Cobrança
                   </button>

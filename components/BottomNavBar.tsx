@@ -30,7 +30,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentView, setView }) => 
                             key={item.view}
                             onClick={() => setView(item.view)}
                             className={`flex flex-col items-center justify-center w-full h-full transition-colors duration-200 ${
-                                isActive ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                isActive ? 'text-lime-500 dark:text-lime-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                             }`}
                         >
                             <Icon className="w-6 h-6 mb-1" />

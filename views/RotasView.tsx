@@ -26,12 +26,12 @@ const FilterCard: React.FC<{
     isActive: boolean;
 }> = ({ title, count, icon, onClick, isActive }) => {
     const baseClasses = "bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border-2 flex-1 text-left transition-all duration-200 min-w-[200px]";
-    const activeClasses = "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/50 scale-105";
+    const activeClasses = "border-lime-500 bg-lime-50 dark:bg-lime-900/50 scale-105";
     const inactiveClasses = "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600";
     return (
         <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
             <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-full ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                <div className={`p-3 rounded-full ${isActive ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                     {icon}
                 </div>
                 <div>
@@ -308,7 +308,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
           <div className="overflow-y-auto flex-grow p-2 space-y-4">
             {sortedCities.length > 0 ? sortedCities.map(city => (
               <div key={city} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg">
-                <h4 className="text-md font-semibold text-emerald-600 dark:text-emerald-400 p-3 border-b border-slate-200 dark:border-slate-700 capitalize flex items-center gap-2">
+                <h4 className="text-md font-semibold text-lime-600 dark:text-lime-400 p-3 border-b border-slate-200 dark:border-slate-700 capitalize flex items-center gap-2">
                     <LocationMarkerIcon className="w-5 h-5" />
                     {city}
                 </h4>
@@ -323,7 +323,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                             <button
                               onClick={() => handleCustomerSelect(customer.id)}
                               className={`w-full text-left p-3 transition-colors ${
-                                selectedCustomerId === customer.id ? 'bg-emerald-600/10 dark:bg-emerald-600/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/50'
+                                selectedCustomerId === customer.id ? 'bg-lime-600/10 dark:bg-lime-600/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/50'
                               }`}
                             >
                               <div className="flex items-center gap-2 mb-1">
@@ -337,7 +337,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                                         <span title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="block w-2.5 h-2.5 bg-amber-400 rounded-full"></span>
                                     )}
                                 </div>
-                                <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{customer.name}</p>
+                                <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-lime-600 dark:text-lime-400' : 'text-slate-900 dark:text-white'}`}>{customer.name}</p>
                               </div>
                               <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{customer.endereco}</p>
                               {distances[customer.id] != null && <p className="text-xs text-sky-500 dark:text-sky-400 mt-1">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}

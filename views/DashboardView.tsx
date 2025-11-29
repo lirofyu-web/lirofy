@@ -30,10 +30,10 @@ const DateFilter: React.FC<DateFilterProps> = React.memo(({ currentDate, onMonth
     return (
         <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Período de Análise:</h3>
-            <select value={currentDate.getMonth()} onChange={(e) => onMonthChange(parseInt(e.target.value))} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select value={currentDate.getMonth()} onChange={(e) => onMonthChange(parseInt(e.target.value))} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500">
                 {monthNames.map((month, index) => <option key={month} value={index}>{month}</option>)}
             </select>
-            <select value={currentDate.getFullYear()} onChange={(e) => onYearChange(parseInt(e.target.value))} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select value={currentDate.getFullYear()} onChange={(e) => onYearChange(parseInt(e.target.value))} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500">
                 {years.map(year => <option key={year} value={year}>{year}</option>)}
             </select>
         </div>
@@ -159,7 +159,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                  <InfoCard title="Faturamento (Mesas)" icon={<BilliardIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-                    <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+                    <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalRevenueMesa.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400 text-lg" />
                     </div>
@@ -167,7 +167,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
 
                 <InfoCard title="Faturamento (Jukebox)" icon={<JukeboxIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-                    <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueJukeboxPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+                    <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueJukeboxPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalRevenueJukebox.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400 text-lg" />
                     </div>
@@ -175,7 +175,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 
                  <InfoCard title="Faturamento (Gruas)" icon={<CraneIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Receita em Dinheiro" value={`R$ ${stats.revenueGruaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-                    <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+                    <InfoRow label="Receita PIX/Crédito" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalRevenueGrua.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400 text-lg" />
                     </div>
@@ -183,7 +183,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
 
                 <InfoCard title="Dívidas Recebidas (Fiado)" icon={<CurrencyDollarIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Recebido em Dinheiro" value={`R$ ${stats.debtPaymentsDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
-                    <InfoRow label="Recebido em PIX" value={`R$ ${stats.debtPaymentsPix.toFixed(2)}`} valueColor="text-emerald-600 dark:text-emerald-400" />
+                    <InfoRow label="Recebido em PIX" value={`R$ ${stats.debtPaymentsPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
                     <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                         <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPayments.toFixed(2)}`} valueColor="text-amber-600 dark:text-amber-400 text-lg" />
                     </div>

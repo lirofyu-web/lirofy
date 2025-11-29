@@ -22,7 +22,7 @@ const InstallPwaBanner: React.FC<InstallPwaBannerProps> = ({ onInstall, onDismis
         </button>
         
         <div className="hidden sm:block flex-shrink-0">
-          <LogoIcon className="w-16 h-16 text-slate-700 dark:text-slate-300" />
+          <LogoIcon className="w-16 h-16" />
         </div>
         
         <div className="flex-grow">
@@ -33,7 +33,7 @@ const InstallPwaBanner: React.FC<InstallPwaBannerProps> = ({ onInstall, onDismis
         <div className="flex-shrink-0">
           <button
             onClick={onInstall}
-            className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
+            className="inline-flex items-center gap-2 bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 transition-colors"
           >
             <InstallIcon className="w-5 h-5" />
             <span className="hidden sm:inline">Instalar Agora</span>

@@ -2,9 +2,9 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(registration => {
-      console.log('Service Worker registered with scope: ', registration.scope);
+      // Service Worker registered
     }).catch(error => {
-      console.log('Service Worker registration failed: ', error);
+      console.error('Service Worker registration failed: ', error);
     });
   });
 }
@@ -16,7 +16,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
   // Dispatch a custom event to notify the app that the prompt is available
   const installPromptEvent = new CustomEvent('pwa-install-prompt', { detail: e });
   window.dispatchEvent(installPromptEvent);
-  console.log('`beforeinstallprompt` event fired and dispatched.');
 });
 
 

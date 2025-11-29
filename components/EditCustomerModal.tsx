@@ -29,7 +29,7 @@ const FormField: React.FC<{
 }> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step }) => (
     <div>
         <label htmlFor={`edit-${name}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        <input type={type} id={`edit-${name}`} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-lime-500" />
     </div>
 ));
 
@@ -225,13 +225,13 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                           name="endereco" 
                           value={formData.endereco} 
                           onChange={handleBaseChange} 
-                          className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-3 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                          className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 pl-3 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-lime-500" 
                       />
                       <button
                           type="button"
                           onClick={handleGeolocate}
                           disabled={isLocating}
-                          className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-emerald-400 disabled:text-slate-600 disabled:cursor-wait flex items-center"
+                          className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-lime-400 disabled:text-slate-600 disabled:cursor-wait flex items-center"
                           title="Atualizar endereço com localização atual"
                       >
                           {isLocating ? (
@@ -264,10 +264,10 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                             <button
                                 type="button"
                                 onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)}
-                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500"
+                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500"
                             >
                                 <div className="flex items-center gap-3">
-                                    <EquipmentIcon className="w-5 h-5 text-emerald-400" />
+                                    <EquipmentIcon className="w-5 h-5 text-lime-400" />
                                     <h4 className="text-md font-bold text-white capitalize">
                                         {equipmentTitle}: <span className="font-normal text-slate-300">{equip.numero || '(Novo)'}</span>
                                     </h4>
@@ -323,7 +323,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
         </form>
         <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-700">
           <button type="button" onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Cancelar</button>
-          <button onClick={handleSubmit} disabled={isSaving} className="bg-emerald-600 text-white font-bold py-2 px-6 rounded-md hover:bg-emerald-500 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
+          <button onClick={handleSubmit} disabled={isSaving} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 transition-colors disabled:bg-slate-500 disabled:cursor-wait">
             {isSaving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </div>

@@ -71,8 +71,8 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
               <span className="text-slate-500 dark:text-slate-400">Claro</span>
               <button
                 onClick={handleThemeChange}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 ${
-                  theme === 'dark' ? 'bg-emerald-600' : 'bg-slate-300'
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 ${
+                  theme === 'dark' ? 'bg-lime-500' : 'bg-slate-300'
                 }`}
               >
                 <span
@@ -92,7 +92,7 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
                       theme === 'dark' ? 'opacity-100 ease-in duration-200' : 'opacity-0 ease-out duration-100'
                     }`}
                   >
-                    <MoonIcon className="h-3 w-3 text-emerald-600" />
+                    <MoonIcon className="h-3 w-3 text-lime-600" />
                   </span>
                 </span>
               </button>
@@ -143,12 +143,12 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
               onChange={(e) => setCustomerText(e.target.value)}
               placeholder="Cole os dados do cliente aqui..."
               rows={8}
-              className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-lime-500"
              />
              <button
               onClick={handleTextImport}
               disabled={!customerText.trim()}
-              className="mt-4 inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed"
+              className="mt-4 inline-flex items-center gap-2 bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed"
              >
                 Importar Cliente
              </button>
