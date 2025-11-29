@@ -1,4 +1,4 @@
-const CACHE_NAME = 'montanha-bilhar-cache-v12';
+const CACHE_NAME = 'montanha-bilhar-cache-v13';
 
 const urlsToCache = [
     '/',
@@ -30,14 +30,16 @@ self.addEventListener('install', (event) => {
     
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('Opened cache v12');
+            console.log('Opened cache v13');
             
-            // 1. Cache local assets
-            try {
-                await cache.addAll(urlsToCache);
-            } catch (error) {
-                console.error('Failed to cache local assets:', error);
-            }
+            // 1. More robust caching for local assets
+            const localCachePromises = urlsToCache.map(async (url) => {
+                try {
+                    await cache.add(url);
+                } catch (error) {
+                    console.warn(`[SW] Failed to cache local asset: ${url}`, error);
+                }
+            });
 
             // 2. Cache external assets aggressively
             const externalPromises = externalAssets.map(async (url) => {
@@ -54,12 +56,13 @@ self.addEventListener('install', (event) => {
                         const response = await fetch(noCorsRequest);
                         await cache.put(noCorsRequest, response);
                     } catch (e) {
-                        console.warn('Failed to cache external asset:', url);
+                        console.warn(`[SW] Failed to cache external asset: ${url}`, e);
                     }
                 }
             });
             
-            await Promise.all(externalPromises);
+            // Wait for all caching operations to complete
+            await Promise.all([...localCachePromises, ...externalPromises]);
         })
     );
 });
@@ -121,8 +124,9 @@ self.addEventListener('fetch', (event) => {
     // STRATEGY 3: App Assets (Scripts, Styles, CDN) - CACHE FIRST
     const isAsset = 
         urlsToCache.includes(requestUrl.pathname) ||
-        externalAssets.some(url => requestUrl.href.includes(url)) ||
         requestUrl.hostname === 'cdn.tailwindcss.com' ||
+        requestUrl.hostname === 'fonts.googleapis.com' ||
+        requestUrl.hostname === 'fonts.gstatic.com' ||
         requestUrl.hostname === 'aistudiocdn.com' ||
         requestUrl.hostname === 'unpkg.com';
 
