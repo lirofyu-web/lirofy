@@ -1,33 +1,25 @@
-const CACHE_NAME = 'montanha-bilhar-cache-v14'; // Incremented version
+const CACHE_NAME = 'montanha-bilhar-cache-v16'; // Incremented version to force update
 
-// Only cache the essential app shell files during installation.
-// All other assets will be cached on-demand by the fetch handler.
-const urlsToCache = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    'icon-192.png',
-    'icon-512.png'
-];
+// Generates a simple, branded SVG icon on the fly.
+const generateIconSvg = (size, text) => {
+    const svgContent = `
+    <svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="15" fill="#0f172a"/>
+        <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="50" fill="#10b981" font-weight="bold">
+            ${text}
+        </text>
+    </svg>`;
+    return new Response(svgContent, {
+        headers: { 'Content-Type': 'image/svg+xml' }
+    });
+};
 
-// Install: Caches the core app shell. This step is now much faster and more reliable.
 self.addEventListener('install', (event) => {
-    self.skipWaiting(); // Activate worker immediately
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('Opened cache, caching app shell...');
-                return cache.addAll(urlsToCache);
-            })
-            .catch(err => {
-                console.error('App shell caching failed:', err);
-                // If this fails, the app cannot work offline at all.
-                // It's a critical error, but we let the SW install anyway to allow debugging.
-            })
-    );
+    // This event is required for the app to be installable.
+    // We skip waiting to activate the new service worker immediately.
+    self.skipWaiting();
 });
 
-// Activate: Cleans up old caches.
 self.addEventListener('activate', (event) => {
     const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
@@ -42,36 +34,42 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    return self.clients.claim(); // Take control of all clients
+    // Take control of all clients as soon as the service worker activates.
+    return self.clients.claim();
 });
 
-// Fetch: Implements a "Stale-While-Revalidate" strategy.
-// This serves cached content immediately for speed, then updates the cache from the network.
 self.addEventListener('fetch', (event) => {
-    // We only want to cache GET requests.
-    if (event.request.method !== 'GET') {
-        return;
+    const url = new URL(event.request.url);
+
+    // Always serve generated icons immediately. This is critical to pass PWA checks.
+    if (url.pathname === '/icon-192.svg') {
+        return event.respondWith(generateIconSvg(192, 'MB'));
+    }
+    if (url.pathname === '/icon-512.svg') {
+        return event.respondWith(generateIconSvg(512, 'MB'));
     }
 
-    event.respondWith(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.match(event.request).then((cachedResponse) => {
-                // Fetch from the network in the background to update the cache.
-                const fetchPromise = fetch(event.request).then((networkResponse) => {
-                    // Check for a valid response to cache.
-                    // Opaque responses (type: 'opaque') are for no-cors requests, which are fine to cache.
-                    if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
-                        cache.put(event.request, networkResponse.clone());
+    // Use a Network-First strategy for all other GET requests.
+    // This ensures users get the freshest content, while providing offline fallback.
+    if (event.request.method === 'GET') {
+        event.respondWith(
+            fetch(event.request)
+                .then((networkResponse) => {
+                    // Check if we received a valid response
+                    if (networkResponse && networkResponse.ok) {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
                     }
                     return networkResponse;
-                }).catch(err => {
-                    // Network fetch failed, which is okay if we have a cached response.
-                    // console.warn('Network request failed:', event.request.url);
-                });
-
-                // Return the cached response immediately if available, otherwise wait for the network response.
-                return cachedResponse || fetchPromise;
-            });
-        })
-    );
+                })
+                .catch(() => {
+                    // Network request failed, probably offline, try to serve from cache.
+                    return caches.match(event.request).then((cachedResponse) => {
+                        return cachedResponse; // Will be undefined if not in cache.
+                    });
+                })
+        );
+    }
 });
