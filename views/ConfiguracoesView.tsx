@@ -6,8 +6,6 @@ import ActionModal from '../components/ActionModal';
 import { Theme } from '../App';
 import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
-import { InstallIcon } from '../components/icons/InstallIcon';
-import { AndroidIcon } from '../components/icons/AndroidIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
@@ -15,9 +13,6 @@ interface ConfiguracoesViewProps {
   onAddCustomerFromText: (text: string) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  installPrompt: any;
-  onInstallClick: () => void;
-  isStandalone: boolean;
 }
 
 const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
@@ -26,9 +21,6 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   onAddCustomerFromText,
   theme,
   setTheme,
-  installPrompt,
-  onInstallClick,
-  isStandalone
 }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [customerText, setCustomerText] = useState('');
@@ -105,41 +97,6 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
                 </span>
               </button>
               <span className="text-slate-500 dark:text-slate-400">Escuro</span>
-            </div>
-          </div>
-        </section>
-
-        {/* PWA Install Section */}
-        <section>
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Instalação para Dispositivos</h2>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <AndroidIcon className="w-12 h-12 text-green-500 flex-shrink-0" />
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Instalar no Android (Recomendado)</h3>
-                <p className="text-slate-500 dark:text-slate-400">
-                  Adicione o aplicativo à tela de início para acesso rápido e uso offline, como um app nativo, sem a barra de endereço do navegador.
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 sm:pl-[64px]">
-              {isStandalone ? (
-                <p className="text-emerald-500 dark:text-emerald-400 font-semibold">
-                  O aplicativo já está instalado neste dispositivo!
-                </p>
-              ) : installPrompt ? (
-                <button
-                  onClick={onInstallClick}
-                  className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
-                >
-                  <InstallIcon className="w-5 h-5" />
-                  <span>Adicionar à Tela de Início</span>
-                </button>
-              ) : (
-                <p className="text-slate-500 dark:text-slate-400 text-sm p-4 bg-slate-100 dark:bg-slate-900/50 rounded-md border border-slate-200 dark:border-slate-700">
-                  Para habilitar a instalação, continue usando o aplicativo por alguns instantes no Google Chrome. O botão aparecerá aqui assim que estiver disponível.
-                </p>
-              )}
             </div>
           </div>
         </section>

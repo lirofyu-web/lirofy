@@ -19,6 +19,7 @@ import Notification from './components/Notification';
 import BottomNavBar from './components/BottomNavBar';
 import { mockCities, mockFirstNames, mockLastNames, mockStreetNames, mockStreetTypes, mockExpenseDescriptions } from './data/seedHelper';
 import MobileHeader from './components/MobileHeader';
+import InstallPwaBanner from './components/InstallPwaBanner';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 export type Theme = 'light' | 'dark';
@@ -62,8 +63,14 @@ const App: React.FC = () => {
     const [provisionalReceiptCallback, setProvisionalReceiptCallback] = useState<(() => void) | null>(null);
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
+    
+    // PWA Install states
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [isStandalone, setIsStandalone] = useState(false);
+    const [bannerDismissed, setBannerDismissed] = useState(() => {
+        return localStorage.getItem('pwaInstallBannerDismissed') === 'true';
+    });
+
 
     useEffect(() => {
         if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -97,8 +104,14 @@ const App: React.FC = () => {
           console.log('User dismissed the PWA installation');
         }
         setInstallPrompt(null);
+        setBannerDismissed(true); // Also dismiss banner after choice
       });
     }, [installPrompt]);
+    
+    const handleDismissBanner = useCallback(() => {
+        localStorage.setItem('pwaInstallBannerDismissed', 'true');
+        setBannerDismissed(true);
+    }, []);
 
     // Effect to save currentView whenever it changes
     useEffect(() => {
@@ -454,7 +467,7 @@ const App: React.FC = () => {
             case 'RELATORIOS':
                 return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'CONFIGURACOES':
-                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} installPrompt={installPrompt} onInstallClick={handleInstallClick} isStandalone={isStandalone} />;
+                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
             default:
                 return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
         }
@@ -477,9 +490,6 @@ const App: React.FC = () => {
                     setView={setCurrentView} 
                     isOpen={isSidebarOpen} 
                     setIsOpen={setIsSidebarOpen}
-                    installPrompt={installPrompt}
-                    onInstallClick={handleInstallClick}
-                    isStandalone={isStandalone} 
                 />
                 <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
                     <MobileHeader 
@@ -490,6 +500,13 @@ const App: React.FC = () => {
                 </main>
             </div>
             <BottomNavBar currentView={currentView} setView={setCurrentView} />
+
+            {installPrompt && !isStandalone && !bannerDismissed && (
+                <InstallPwaBanner 
+                    onInstall={handleInstallClick} 
+                    onDismiss={handleDismissBanner} 
+                />
+            )}
 
             <Notification notification={notification} onClose={() => setNotification(null)} />
             
