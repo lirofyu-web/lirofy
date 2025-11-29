@@ -1,7 +1,7 @@
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Customer, Billing, Expense, DebtPayment, Equipment } from './types';
+import { Customer, Billing, Expense, DebtPayment, Equipment, PixSticker } from './types';
 import { createRoot } from 'react-dom/client';
 
 import Sidebar from './components/Sidebar';
@@ -45,6 +45,7 @@ const App: React.FC = () => {
     const [billings, setBillings] = useState<Billing[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
+    const [pixStickers, setPixStickers] = useState<PixSticker[]>([]);
     
     // Initialize currentView from localStorage or default to DASHBOARD
     const [currentView, setCurrentView] = useState<View>(() => {
@@ -216,6 +217,11 @@ const App: React.FC = () => {
         setBillings(parseWithDates(localStorage.getItem('billings'), ['settledAt']));
         setExpenses(parseWithDates(localStorage.getItem('expenses'), ['date']));
         setDebtPayments(parseWithDates(localStorage.getItem('debtPayments'), ['paidAt']));
+        
+        const storedPixStickers = localStorage.getItem('pixStickers');
+        if (storedPixStickers) {
+            setPixStickers(JSON.parse(storedPixStickers));
+        }
 
     } catch (error) {
         console.error("Failed to load data from localStorage", error);
@@ -230,11 +236,12 @@ const App: React.FC = () => {
             if (billings.length > 0) localStorage.setItem('billings', JSON.stringify(billings));
             if (expenses.length > 0) localStorage.setItem('expenses', JSON.stringify(expenses));
             if (debtPayments.length > 0) localStorage.setItem('debtPayments', JSON.stringify(debtPayments));
+            if (pixStickers.length > 0) localStorage.setItem('pixStickers', JSON.stringify(pixStickers));
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
             showNotification("Erro ao salvar os dados.", "error");
         }
-    }, [customers, billings, expenses, debtPayments, showNotification]);
+    }, [customers, billings, expenses, debtPayments, pixStickers, showNotification]);
 
     const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
         setIsSaving(true);
@@ -373,6 +380,26 @@ const App: React.FC = () => {
         ));
         setFinalizedDebtPayment(newPayment);
     };
+
+    const handleSavePixSticker = useCallback((sticker: PixSticker) => {
+        setPixStickers(prev => {
+            const index = prev.findIndex(s => s.id === sticker.id);
+            if (index !== -1) {
+                const updated = [...prev];
+                updated[index] = sticker;
+                return updated;
+            }
+            return [...prev, sticker];
+        });
+        showNotification("Adesivo salvo!", "success");
+    }, [showNotification]);
+
+    const handleDeletePixSticker = useCallback((stickerId: string) => {
+        if (window.confirm("Tem certeza que deseja excluir este adesivo?")) {
+            setPixStickers(prev => prev.filter(s => s.id !== stickerId));
+            showNotification("Adesivo excluído.", "success");
+        }
+    }, [showNotification]);
     
     const handleExportData = () => {
         const data = {
@@ -380,6 +407,7 @@ const App: React.FC = () => {
             billings,
             expenses,
             debtPayments,
+            pixStickers,
         };
         const dataStr = JSON.stringify(data, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -409,6 +437,7 @@ const App: React.FC = () => {
                 if (data.billings) setBillings(prev => mergeById(prev, data.billings));
                 if (data.expenses) setExpenses(prev => mergeById(prev, data.expenses));
                 if (data.debtPayments) setDebtPayments(prev => mergeById(prev, data.debtPayments));
+                if (data.pixStickers) setPixStickers(prev => mergeById(prev, data.pixStickers));
 
                 showNotification("Dados importados e mesclados com sucesso!", "success");
             } catch (e) {
@@ -465,7 +494,7 @@ const App: React.FC = () => {
             case 'ROTAS':
                 return <RotasView customers={customers} />;
             case 'RELATORIOS':
-                return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
+                return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} pixStickers={pixStickers} onSavePixSticker={handleSavePixSticker} onDeletePixSticker={handleDeletePixSticker} />;
             case 'CONFIGURACOES':
                 return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
             default:

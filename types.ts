@@ -99,3 +99,9 @@ export interface DebtPayment {
   paidAt: Date;
   paymentMethod: 'pix' | 'dinheiro';
 }
+
+export interface PixSticker {
+  id: string;
+  number: string;
+  imageDataUrl: string;
+}
