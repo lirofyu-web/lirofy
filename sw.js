@@ -1,5 +1,7 @@
-const CACHE_NAME = 'montanha-bilhar-cache-v13';
+const CACHE_NAME = 'montanha-bilhar-cache-v14'; // Incremented version
 
+// Only cache the essential app shell files during installation.
+// All other assets will be cached on-demand by the fetch handler.
 const urlsToCache = [
     '/',
     '/index.html',
@@ -8,65 +10,24 @@ const urlsToCache = [
     'icon-512.png'
 ];
 
-// External resources needed for the app to look correct offline
-const externalAssets = [
-    'https://cdn.tailwindcss.com',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css',
-    'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js',
-    'https://aistudiocdn.com/react@^19.2.0',
-    'https://aistudiocdn.com/react-dom@^19.2.0/client',
-    'https://aistudiocdn.com/react-dom@^19.2.0/',
-    'https://aistudiocdn.com/react@^19.2.0/',
-    'https://aistudiocdn.com/uuid@^13.0.0'
-];
-
+// Install: Caches the core app shell. This step is now much faster and more reliable.
 self.addEventListener('install', (event) => {
-    // Force the waiting service worker to become the active service worker.
-    self.skipWaiting();
-    
+    self.skipWaiting(); // Activate worker immediately
     event.waitUntil(
-        caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('Opened cache v13');
-            
-            // 1. More robust caching for local assets
-            const localCachePromises = urlsToCache.map(async (url) => {
-                try {
-                    await cache.add(url);
-                } catch (error) {
-                    console.warn(`[SW] Failed to cache local asset: ${url}`, error);
-                }
-            });
-
-            // 2. Cache external assets aggressively
-            const externalPromises = externalAssets.map(async (url) => {
-                try {
-                    const request = new Request(url, { mode: 'cors' });
-                    const response = await fetch(request);
-                    if (response.ok) {
-                        await cache.put(request, response);
-                    }
-                } catch (err) {
-                    // Fallback for no-cors/opaque responses
-                    try {
-                        const noCorsRequest = new Request(url, { mode: 'no-cors' });
-                        const response = await fetch(noCorsRequest);
-                        await cache.put(noCorsRequest, response);
-                    } catch (e) {
-                        console.warn(`[SW] Failed to cache external asset: ${url}`, e);
-                    }
-                }
-            });
-            
-            // Wait for all caching operations to complete
-            await Promise.all([...localCachePromises, ...externalPromises]);
-        })
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('Opened cache, caching app shell...');
+                return cache.addAll(urlsToCache);
+            })
+            .catch(err => {
+                console.error('App shell caching failed:', err);
+                // If this fails, the app cannot work offline at all.
+                // It's a critical error, but we let the SW install anyway to allow debugging.
+            })
     );
 });
 
+// Activate: Cleans up old caches.
 self.addEventListener('activate', (event) => {
     const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
@@ -81,91 +42,36 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    // Take control of all clients immediately
-    self.clients.claim();
+    return self.clients.claim(); // Take control of all clients
 });
 
+// Fetch: Implements a "Stale-While-Revalidate" strategy.
+// This serves cached content immediately for speed, then updates the cache from the network.
 self.addEventListener('fetch', (event) => {
-    // Only handle GET requests
-    if (event.request.method !== 'GET') return;
-
-    const requestUrl = new URL(event.request.url);
-
-    // STRATEGY 1: Navigation (HTML) - CACHE FIRST
-    // Critical for iOS offline support and ensuring app loads without network.
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            caches.match('/index.html').then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                return fetch(event.request).catch(() => {
-                    return caches.match('/index.html');
-                });
-            })
-        );
+    // We only want to cache GET requests.
+    if (event.request.method !== 'GET') {
         return;
     }
 
-    // STRATEGY 2: Map Tiles - Cache First, Offline Fallback
-    if (requestUrl.hostname.includes('openstreetmap.org')) {
-        event.respondWith(
-             caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) return cachedResponse;
-                return fetch(event.request).catch(() => {
-                    // Return empty 200 OK to prevent broken image icons on map
-                    return new Response('', { status: 200, statusText: 'Offline' });
-                });
-             })
-        );
-        return;
-    }
-
-    // STRATEGY 3: App Assets (Scripts, Styles, CDN) - CACHE FIRST
-    const isAsset = 
-        urlsToCache.includes(requestUrl.pathname) ||
-        requestUrl.hostname === 'cdn.tailwindcss.com' ||
-        requestUrl.hostname === 'fonts.googleapis.com' ||
-        requestUrl.hostname === 'fonts.gstatic.com' ||
-        requestUrl.hostname === 'aistudiocdn.com' ||
-        requestUrl.hostname === 'unpkg.com';
-
-    if (isAsset) {
-        event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-                return fetch(event.request).then((networkResponse) => {
+    event.respondWith(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.match(event.request).then((cachedResponse) => {
+                // Fetch from the network in the background to update the cache.
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    // Check for a valid response to cache.
+                    // Opaque responses (type: 'opaque') are for no-cors requests, which are fine to cache.
                     if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
-                        const responseToCache = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseToCache);
-                        });
+                        cache.put(event.request, networkResponse.clone());
                     }
                     return networkResponse;
+                }).catch(err => {
+                    // Network fetch failed, which is okay if we have a cached response.
+                    // console.warn('Network request failed:', event.request.url);
                 });
-            })
-        );
-        return;
-    }
 
-    // STRATEGY 4: Default - Stale-While-Revalidate
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            const fetchPromise = fetch(event.request).then((networkResponse) => {
-                if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
-                    const responseToCache = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
-                    });
-                }
-                return networkResponse;
-            }).catch(() => {
-                // Network failed, ignore
+                // Return the cached response immediately if available, otherwise wait for the network response.
+                return cachedResponse || fetchPromise;
             });
-
-            return cachedResponse || fetchPromise;
         })
     );
 });
