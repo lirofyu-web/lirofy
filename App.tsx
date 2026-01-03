@@ -249,13 +249,11 @@ const App: React.FC = () => {
     };
 
     const handleDeleteCustomer = (customerId: string) => {
-        if (window.confirm("Tem certeza que deseja excluir este cliente e todo o seu histórico? Esta ação não pode ser desfeita.")) {
-            setCustomers(prev => prev.filter(c => c.id !== customerId));
-            setBillings(prev => prev.filter(b => b.customerId !== customerId));
-            setDebtPayments(prev => prev.filter(dp => dp.customerId !== customerId));
-            setWarnings(prev => prev.filter(w => w.customerId !== customerId));
-            showNotification("Cliente excluído com sucesso!", "success");
-        }
+        setCustomers(prev => prev.filter(c => c.id !== customerId));
+        setBillings(prev => prev.filter(b => b.customerId !== customerId));
+        setDebtPayments(prev => prev.filter(dp => dp.customerId !== customerId));
+        setWarnings(prev => prev.filter(w => w.customerId !== customerId));
+        showNotification("Cliente excluído com sucesso!", "success");
     };
 
     const handleAddBilling = (billing: Billing) => {
