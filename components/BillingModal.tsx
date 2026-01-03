@@ -35,11 +35,26 @@ interface BillingModalProps {
 
 const safeParseFloat = (str: string | number | undefined): number => {
     if (typeof str === 'number') return str;
-    if (!str) return 0;
-    // Remove dots (thousands separators) and replace comma with dot (decimal separator)
-    // e.g., "1.200,50" -> "1200.50"
-    const cleanStr = String(str).replace(/\./g, '').replace(',', '.');
-    return parseFloat(cleanStr) || 0;
+    if (typeof str !== 'string' || !str) return 0;
+
+    // Standardize to use dot as decimal separator
+    const cleaned = str.replace(/[^0-9,.]/g, '');
+    const withDot = cleaned.replace(',', '.');
+    const lastSeparator = withDot.lastIndexOf('.');
+    
+    // No decimal separator found
+    if (lastSeparator === -1) {
+        return parseFloat(withDot) || 0;
+    }
+
+    // Standard US format with thousand separators
+    if (withDot.indexOf('.') < lastSeparator) {
+        const integerPart = withDot.substring(0, lastSeparator).replace(/\./g, '');
+        const decimalPart = withDot.substring(lastSeparator + 1);
+        return parseFloat(`${integerPart}.${decimalPart}`) || 0;
+    }
+
+    return parseFloat(withDot) || 0;
 };
 
 const FormField: React.FC<{
@@ -97,7 +112,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const [error, setError] = useState<string | null>(null);
   const [mesaStep, setMesaStep] = useState(1);
   const [gruaStep, setGruaStep] = useState(1);
-
+  
+  const isMonthlyFee = equipment.type === 'mesa' && equipment.billingType === 'monthly';
 
   useEffect(() => {
     if (isOpen) {
@@ -116,30 +132,42 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       setFormState(initialState);
       setPaymentValues({ dinheiro: '', pix: '', fiado: ''});
       setError(null);
-      setMesaStep(1);
       setGruaStep(1);
+      
+      if (isMonthlyFee) {
+          setMesaStep(2); // Skip directly to payment for monthly fee
+      } else {
+          setMesaStep(1);
+      }
     }
-  }, [isOpen, equipment]);
+  }, [isOpen, equipment, isMonthlyFee]);
 
   const calculation = useMemo(() => {
     let result: Partial<Billing> = {};
     const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
     const relogioAnterior = equipment.relogioAnterior;
 
-    if (relogioAtual < relogioAnterior) {
-        return { valorTotal: 0 };
-    }
+    const isInvalidReading = relogioAtual < relogioAnterior;
     
-    const partidasJogadas = relogioAtual - relogioAnterior;
+    const partidasJogadas = isInvalidReading ? 0 : relogioAtual - relogioAnterior;
 
     if (equipment.type === 'mesa') {
+      if (equipment.billingType === 'monthly') {
+          return {
+            valorTotal: equipment.monthlyFeeValue || 0,
+            billingType: 'monthly',
+            partidasJogadas: 0,
+            relogioAnterior: equipment.relogioAnterior,
+            relogioAtual: equipment.relogioAnterior, // No change in reading
+          };
+      }
       const descontoPartidas = parseInt(formState.descontoPartidas || '0', 10);
       const partidasCobradas = Math.max(0, partidasJogadas - descontoPartidas);
       const valorFicha = equipment.valorFicha || 0;
       const valorBruto = partidasCobradas * valorFicha;
       const parteFirma = valorBruto * ((equipment.parteFirma || 0) / 100);
       const parteCliente = valorBruto * ((equipment.parteCliente || 0) / 100);
-      result = { partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha, valorBruto };
+      result = { billingType: 'perPlay', partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha, valorBruto };
     } else if (equipment.type === 'jukebox') {
       const valorBruto = partidasJogadas; // Assume 1 tick = R$ 1,00
       const parteFirma = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
@@ -167,6 +195,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           reposicaoPelucia: parseInt(formState.reposicaoPelucia || '0', 10),
           quantidadePelucia: parseInt(formState.quantidadePelucia || '0', 10),
       };
+    }
+    
+    // Always include partidasJogadas, even if 0.
+    if (!result.partidasJogadas) {
+        result.partidasJogadas = partidasJogadas;
     }
     return result;
   }, [formState, equipment]);
@@ -241,15 +274,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [calculation.valorTotal]);
 
   const generateBillingObject = useCallback((): Billing | null => {
-    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
-    if (!formState || !calculation || relogioAtual < equipment.relogioAnterior) {
+    const relogioAtual = isMonthlyFee
+      ? (equipment.relogioAnterior || 0)
+      : (parseInt(formState.relogioAtual, 10) || 0);
+
+    if (!isMonthlyFee && (!formState || !calculation || relogioAtual < equipment.relogioAnterior)) {
       return null;
     }
 
-    let billingData: Partial<Billing> = {};
+    let billingData;
     if (equipment.type === 'grua') {
+        const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
+        const recebimentoPix = safeParseFloat(formState.recebimentoPix);
+        let paymentMethod: Billing['paymentMethod'] = 'dinheiro';
+        if (recebimentoEspecie > 0 && recebimentoPix > 0) {
+            paymentMethod = 'misto';
+        } else if (recebimentoPix > 0) {
+            paymentMethod = 'pix';
+        }
         billingData = {
-          paymentMethod: 'dinheiro',
+          paymentMethod,
           recebimentoEspecie: safeParseFloat(formState.recebimentoEspecie),
           recebimentoPix: safeParseFloat(formState.recebimentoPix),
         };
@@ -280,13 +324,19 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       relogioAnterior: equipment.relogioAnterior,
       relogioAtual: relogioAtual,
       settledAt: new Date(),
+      billingType: equipment.billingType,
       ...calculation,
       ...billingData,
       valorTotal: calculation.valorTotal || 0,
+      partidasJogadas: calculation.partidasJogadas || 0,
     };
-  }, [formState, calculation, equipment, customer, paymentValues]);
+  }, [formState, calculation, equipment, customer, paymentValues, isMonthlyFee]);
 
   const validateAndProceed = useCallback(() => {
+    if (isMonthlyFee) {
+        setError(null);
+        return true; // No validation needed for monthly fee
+    }
     const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
     if (relogioAtual <= 0) {
       setError("Nenhuma leitura inserida. Preencha o campo de Leitura Atual.");
@@ -298,7 +348,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
     setError(null);
     return true;
-  }, [formState, equipment]);
+  }, [formState, equipment, isMonthlyFee]);
 
   const handleProvisionalAction = () => {
     if (!validateAndProceed()) return;
@@ -403,7 +453,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               {gruaStep === 3 && renderGruaStep3()}
             </>
           ) : (
-             mesaStep === 1 ? (
+             (mesaStep === 1 && !isMonthlyFee) ? (
                 <div className="space-y-4">
                   <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
                   <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
@@ -425,6 +475,12 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 </div>
               ) : (
                 <div className="space-y-4 animate-fade-in">
+                    {isMonthlyFee && (
+                        <div className="text-center p-4 bg-slate-900/50 border border-slate-700 rounded-lg">
+                            <p className="text-slate-300">Cobrança de Taxa Mensal Fixa</p>
+                            <p className="text-3xl font-mono font-bold text-lime-400">R$ {(equipment.monthlyFeeValue || 0).toFixed(2).replace('.', ',')}</p>
+                        </div>
+                    )}
                   <h4 className="block text-md font-bold text-lime-400 mb-2">Observações e Pagamento Dividido</h4>
                   <PaymentField label="Deixar Fiado (R$)" name="fiado" value={paymentValues.fiado} onChange={handlePaymentChange} />
                   
@@ -469,7 +525,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
                 </>
               ) : (
-                 mesaStep === 1 ? (
+                 (mesaStep === 1 && !isMonthlyFee) ? (
                   <button onClick={handleProvisionalAction} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
                       Imprimir Via Cliente
                   </button>

@@ -7,6 +7,8 @@ export interface Equipment {
   relogioAnterior: number;
   
   // Mesa specific
+  billingType?: 'perPlay' | 'monthly';
+  monthlyFeeValue?: number;
   valorFicha?: number;
   parteFirma?: number;
   parteCliente?: number;
@@ -56,6 +58,7 @@ export interface Billing {
   settledAt: Date;
   
   // Mesa specific
+  billingType?: 'perPlay' | 'monthly';
   descontoPartidas?: number;
   partidasCobradas?: number;
   valorFicha?: number;
@@ -100,8 +103,11 @@ export interface DebtPayment {
   paymentMethod: 'pix' | 'dinheiro';
 }
 
-export interface PixSticker {
+export interface Warning {
   id: string;
-  number: string;
-  imageDataUrl: string;
+  customerId: string;
+  customerName: string;
+  message: string;
+  createdAt: Date;
+  isResolved: boolean;
 }

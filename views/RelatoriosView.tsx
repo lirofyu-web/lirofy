@@ -1,23 +1,15 @@
 // views/RelatoriosView.tsx
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Billing, Customer, DebtPayment, Expense, PixSticker } from '../types';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Billing, Customer, DebtPayment, Expense } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import CraneReportModal from '../components/CraneReportModal';
-import { v4 as uuidv4 } from 'uuid';
-import { SaveIcon } from '../components/icons/SaveIcon';
-import { TrashIcon } from '../components/icons/TrashIcon';
-import { PlusIcon } from '../components/icons/PlusIcon';
-import { ShareIcon } from '../components/icons/ShareIcon';
 
 interface RelatoriosViewProps {
   customers: Customer[];
   billings: Billing[];
   expenses: Expense[];
   debtPayments: DebtPayment[];
-  pixStickers: PixSticker[];
-  onSavePixSticker: (sticker: PixSticker) => void;
-  onDeletePixSticker: (stickerId: string) => void;
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
@@ -49,155 +41,9 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
     </div>
 ));
 
-const PixStickerItem: React.FC<{
-    sticker: PixSticker;
-    onSave: (sticker: PixSticker) => void;
-    onDelete: (id: string) => void;
-}> = ({ sticker, onSave, onDelete }) => {
-    const [number, setNumber] = useState(sticker.number);
-    const [imageDataUrl, setImageDataUrl] = useState(sticker.imageDataUrl);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        setNumber(sticker.number);
-        setImageDataUrl(sticker.imageDataUrl);
-    }, [sticker]);
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImageDataUrl(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    
-    const handleSave = () => {
-        onSave({ ...sticker, number, imageDataUrl });
-    };
-
-    const handlePrint = () => {
-        if (!imageDataUrl) {
-            alert("Por favor, adicione uma imagem antes de imprimir.");
-            return;
-        }
-
-        const printWindow = window.open('', '', 'height=400,width=400');
-        if (printWindow) {
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Imprimir Adesivo PIX #${number}</title>
-                        <style>
-                            body { font-family: sans-serif; text-align: center; margin: 20px; }
-                            img { max-width: 80%; height: auto; margin-top: 10px; image-rendering: pixelated; } /* pixelated for sharp QR codes */
-                            h1 { margin: 0; font-size: 24px; }
-                            @media print {
-                                body { margin: 0; }
-                                .no-print { display: none; }
-                            }
-                        </style>
-                    </head>
-                    <body onload="window.print();">
-                        <h1>Adesivo PIX #${number}</h1>
-                        <img src="${imageDataUrl}" alt="QR Code PIX" />
-                    </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-        }
-    };
-
-    const handleShare = async () => {
-        if (!imageDataUrl) {
-            alert("Por favor, adicione uma imagem antes de compartilhar.");
-            return;
-        }
-        
-        try {
-            const response = await fetch(imageDataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `adesivo-pix-${number || 'qrcode'}.png`, { type: blob.type });
-
-            if (navigator.share && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: `Adesivo PIX #${number}`,
-                    text: `Segue o QR Code para o adesivo PIX número ${number}.`
-                });
-            } else {
-                alert("Seu navegador não suporta o compartilhamento de arquivos.");
-            }
-        } catch (error) {
-            console.error("Erro ao compartilhar:", error);
-            alert("Ocorreu um erro ao tentar compartilhar o adesivo.");
-        }
-    };
-
-
-    return (
-        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-4">
-            <div className="flex-shrink-0">
-                {imageDataUrl ? (
-                    <img src={imageDataUrl} alt={`Adesivo ${number}`} className="w-24 h-24 object-contain bg-white rounded" />
-                ) : (
-                    <div className="w-24 h-24 bg-slate-200 dark:bg-slate-700 rounded flex items-center justify-center text-slate-400 text-sm">
-                        Sem Imagem
-                    </div>
-                )}
-            </div>
-            <div className="flex-grow w-full">
-                <label htmlFor={`sticker-num-${sticker.id}`} className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Número do Adesivo</label>
-                <input
-                    id={`sticker-num-${sticker.id}`}
-                    type="text"
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Ex: 001"
-                />
-                 <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
-                />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-center self-center sm:self-end">
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full sm:w-auto bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500"
-                >
-                    Escolher Imagem
-                </button>
-                <button onClick={handleSave} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500">
-                    <SaveIcon className="w-5 h-5" />
-                    Salvar
-                </button>
-                <div className="flex gap-2 w-full sm:w-auto">
-                     <button onClick={handleShare} disabled={!navigator.share} title={!navigator.share ? "Compartilhamento não suportado" : "Compartilhar Adesivo"} className="flex-1 sm:flex-initial p-2 bg-sky-600 text-white rounded-md hover:bg-sky-500 disabled:bg-slate-500 disabled:cursor-not-allowed">
-                        <ShareIcon className="w-5 h-5" />
-                    </button>
-                    <button onClick={handlePrint} title="Imprimir Adesivo" className="flex-1 sm:flex-initial p-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-500">
-                        <PrinterIcon className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => onDelete(sticker.id)} className="flex-1 sm:flex-initial p-2 bg-red-600 text-white rounded-md hover:bg-red-500">
-                        <TrashIcon className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
 // --- Main View Component ---
 
-const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, expenses, debtPayments, pixStickers, onSavePixSticker, onDeletePixSticker }) => {
+const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, expenses, debtPayments }) => {
   const getInitialDateRange = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -640,14 +486,6 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     </div>
   );
 
-  const handleAddNewSticker = () => {
-    onSavePixSticker({
-        id: uuidv4(),
-        number: '',
-        imageDataUrl: '',
-    });
-  };
-
   return (
     <div className="max-w-6xl mx-auto">
       <PageHeader 
@@ -699,25 +537,6 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
             <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" />
         </InfoCard>
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mt-8">
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">Adesivos PIX</h3>
-        <div className="space-y-4">
-            {pixStickers.length > 0 ? (
-                pixStickers.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })).map(sticker => (
-                    <PixStickerItem key={sticker.id} sticker={sticker} onSave={onSavePixSticker} onDelete={onDeletePixSticker} />
-                ))
-            ) : (
-                <p className="text-center text-slate-500 dark:text-slate-400 py-4">Nenhum adesivo PIX cadastrado.</p>
-            )}
-        </div>
-        <div className="mt-6">
-            <button onClick={handleAddNewSticker} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
-                <PlusIcon className="w-5 h-5"/>
-                Adicionar Novo Adesivo
-            </button>
-        </div>
       </div>
 
       <CraneReportModal 

@@ -98,32 +98,47 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, i
     );
   };
 
-  const renderMesaJukeboxDetails = () => (
-    <>
-      <p className="font-bold">EQUIPAMENTO: {isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}</p>
-      <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
-      <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
-      
-      {isMesa && (
+  const renderMesaJukeboxDetails = () => {
+    if (isMesa && billing.billingType === 'monthly') {
+      return (
         <>
+          <p className="font-bold">EQUIPAMENTO: MESA {billing.equipmentNumero} (MENSAL)</p>
           <hr className="border-dashed border-black my-2" />
-          <ReceiptRow label="Partidas Jogadas:" value={billing.partidasJogadas} />
-          <ReceiptRow label="Partidas Desconto:" value={billing.descontoPartidas || 0} />
-          <ReceiptRow label="Partidas Cobradas:" value={billing.partidasCobradas || 0} />
-          <ReceiptRow label="Valor Ficha:" value={`R$ ${(billing.valorFicha ?? 0).toFixed(2)}`} />
+          <div className="flex justify-between font-bold text-base pt-2 mt-2">
+            <span>MENSALIDADE FIXA:</span>
+            <span>R$ {billing.valorTotal.toFixed(2)}</span>
+          </div>
         </>
-      )}
-      
-      <hr className="border-dashed border-black my-2" />
-      <ReceiptRow label="Valor Bruto:" value={`R$ ${(billing.parteFirma! + billing.parteCliente!).toFixed(2)}`} />
-      <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente!.toFixed(2)}`} />
-      
-      <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
-          <span>TOTAL (FIRMA):</span>
-          <span>R$ {billing.valorTotal.toFixed(2)}</span>
-      </div>
-    </>
-  );
+      );
+    }
+    
+    return (
+      <>
+        <p className="font-bold">EQUIPAMENTO: {isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}</p>
+        <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
+        <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
+        
+        {isMesa && (
+          <>
+            <hr className="border-dashed border-black my-2" />
+            <ReceiptRow label="Partidas Jogadas:" value={billing.partidasJogadas} />
+            <ReceiptRow label="Partidas Desconto:" value={billing.descontoPartidas || 0} />
+            <ReceiptRow label="Partidas Cobradas:" value={billing.partidasCobradas || 0} />
+            <ReceiptRow label="Valor Ficha:" value={`R$ ${(billing.valorFicha ?? 0).toFixed(2)}`} />
+          </>
+        )}
+        
+        <hr className="border-dashed border-black my-2" />
+        <ReceiptRow label="Valor Bruto:" value={`R$ ${(billing.parteFirma! + billing.parteCliente!).toFixed(2)}`} />
+        <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente!.toFixed(2)}`} />
+        
+        <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+            <span>TOTAL (FIRMA):</span>
+            <span>R$ {billing.valorTotal.toFixed(2)}</span>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div 
@@ -155,7 +170,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, i
                   
                   {isGrua ? renderGruaDetails() : renderMesaJukeboxDetails()}
                   
-                  {!isProvisional && (
+                  {!isProvisional && !isGrua && (
                     billing.paymentMethod === 'misto' ? (
                         <div className="pt-1">
                             <p className="font-bold">PAGAMENTO:</p>

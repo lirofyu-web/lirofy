@@ -55,15 +55,25 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
     setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
-  const handleEquipmentChange = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEquipmentChange = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => {
         const newEquipment = [...prev.equipment];
         const currentItem = { ...newEquipment[index], [name]: value };
         
+        if(name === 'billingType' && value === 'monthly') {
+          // Clear per-play fields when switching to monthly
+          delete currentItem.valorFicha;
+          delete currentItem.parteFirma;
+          delete currentItem.parteCliente;
+        } else if (name === 'billingType' && value === 'perPlay') {
+          // Clear monthly field when switching to per-play
+          delete currentItem.monthlyFeeValue;
+        }
+
         const numericValue = parseInt(value, 10);
         if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
-            const remaining = String(100 - numericValue);
+            const remaining = 100 - numericValue;
             if (name === 'parteFirma') {
                 currentItem.parteCliente = remaining;
             } else if (name === 'parteCliente') {
@@ -83,7 +93,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
   const addEquipment = useCallback((type: 'mesa' | 'jukebox' | 'grua') => {
       let newEquipment: Partial<Equipment>;
       if (type === 'mesa') {
-          newEquipment = { id: `new_${new Date().getTime()}`, type: 'mesa', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2.00, parteFirma: 50, parteCliente: 50 };
+          newEquipment = { id: `new_${new Date().getTime()}`, type: 'mesa', billingType: 'perPlay', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2.00, parteFirma: 50, parteCliente: 50, monthlyFeeValue: 0 };
       } else if (type === 'jukebox') {
           newEquipment = { id: `new_${new Date().getTime()}`, type: 'jukebox', numero: '', relogioNumero: '', relogioAnterior: 0, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
       } else { // grua
@@ -170,28 +180,55 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalEquipment = formData.equipment.map(e => ({
-        ...e,
-        id: e.id!,
-        type: e.type!,
-        numero: e.numero || '',
-        relogioNumero: e.relogioNumero || '',
-        relogioAnterior: Number(e.relogioAnterior) || 0,
-        valorFicha: Number(e.valorFicha) || 0,
-        parteFirma: Number(e.parteFirma) || 0,
-        parteCliente: Number(e.parteCliente) || 0,
-        porcentagemJukeboxFirma: Number(e.porcentagemJukeboxFirma) || 0,
-        porcentagemJukeboxCliente: Number(e.porcentagemJukeboxCliente) || 0,
-        aluguelPercentual: Number(e.aluguelPercentual) || 0,
-        aluguelValor: Number(e.aluguelValor) || 0,
-        saldo: Number(e.saldo) || 0,
-        quantidadePelucia: Number(e.quantidadePelucia) || 0,
-        reposicaoPelucia: Number(e.reposicaoPelucia) || 0,
-        recebimentoEspecie: Number(e.recebimentoEspecie) || 0,
-        recebimentoPix: Number(e.recebimentoPix) || 0,
-    }));
+    const finalEquipment: Equipment[] = formData.equipment.map(eq => {
+      const base = {
+        id: eq.id!,
+        type: eq.type!,
+        numero: eq.numero || '',
+        relogioNumero: eq.relogioNumero || '',
+        relogioAnterior: Number(eq.relogioAnterior) || 0,
+      };
+
+      if (eq.type === 'mesa') {
+        const billingType = eq.billingType || 'perPlay';
+        if (billingType === 'monthly') {
+          return {
+            ...base,
+            billingType,
+            monthlyFeeValue: Number(eq.monthlyFeeValue) || 0,
+          };
+        }
+        return {
+          ...base,
+          billingType,
+          valorFicha: Number(eq.valorFicha) || 0,
+          parteFirma: Number(eq.parteFirma) || 0,
+          parteCliente: Number(eq.parteCliente) || 0,
+        };
+      }
+      if (eq.type === 'jukebox') {
+        return {
+          ...base,
+          porcentagemJukeboxFirma: Number(eq.porcentagemJukeboxFirma) || 0,
+          porcentagemJukeboxCliente: Number(eq.porcentagemJukeboxCliente) || 0,
+        };
+      }
+      if (eq.type === 'grua') {
+        return {
+          ...base,
+          aluguelPercentual: Number(eq.aluguelPercentual) || 0,
+          aluguelValor: Number(eq.aluguelValor) || 0,
+          saldo: Number(eq.saldo) || 0,
+          quantidadePelucia: Number(eq.quantidadePelucia) || 0,
+          reposicaoPelucia: Number(eq.reposicaoPelucia) || 0,
+          recebimentoEspecie: Number(eq.recebimentoEspecie) || 0,
+          recebimentoPix: Number(eq.recebimentoPix) || 0,
+        };
+      }
+      return base as Equipment;
+    });
     
-    await onConfirm({ ...formData, equipment: finalEquipment as Equipment[] });
+    await onConfirm({ ...formData, equipment: finalEquipment });
   }, [formData, onConfirm]);
   
   if (!isOpen) return null;
@@ -284,12 +321,32 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                                 <div className="p-4 border-t border-slate-700 bg-slate-800/20">
                                     {equip.type === 'mesa' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-1">Tipo de Cobrança</label>
+                                                <select
+                                                    name="billingType"
+                                                    value={equip.billingType || 'perPlay'}
+                                                    onChange={e => handleEquipmentChange(index, e)}
+                                                    className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                >
+                                                    <option value="perPlay">Por Ficha</option>
+                                                    <option value="monthly">Mensal Fixo</option>
+                                                </select>
+                                            </div>
+                                            <div/>
                                             <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                            
+                                            {equip.billingType === 'monthly' ? (
+                                                <FormField label="Valor Mensal (R$)" name="monthlyFeeValue" type="number" step="0.01" value={String(equip.monthlyFeeValue || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                            ) : (
+                                                <>
+                                                    <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                                    <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} />
+                                                    <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} />
+                                                    <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                                    <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} />
+                                                </>
+                                            )}
                                         </div>
                                     ) : equip.type === 'jukebox' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -319,7 +376,6 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
                 <button type="button" onClick={() => addEquipment('jukebox')} className="bg-fuchsia-600 text-white font-bold py-2 px-4 rounded-md hover:bg-fuchsia-500">Adicionar Jukebox</button>
                 <button type="button" onClick={() => addEquipment('grua')} className="bg-orange-600 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-500">Adicionar Grua</button>
             </div>
-        </div>
         </form>
         <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-700">
           <button type="button" onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors">Cancelar</button>

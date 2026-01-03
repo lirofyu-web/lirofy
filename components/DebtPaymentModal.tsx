@@ -15,8 +15,25 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('dinheiro');
   const [error, setError] = useState('');
 
-  const safeParseFloat = (str: string): number => {
-    return parseFloat(String(str || '0').replace(',', '.')) || 0;
+  const safeParseFloat = (str: string | number | undefined): number => {
+    if (typeof str === 'number') return str;
+    if (typeof str !== 'string' || !str) return 0;
+
+    const cleaned = str.replace(/[^0-9,.]/g, '');
+    const withDot = cleaned.replace(',', '.');
+    const lastSeparator = withDot.lastIndexOf('.');
+    
+    if (lastSeparator === -1) {
+        return parseFloat(withDot) || 0;
+    }
+
+    if (withDot.indexOf('.') < lastSeparator) {
+        const integerPart = withDot.substring(0, lastSeparator).replace(/\./g, '');
+        const decimalPart = withDot.substring(lastSeparator + 1);
+        return parseFloat(`${integerPart}.${decimalPart}`) || 0;
+    }
+
+    return parseFloat(withDot) || 0;
   };
 
   useEffect(() => {

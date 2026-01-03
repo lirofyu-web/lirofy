@@ -1,7 +1,7 @@
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Customer, Billing, Expense, DebtPayment, Equipment, PixSticker } from './types';
+import { Customer, Billing, Expense, DebtPayment, Equipment, Warning } from './types';
 import { createRoot } from 'react-dom/client';
 
 import Sidebar from './components/Sidebar';
@@ -45,7 +45,7 @@ const App: React.FC = () => {
     const [billings, setBillings] = useState<Billing[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
-    const [pixStickers, setPixStickers] = useState<PixSticker[]>([]);
+    const [warnings, setWarnings] = useState<Warning[]>([]);
     
     // Initialize currentView from localStorage or default to DASHBOARD
     const [currentView, setCurrentView] = useState<View>(() => {
@@ -65,52 +65,23 @@ const App: React.FC = () => {
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
     
-    // PWA Install states
-    const [installPrompt, setInstallPrompt] = useState<any>(null);
-    const [isStandalone, setIsStandalone] = useState(false);
-    const [bannerDismissed, setBannerDismissed] = useState(() => {
-        return localStorage.getItem('pwaInstallBannerDismissed') === 'true';
-    });
+    // PWA Install Prompt State
+    const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
 
-
+    // Effect for Service Worker registration
     useEffect(() => {
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            setIsStandalone(true);
-        }
-    }, []);
-
-    useEffect(() => {
-      const handler = (e: Event) => {
-        const customEvent = e as CustomEvent;
-        setInstallPrompt(customEvent.detail);
-      };
-      
-      window.addEventListener('pwa-install-prompt', handler);
-  
-      return () => {
-        window.removeEventListener('pwa-install-prompt', handler);
-      };
-    }, []);
-
-    const handleInstallClick = useCallback(() => {
-      if (!installPrompt) {
-        return;
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          const swUrl = `${window.location.origin}/sw.js`;
+          navigator.serviceWorker.register(swUrl)
+            .then(registration => {
+              console.log('Service Worker registered successfully:', registration.scope);
+            })
+            .catch(error => {
+              console.error('Service Worker registration failed:', error);
+            });
+        });
       }
-      installPrompt.prompt();
-      installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the PWA installation');
-        } else {
-          console.log('User dismissed the PWA installation');
-        }
-        setInstallPrompt(null);
-        setBannerDismissed(true); // Also dismiss banner after choice
-      });
-    }, [installPrompt]);
-    
-    const handleDismissBanner = useCallback(() => {
-        localStorage.setItem('pwaInstallBannerDismissed', 'true');
-        setBannerDismissed(true);
     }, []);
 
     // Effect to save currentView whenever it changes
@@ -124,6 +95,20 @@ const App: React.FC = () => {
         root.classList.add(theme);
         localStorage.setItem('theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e: Event) => {
+            e.preventDefault();
+            console.log('beforeinstallprompt event fired');
+            setDeferredInstallPrompt(e);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+    }, []);
 
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setNotification({ message, type });
@@ -139,7 +124,11 @@ const App: React.FC = () => {
             const id = uuidv4();
             switch (type) {
                 case 'mesa':
-                    return { id, type, numero: `${getRandomInt(1, 20)}`, relogioNumero: `M-S${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(100, 5000), valorFicha: getRandom([2, 2.5, 3]), parteFirma: 50, parteCliente: 50 };
+                    const isMonthly = Math.random() < 0.15; // 15% chance of being monthly
+                    if (isMonthly) {
+                        return { id, type, billingType: 'monthly', numero: `${getRandomInt(1, 20)}`, relogioAnterior: 0, monthlyFeeValue: getRandom([150, 200, 250, 300]) };
+                    }
+                    return { id, type, billingType: 'perPlay', numero: `${getRandomInt(1, 20)}`, relogioNumero: `M-S${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(100, 5000), valorFicha: getRandom([2, 2.5, 3]), parteFirma: 50, parteCliente: 50 };
                 case 'jukebox':
                     return { id, type, numero: `${String.fromCharCode(65 + getRandomInt(0, 5))}`, relogioNumero: `J-R${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(1000, 20000), porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
                 case 'grua':
@@ -215,11 +204,8 @@ const App: React.FC = () => {
         setBillings(parseWithDates(localStorage.getItem('billings'), ['settledAt']));
         setExpenses(parseWithDates(localStorage.getItem('expenses'), ['date']));
         setDebtPayments(parseWithDates(localStorage.getItem('debtPayments'), ['paidAt']));
+        setWarnings(parseWithDates(localStorage.getItem('warnings'), ['createdAt']));
         
-        const storedPixStickers = localStorage.getItem('pixStickers');
-        if (storedPixStickers) {
-            setPixStickers(JSON.parse(storedPixStickers));
-        }
 
     } catch (error) {
         console.error("Failed to load data from localStorage", error);
@@ -234,12 +220,12 @@ const App: React.FC = () => {
             if (billings.length > 0) localStorage.setItem('billings', JSON.stringify(billings));
             if (expenses.length > 0) localStorage.setItem('expenses', JSON.stringify(expenses));
             if (debtPayments.length > 0) localStorage.setItem('debtPayments', JSON.stringify(debtPayments));
-            if (pixStickers.length > 0) localStorage.setItem('pixStickers', JSON.stringify(pixStickers));
+            if (warnings.length > 0) localStorage.setItem('warnings', JSON.stringify(warnings));
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
             showNotification("Erro ao salvar os dados.", "error");
         }
-    }, [customers, billings, expenses, debtPayments, pixStickers, showNotification]);
+    }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
 
     const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
         setIsSaving(true);
@@ -267,6 +253,7 @@ const App: React.FC = () => {
             setCustomers(prev => prev.filter(c => c.id !== customerId));
             setBillings(prev => prev.filter(b => b.customerId !== customerId));
             setDebtPayments(prev => prev.filter(dp => dp.customerId !== customerId));
+            setWarnings(prev => prev.filter(w => w.customerId !== customerId));
             showNotification("Cliente excluído com sucesso!", "success");
         }
     };
@@ -379,25 +366,30 @@ const App: React.FC = () => {
         setFinalizedDebtPayment(newPayment);
     };
 
-    const handleSavePixSticker = useCallback((sticker: PixSticker) => {
-        setPixStickers(prev => {
-            const index = prev.findIndex(s => s.id === sticker.id);
-            if (index !== -1) {
-                const updated = [...prev];
-                updated[index] = sticker;
-                return updated;
-            }
-            return [...prev, sticker];
-        });
-        showNotification("Adesivo salvo!", "success");
-    }, [showNotification]);
+    const handleAddWarning = (customerId: string, message: string) => {
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return;
+        const newWarning: Warning = {
+            id: uuidv4(),
+            customerId,
+            customerName: customer.name,
+            message,
+            createdAt: new Date(),
+            isResolved: false,
+        };
+        setWarnings(prev => [...prev, newWarning]);
+        showNotification("Aviso adicionado com sucesso!", "success");
+    };
 
-    const handleDeletePixSticker = useCallback((stickerId: string) => {
-        if (window.confirm("Tem certeza que deseja excluir este adesivo?")) {
-            setPixStickers(prev => prev.filter(s => s.id !== stickerId));
-            showNotification("Adesivo excluído.", "success");
-        }
-    }, [showNotification]);
+    const handleResolveWarning = (warningId: string) => {
+        setWarnings(prev => prev.map(w => w.id === warningId ? { ...w, isResolved: true } : w));
+        showNotification("Aviso marcado como resolvido.", "success");
+    };
+
+    const handleDeleteWarning = (warningId: string) => {
+        setWarnings(prev => prev.filter(w => w.id !== warningId));
+        showNotification("Aviso excluído.", "success");
+    };
     
     const handleExportData = () => {
         const data = {
@@ -405,7 +397,7 @@ const App: React.FC = () => {
             billings,
             expenses,
             debtPayments,
-            pixStickers,
+            warnings,
         };
         const dataStr = JSON.stringify(data, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
@@ -435,7 +427,7 @@ const App: React.FC = () => {
                 if (data.billings) setBillings(prev => mergeById(prev, data.billings));
                 if (data.expenses) setExpenses(prev => mergeById(prev, data.expenses));
                 if (data.debtPayments) setDebtPayments(prev => mergeById(prev, data.debtPayments));
-                if (data.pixStickers) setPixStickers(prev => mergeById(prev, data.pixStickers));
+                if (data.warnings) setWarnings(prev => mergeById(prev, data.warnings));
 
                 showNotification("Dados importados e mesclados com sucesso!", "success");
             } catch (e) {
@@ -479,12 +471,28 @@ const App: React.FC = () => {
         setProvisionalReceiptCallback(() => onComplete);
     }, []);
 
+    const handleInstallClick = () => {
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then((choiceResult: any) => {
+                if (choiceResult.outcome === 'accepted') {
+                    showNotification('Aplicativo instalado com sucesso!');
+                }
+                setDeferredInstallPrompt(null);
+            });
+        }
+    };
+
+    const handleDismissInstall = () => {
+        setDeferredInstallPrompt(null);
+    };
+
     const renderView = () => {
         switch (currentView) {
             case 'DASHBOARD':
-                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
+                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} />;
             case 'CLIENTES':
-                return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} />;
+                return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} warnings={warnings} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} />;
             case 'COBRANCAS':
                 return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling} onDeleteBilling={handleDeleteBilling}/>;
             case 'DESPESAS':
@@ -492,11 +500,11 @@ const App: React.FC = () => {
             case 'ROTAS':
                 return <RotasView customers={customers} />;
             case 'RELATORIOS':
-                return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} pixStickers={pixStickers} onSavePixSticker={handleSavePixSticker} onDeletePixSticker={handleDeletePixSticker} />;
+                return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'CONFIGURACOES':
                 return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
             default:
-                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} />;
+                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} />;
         }
     };
     
@@ -527,13 +535,6 @@ const App: React.FC = () => {
                 </main>
             </div>
             <BottomNavBar currentView={currentView} setView={setCurrentView} />
-
-            {installPrompt && !isStandalone && !bannerDismissed && (
-                <InstallPwaBanner 
-                    onInstall={handleInstallClick} 
-                    onDismiss={handleDismissBanner} 
-                />
-            )}
 
             <Notification notification={notification} onClose={() => setNotification(null)} />
             
@@ -609,6 +610,13 @@ const App: React.FC = () => {
                     isOpen={!!finalizedDebtPayment}
                     onClose={() => setFinalizedDebtPayment(null)}
                     debtPayment={finalizedDebtPayment}
+                />
+            )}
+
+            {deferredInstallPrompt && (
+                <InstallPwaBanner
+                    onInstall={handleInstallClick}
+                    onDismiss={handleDismissInstall}
                 />
             )}
         </div>

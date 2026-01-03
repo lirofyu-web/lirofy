@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v20'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v31'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -33,6 +33,8 @@ const urlsToCache = [
   '/components/CityAutocomplete.tsx',
   '/components/CraneReportModal.tsx',
   '/components/CustomerCard.tsx',
+  '/components/CustomerQrCodeModal.tsx',
+  '/components/QrScannerModal.tsx',
   '/components/DebtPaymentModal.tsx',
   '/components/DebtReceiptModal.tsx',
   '/components/EditCustomerModal.tsx',
@@ -46,6 +48,7 @@ const urlsToCache = [
   '/components/ReceiptActionsModal.tsx',
   '/components/ReceiptModal.tsx',
   '/components/Sidebar.tsx',
+  '/components/WarningsManager.tsx',
 
   // Todos os ícones SVG usados nos componentes.
   '/components/icons/AlertIcon.tsx',
@@ -79,6 +82,8 @@ const urlsToCache = [
   '/components/icons/PencilIcon.tsx',
   '/components/icons/PlusIcon.tsx',
   '/components/icons/PrinterIcon.tsx',
+  '/components/icons/PurpleBilliardBallIcon.tsx',
+  '/components/icons/QrCodeIcon.tsx',
   '/components/icons/ReceiptIcon.tsx',
   '/components/icons/RedBilliardBallIcon.tsx',
   '/components/icons/RulerIcon.tsx',
@@ -103,10 +108,12 @@ const urlsToCache = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css',
-  'https://aistudiocdn.com/react@^19.2.0',
-  'https://aistudiocdn.com/react-dom@^19.2.0/client',
-  'https://aistudiocdn.com/react@^19.2.0/jsx-runtime',
-  'https://aistudiocdn.com/uuid@^13.0.0',
+  'https://aistudiocdn.com/react@19.2.0',
+  'https://aistudiocdn.com/react-dom@19.2.0/client',
+  'https://aistudiocdn.com/react@19.2.0/jsx-runtime',
+  'https://aistudiocdn.com/uuid@13.0.0',
+  'https://aistudiocdn.com/qrcode@1.5.3',
+  'https://aistudiocdn.com/html5-qrcode@2.3.8',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',

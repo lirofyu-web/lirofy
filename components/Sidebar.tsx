@@ -68,8 +68,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
             ></div>
 
             <aside className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-800 p-4 flex flex-col border-r border-slate-200 dark:border-slate-700 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 no-print ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="mb-8 text-center flex flex-col items-center">
-                    <LogoIcon className="w-28 h-auto" />
+                <div className="mb-8 text-center">
+                    <LogoIcon className="w-full h-auto py-4" />
                 </div>
                 <nav className="flex-grow">
                     <ul>

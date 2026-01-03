@@ -1,6 +1,6 @@
 // views/ClientesView.tsx
 import React, { useState, useMemo, useCallback } from 'react';
-import { Customer, Billing, DebtPayment, Equipment } from '../types';
+import { Customer, Billing, DebtPayment, Equipment, Warning } from '../types';
 import AddCustomerForm from '../components/AddCustomerForm';
 import CustomerCard from '../components/CustomerCard';
 import PageHeader from '../components/PageHeader';
@@ -11,6 +11,8 @@ import HistoryModal from '../components/HistoryModal';
 import ActionModal from '../components/ActionModal';
 import { SearchIcon } from '../components/icons/SearchIcon';
 import EquipmentSelectionModal from '../components/EquipmentSelectionModal';
+import { QrCodeIcon } from '../components/icons/QrCodeIcon';
+import QrScannerModal from '../components/QrScannerModal';
 
 interface ClientesViewProps {
   customers: Customer[];
@@ -21,6 +23,7 @@ interface ClientesViewProps {
   onPayDebt: (customerId: string, amountPaid: number, paymentMethod: 'pix' | 'dinheiro') => void;
   billings: Billing[];
   debtPayments: DebtPayment[];
+  warnings: Warning[];
   isSaving: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onTriggerProvisionalReceiptAction: (billing: Billing, onComplete: () => void) => void;
@@ -35,6 +38,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onPayDebt, 
     billings, 
     debtPayments, 
+    warnings,
     isSaving,
     showNotification,
     onTriggerProvisionalReceiptAction
@@ -49,6 +53,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [payingDebtCustomer, setPayingDebtCustomer] = useState<Customer | null>(null);
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery) {
@@ -139,6 +144,17 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     }
   }, [selectingEquipmentFor]);
 
+  const handleScanSuccess = useCallback((decodedText: string) => {
+    setIsScannerOpen(false);
+    const customer = customers.find(c => c.id === decodedText);
+    if (customer) {
+        showNotification(`Cliente ${customer.name} encontrado!`, 'success');
+        handleBillCustomer(customer);
+    } else {
+        showNotification("Cliente não encontrado. O QR Code pode ser inválido.", "error");
+    }
+  }, [customers, showNotification, handleBillCustomer]);
+
   return (
     <>
       <PageHeader title="Clientes" subtitle="Gerencie seus clientes e equipamentos." />
@@ -147,8 +163,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         <AddCustomerForm onAddCustomer={onAddCustomer} isSaving={isSaving} showNotification={showNotification} />
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
-         <div className="relative">
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-col sm:flex-row items-center gap-4">
+         <div className="relative flex-grow w-full">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <SearchIcon className="w-5 h-5 text-slate-400" />
             </div>
@@ -160,6 +176,13 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                 className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
         </div>
+        <button
+            onClick={() => setIsScannerOpen(true)}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500 transition-colors"
+        >
+            <QrCodeIcon className="w-5 h-5" />
+            <span>Escanear QR Code</span>
+        </button>
       </div>
       
       <div className="space-y-8">
@@ -167,18 +190,22 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             <section key={city}>
                 <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-2 capitalize">{city}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {customersByCity[city].map(customer => (
-                        <CustomerCard
-                            key={customer.id}
-                            customer={customer}
-                            onBill={handleBillCustomer}
-                            onEdit={setEditingCustomer}
-                            onDelete={() => setDeletingCustomer(customer)}
-                            onPayDebt={setPayingDebtCustomer}
-                            onHistory={setHistoryCustomer}
-                            onShare={handleShareCustomer}
-                        />
-                    ))}
+                    {customersByCity[city].map(customer => {
+                        const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
+                        return (
+                            <CustomerCard
+                                key={customer.id}
+                                customer={customer}
+                                onBill={handleBillCustomer}
+                                onEdit={setEditingCustomer}
+                                onDelete={() => setDeletingCustomer(customer)}
+                                onPayDebt={setPayingDebtCustomer}
+                                onHistory={setHistoryCustomer}
+                                onShare={handleShareCustomer}
+                                hasActiveWarning={hasActiveWarning}
+                            />
+                        );
+                    })}
                 </div>
             </section>
         )) : (
@@ -189,6 +216,15 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       </div>
       
       {/* Modals */}
+      {isScannerOpen && (
+        <QrScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScanSuccess={handleScanSuccess}
+          showNotification={showNotification}
+        />
+      )}
+      
       {selectingEquipmentFor && (
         <EquipmentSelectionModal
           isOpen={!!selectingEquipmentFor}

@@ -1,18 +1,23 @@
 // views/DashboardView.tsx
 import React, { useMemo, useState, useCallback } from 'react';
-import { Customer, Billing, Expense, DebtPayment } from '../types';
+import { Customer, Billing, Expense, DebtPayment, Warning } from '../types';
 import PageHeader from '../components/PageHeader';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
+import WarningsManager from '../components/WarningsManager';
 
 interface DashboardViewProps {
   billings: Billing[];
   expenses: Expense[];
   customers: Customer[];
   debtPayments: DebtPayment[];
+  warnings: Warning[];
+  onAddWarning: (customerId: string, message: string) => void;
+  onResolveWarning: (warningId: string) => void;
+  onDeleteWarning: (warningId: string) => void;
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
@@ -72,7 +77,7 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
 
 // --- Main View Component ---
 
-const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const handleMonthChange = useCallback((month: number) => {
@@ -192,6 +197,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                  <InfoCard title="Despesas do Mês" icon={<CalculatorIcon className="w-6 h-6 text-cyan-500 dark:text-cyan-400" />}>
                     <InfoRow label="Total Gasto no Mês" value={`R$ ${stats.totalMonthlyExpenses.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400 text-lg" />
                 </InfoCard>
+            </div>
+             <div className="mt-8">
+                <WarningsManager 
+                    customers={customers}
+                    warnings={warnings}
+                    onAddWarning={onAddWarning}
+                    onResolveWarning={onResolveWarning}
+                    onDeleteWarning={onDeleteWarning}
+                />
             </div>
         </div>
     );

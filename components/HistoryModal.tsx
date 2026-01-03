@@ -18,19 +18,21 @@ type HistoryItem = {
     type: 'billing' | 'payment';
     description: string;
     amount: number;
-    paymentMethod?: 'pix' | 'dinheiro' | 'fiado';
+    paymentMethod: 'pix' | 'dinheiro' | 'fiado' | 'misto';
 };
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' }> = React.memo(({ method }) => {
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
     const styles = {
         pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
         dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
         fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
+        misto: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-600',
     };
     const text = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
         fiado: 'Fiado',
+        misto: 'Misto',
     };
 
     return (
@@ -68,7 +70,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                 id: p.id,
                 date: new Date(p.paidAt),
                 type: 'payment',
-                description: 'Pagamento de Dívida',
+                description: `Pagamento de Dívida (${p.paymentMethod === 'pix' ? 'PIX' : 'Dinheiro'})`,
                 amount: p.amountPaid,
                 paymentMethod: p.paymentMethod,
             }));
