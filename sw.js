@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v31'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v32'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -64,7 +64,6 @@ const urlsToCache = [
   '/components/icons/CreditCardIcon.tsx',
   '/components/icons/CurrencyDollarIcon.tsx',
   '/components/icons/ExclamationTriangleIcon.tsx',
-  '/components/icons/EyeIcon.tsx',
   '/components/icons/GreenBilliardBallIcon.tsx',
   '/components/icons/HistoryIcon.tsx',
   '/components/icons/HomeIcon.tsx',
@@ -75,7 +74,6 @@ const urlsToCache = [
   '/components/icons/LocationMarkerIcon.tsx',
   '/components/icons/LogoIcon.tsx',
   '/components/icons/MapIcon.tsx',
-  '/components/icons/MapPinIcon.tsx',
   '/components/icons/MenuIcon.tsx',
   '/components/icons/MoonIcon.tsx',
   '/components/icons/NotVisitedIcon.tsx',

@@ -129,8 +129,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, i
         )}
         
         <hr className="border-dashed border-black my-2" />
-        <ReceiptRow label="Valor Bruto:" value={`R$ ${(billing.parteFirma! + billing.parteCliente!).toFixed(2)}`} />
-        <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente!.toFixed(2)}`} />
+        <ReceiptRow label="Valor Bruto:" value={`R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0)).toFixed(2)}`} />
+        <ReceiptRow label="Parte Cliente:" value={`R$ ${(billing.parteCliente ?? 0).toFixed(2)}`} />
         
         <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
             <span>TOTAL (FIRMA):</span>

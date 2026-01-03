@@ -1,2 +1,0 @@
-// This component is unused and has been cleared to prevent potential build errors.
-export {};
