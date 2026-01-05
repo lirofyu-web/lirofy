@@ -17,7 +17,6 @@ import DebtReceiptModal from './components/DebtReceiptModal';
 import ReceiptActionsModal from './components/ReceiptActionsModal';
 import Notification from './components/Notification';
 import BottomNavBar from './components/BottomNavBar';
-import { mockCities, mockFirstNames, mockLastNames, mockStreetNames, mockStreetTypes, mockExpenseDescriptions } from './data/seedHelper';
 import MobileHeader from './components/MobileHeader';
 import InstallPwaBanner from './components/InstallPwaBanner';
 
@@ -114,69 +113,6 @@ const App: React.FC = () => {
         setNotification({ message, type });
     }, []);
 
-    const handleSeedData = useCallback(() => {
-        console.log("Seeding dynamic test data...");
-    
-        const getRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-        const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-    
-        const generateEquipment = (type: 'mesa' | 'jukebox' | 'grua'): Equipment => {
-            const id = uuidv4();
-            switch (type) {
-                case 'mesa':
-                    const isMonthly = Math.random() < 0.15; // 15% chance of being monthly
-                    if (isMonthly) {
-                        return { id, type, billingType: 'monthly', numero: `${getRandomInt(1, 20)}`, relogioAnterior: 0, monthlyFeeValue: getRandom([150, 200, 250, 300]) };
-                    }
-                    return { id, type, billingType: 'perPlay', numero: `${getRandomInt(1, 20)}`, relogioNumero: `M-S${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(100, 5000), valorFicha: getRandom([2, 2.5, 3]), parteFirma: 50, parteCliente: 50 };
-                case 'jukebox':
-                    return { id, type, numero: `${String.fromCharCode(65 + getRandomInt(0, 5))}`, relogioNumero: `J-R${getRandomInt(10, 99)}`, relogioAnterior: getRandomInt(1000, 20000), porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
-                case 'grua':
-                    const hasPercentageRent = Math.random() > 0.5;
-                    return { id, type, numero: `G${getRandomInt(1, 5)}`, relogioAnterior: getRandomInt(100, 2000), aluguelValor: hasPercentageRent ? 0 : getRandomInt(100, 250), aluguelPercentual: hasPercentageRent ? getRandom([20, 25, 30]) : 0, quantidadePelucia: 120, reposicaoPelucia: 60, saldo:0, recebimentoEspecie:0, recebimentoPix:0 };
-            }
-        };
-    
-        const testCustomers: Customer[] = Array.from({ length: 40 }, () => {
-            const cityInfo = getRandom(mockCities);
-            const equipmentTypes: ('mesa' | 'jukebox' | 'grua')[] = ['mesa'];
-            if (Math.random() > 0.4) equipmentTypes.push('jukebox');
-            if (Math.random() > 0.8) equipmentTypes.push('grua');
-    
-            const lastVisitedDaysAgo = getRandomInt(1, 45);
-    
-            return {
-                id: uuidv4(),
-                createdAt: new Date(),
-                name: `Bar ${getRandom(mockFirstNames)} ${getRandom(mockLastNames)}`,
-                cpfRg: `${getRandomInt(100, 999)}.${getRandomInt(100, 999)}.${getRandomInt(100, 999)}-${getRandomInt(10, 99)}`,
-                cidade: cityInfo.name,
-                endereco: `${getRandom(mockStreetTypes)} ${getRandom(mockStreetNames)}, ${getRandomInt(1, 500)}`,
-                telefone: `119${getRandomInt(1000, 9999)}${getRandomInt(1000, 9999)}`,
-                latitude: cityInfo.lat + (Math.random() - 0.5) * 0.05,
-                longitude: cityInfo.lon + (Math.random() - 0.5) * 0.05,
-                equipment: equipmentTypes.map(type => generateEquipment(type)),
-                linhaNumero: `R${getRandomInt(1, 5)}`,
-                assinaturaFirma: '',
-                assinaturaCliente: '',
-                debtAmount: Math.random() > 0.7 ? getRandomInt(10, 150) : 0,
-                lastVisitedAt: new Date(new Date().setDate(new Date().getDate() - lastVisitedDaysAgo)),
-            };
-        });
-    
-        setCustomers(testCustomers);
-        
-        const seededExpenses: Expense[] = Array.from({ length: 25 }, () => ({
-            id: uuidv4(),
-            description: getRandom(mockExpenseDescriptions),
-            amount: getRandomInt(30, 300),
-            date: new Date(new Date().setDate(new Date().getDate() - getRandomInt(0, 90))),
-        }));
-        setExpenses(seededExpenses);
-        
-        showNotification("Dados de teste dinâmicos carregados!", "success");
-    }, [showNotification]);
-
 
    useEffect(() => {
     try {
@@ -197,8 +133,6 @@ const App: React.FC = () => {
         const storedCustomers = localStorage.getItem('customers');
         if (storedCustomers) {
             setCustomers(parseWithDates(storedCustomers, ['createdAt', 'lastVisitedAt']));
-        } else {
-            handleSeedData(); // Seeds data only if customers don't exist
         }
         
         setBillings(parseWithDates(localStorage.getItem('billings'), ['settledAt']));
@@ -216,11 +150,22 @@ const App: React.FC = () => {
 
     useEffect(() => {
         try {
+            // Save only if there's data to prevent creating empty keys
             if (customers.length > 0) localStorage.setItem('customers', JSON.stringify(customers));
+            else localStorage.removeItem('customers');
+
             if (billings.length > 0) localStorage.setItem('billings', JSON.stringify(billings));
+            else localStorage.removeItem('billings');
+
             if (expenses.length > 0) localStorage.setItem('expenses', JSON.stringify(expenses));
+            else localStorage.removeItem('expenses');
+
             if (debtPayments.length > 0) localStorage.setItem('debtPayments', JSON.stringify(debtPayments));
+            else localStorage.removeItem('debtPayments');
+
             if (warnings.length > 0) localStorage.setItem('warnings', JSON.stringify(warnings));
+            else localStorage.removeItem('warnings');
+
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
             showNotification("Erro ao salvar os dados.", "error");

@@ -133,14 +133,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       setPaymentValues({ dinheiro: '', pix: '', fiado: ''});
       setError(null);
       setGruaStep(1);
-      
-      if (isMonthlyFee) {
-          setMesaStep(2); // Skip directly to payment for monthly fee
-      } else {
-          setMesaStep(1);
-      }
+      setMesaStep(1); // Always start at step 1 for non-grua equipment
     }
-  }, [isOpen, equipment, isMonthlyFee]);
+  }, [isOpen, equipment]);
 
   const calculation = useMemo(() => {
     let result: Partial<Billing> = {};
@@ -156,9 +151,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           return {
             valorTotal: equipment.monthlyFeeValue || 0,
             billingType: 'monthly',
-            partidasJogadas: 0,
+            partidasJogadas: partidasJogadas,
             relogioAnterior: equipment.relogioAnterior,
-            relogioAtual: equipment.relogioAnterior, // No change in reading
+            relogioAtual: relogioAtual,
           };
       }
       const descontoPartidas = parseInt(formState.descontoPartidas || '0', 10);
@@ -215,10 +210,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   useEffect(() => {
     if (mesaStep === 2 && equipment.type !== 'grua') {
       const initialTotal = calculation.valorTotal || 0;
-      setPaymentValues({ dinheiro: initialTotal.toFixed(2).replace('.', ','), pix: '', fiado: '' });
+      setPaymentValues({ dinheiro: initialTotal > 0 ? initialTotal.toFixed(2).replace('.', ',') : '', pix: '', fiado: '' });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mesaStep, equipment.type]);
+  }, [mesaStep, equipment.type, calculation.valorTotal]);
   
   const handleFormChange = useCallback((field: keyof FormState, value: string) => {
     setFormState(prev => {
@@ -274,12 +268,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [calculation.valorTotal]);
 
   const generateBillingObject = useCallback((): Billing | null => {
-    const relogioAtual = isMonthlyFee
-      ? (equipment.relogioAnterior || 0)
-      : (parseInt(formState.relogioAtual, 10) || 0);
+    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
 
-    if (!isMonthlyFee && (!formState || !calculation || relogioAtual < equipment.relogioAnterior)) {
-      return null;
+    if (relogioAtual < equipment.relogioAnterior) {
+        return null; // Safeguard
     }
 
     let billingData;
@@ -330,31 +322,33 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       valorTotal: calculation.valorTotal || 0,
       partidasJogadas: calculation.partidasJogadas || 0,
     };
-  }, [formState, calculation, equipment, customer, paymentValues, isMonthlyFee]);
+  }, [formState, calculation, equipment, customer, paymentValues]);
 
   const validateAndProceed = useCallback(() => {
-    if (isMonthlyFee) {
-        setError(null);
-        return true; // No validation needed for monthly fee
-    }
-    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
-    if (relogioAtual <= 0) {
+    if (!formState.relogioAtual && formState.relogioAtual !== '0') {
       setError("Nenhuma leitura inserida. Preencha o campo de Leitura Atual.");
       return false;
     }
+    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
     if (relogioAtual < equipment.relogioAnterior) {
       setError(`Leitura atual (${relogioAtual}) não pode ser menor que a anterior (${equipment.relogioAnterior}).`);
       return false;
     }
     setError(null);
     return true;
-  }, [formState, equipment, isMonthlyFee]);
+  }, [formState.relogioAtual, equipment.relogioAnterior]);
 
   const handleProvisionalAction = () => {
     if (!validateAndProceed()) return;
     const billing = generateBillingObject();
     if (billing) {
         onTriggerProvisionalReceiptAction(billing, () => setMesaStep(2));
+    }
+  };
+  
+  const handleGoToPayment = () => {
+    if (validateAndProceed()) {
+        setMesaStep(2);
     }
   };
 
@@ -453,12 +447,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               {gruaStep === 3 && renderGruaStep3()}
             </>
           ) : (
-             (mesaStep === 1 && !isMonthlyFee) ? (
+             mesaStep === 1 ? (
                 <div className="space-y-4">
                   <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
                   <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
-                  {equipment.type === 'mesa' && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" equipmentId={equipment.id} onChange={handleFormChange} />}
-                  {equipment.type === 'mesa' && !isReadingInvalid && formState.relogioAtual && (
+                  {equipment.type === 'mesa' && !isMonthlyFee && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" equipmentId={equipment.id} onChange={handleFormChange} />}
+                  
+                  {equipment.type === 'mesa' && !isMonthlyFee && !isReadingInvalid && formState.relogioAtual && (
                     <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
                       <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Cálculo</h4>
                       <div className="flex justify-between text-slate-300"><span>Leitura Anterior:</span><span className="font-mono">{equipment.relogioAnterior}</span></div>
@@ -472,15 +467,19 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                       <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span></div>
                     </div>
                   )}
+
+                  {equipment.type === 'mesa' && isMonthlyFee && !isReadingInvalid && formState.relogioAtual && (
+                    <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
+                        <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Mês</h4>
+                        <div className="flex justify-between text-slate-300"><span>Partidas Jogadas no Período:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
+                        <hr className="border-dashed border-slate-600 my-2" />
+                        <div className="flex justify-between font-bold text-lg text-lime-400"><span>VALOR MENSAL FIXO:</span><span className="font-mono">R$ {(calculation.valorTotal || 0).toFixed(2).replace('.', ',')}</span></div>
+                    </div>
+                  )}
+
                 </div>
               ) : (
                 <div className="space-y-4 animate-fade-in">
-                    {isMonthlyFee && (
-                        <div className="text-center p-4 bg-slate-900/50 border border-slate-700 rounded-lg">
-                            <p className="text-slate-300">Cobrança de Taxa Mensal Fixa</p>
-                            <p className="text-3xl font-mono font-bold text-lime-400">R$ {(equipment.monthlyFeeValue || 0).toFixed(2).replace('.', ',')}</p>
-                        </div>
-                    )}
                   <h4 className="block text-md font-bold text-lime-400 mb-2">Observações e Pagamento Dividido</h4>
                   <PaymentField label="Deixar Fiado (R$)" name="fiado" value={paymentValues.fiado} onChange={handlePaymentChange} />
                   
@@ -525,18 +524,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
                 </>
               ) : (
-                 (mesaStep === 1 && !isMonthlyFee) ? (
-                  <button onClick={handleProvisionalAction} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
-                      Imprimir Via Cliente
-                  </button>
+                 mesaStep === 1 ? (
+                  <>
+                    <button onClick={handleProvisionalAction} className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500">
+                        Imprimir Via Cliente
+                    </button>
+                    <button onClick={handleGoToPayment} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
+                        Ir para Pagamento &rarr;
+                    </button>
+                  </>
                  ) : (
-                  <button 
-                    onClick={handleFinalize} 
-                    disabled={Math.abs(remainingAmountLiquido) > 0.01}
-                    className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
-                  >
-                    Finalizar Cobrança
-                  </button>
+                  <>
+                    <button onClick={() => setMesaStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
+                    <button 
+                      onClick={handleFinalize} 
+                      disabled={Math.abs(remainingAmountLiquido) > 0.01}
+                      className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
+                    >
+                      Finalizar Cobrança
+                    </button>
+                  </>
                  )
               )}
             </div>

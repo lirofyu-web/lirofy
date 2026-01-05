@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v35'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v40'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -49,6 +49,8 @@ const urlsToCache = [
   '/components/ReceiptModal.tsx',
   '/components/Sidebar.tsx',
   '/components/WarningsManager.tsx',
+  '/components/ShareCustomerModal.tsx',
+  '/components/CustomerSheet.tsx',
 
   // Todos os ícones SVG usados nos componentes.
   '/components/icons/AlertIcon.tsx',
@@ -63,10 +65,12 @@ const urlsToCache = [
   '/components/icons/CraneIcon.tsx',
   '/components/icons/CreditCardIcon.tsx',
   '/components/icons/CurrencyDollarIcon.tsx',
+  '/components/icons/DocumentDuplicateIcon.tsx',
   '/components/icons/ExclamationTriangleIcon.tsx',
   '/components/icons/GreenBilliardBallIcon.tsx',
   '/components/icons/HistoryIcon.tsx',
   '/components/icons/HomeIcon.tsx',
+  '/components/icons/ImageIcon.tsx',
   '/components/icons/InstallIcon.tsx',
   '/components/icons/JukeboxIcon.tsx',
   '/components/icons/ListBulletIcon.tsx',
@@ -103,17 +107,24 @@ const urlsToCache = [
   // Recursos externos de CDN para bibliotecas e fontes.
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap',
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2', // Inter 400
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7S0Q5nw.woff2', // Inter 500
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7f0Q5nw.woff2', // Inter 600
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7a0Q5nw.woff2', // Inter 700
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7k0Q5nw.woff2', // Inter 900
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css',
   'https://aistudiocdn.com/react@19.2.0',
   'https://aistudiocdn.com/react-dom@19.2.0/client',
+  'https://aistudiocdn.com/react-dom@19.2.0/server',
   'https://aistudiocdn.com/react@19.2.0/jsx-runtime',
   'https://aistudiocdn.com/uuid@13.0.0',
   'https://aistudiocdn.com/qrcode@1.5.3',
   'https://aistudiocdn.com/html5-qrcode@2.3.8',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
@@ -151,18 +162,33 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Evento de busca: serve ativos do cache, se disponíveis, caso contrário, busca na rede.
+// Evento de busca: Estratégia "Cache falling back to network".
+// Se um recurso está no cache, ele é servido a partir daí.
+// Se não, é buscado na rede. Se a busca for bem-sucedida,
+// a resposta é adicionada ao cache para futuras requisições offline.
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
-      .then((response) => {
-        // Encontrado no cache - retorna a resposta
-        if (response) {
-          return response;
+      .then((cachedResponse) => {
+        // Se a resposta estiver no cache, retorna-a.
+        if (cachedResponse) {
+          return cachedResponse;
         }
 
-        // Não está no cache - busca na rede
-        return fetch(event.request);
+        // Se não, busca na rede.
+        return fetch(event.request).then((networkResponse) => {
+            // Clona a resposta porque ela é um stream que só pode ser consumido uma vez.
+            const responseToCache = networkResponse.clone();
+
+            // Abre o cache e adiciona a nova resposta a ele.
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+
+            // Retorna a resposta da rede para o navegador.
+            return networkResponse;
+          }
+        );
       })
   );
 });

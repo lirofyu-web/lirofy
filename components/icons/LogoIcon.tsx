@@ -7,7 +7,7 @@ export const LogoIcon = ({ className }: { className?: string }) => (
       MONTANHA BILHAR & JUKEBOX
     </h1>
     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 uppercase tracking-widest">
-      Sistema De Locação e Cobranças
+      SISTEMA DE LOCAÇÃO E COBRANÇAS
     </p>
   </div>
 );

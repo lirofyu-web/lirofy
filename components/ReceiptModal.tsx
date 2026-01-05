@@ -104,7 +104,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, billing, i
         <>
           <p className="font-bold">EQUIPAMENTO: MESA {billing.equipmentNumero} (MENSAL)</p>
           <hr className="border-dashed border-black my-2" />
-          <div className="flex justify-between font-bold text-base pt-2 mt-2">
+          <ReceiptRow label="Partidas Jogadas (Período):" value={billing.partidasJogadas} />
+          <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
             <span>MENSALIDADE FIXA:</span>
             <span>R$ {billing.valorTotal.toFixed(2)}</span>
           </div>

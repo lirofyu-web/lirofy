@@ -13,6 +13,7 @@ import { SearchIcon } from '../components/icons/SearchIcon';
 import EquipmentSelectionModal from '../components/EquipmentSelectionModal';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
 import QrScannerModal from '../components/QrScannerModal';
+import ShareCustomerModal from '../components/ShareCustomerModal';
 
 interface ClientesViewProps {
   customers: Customer[];
@@ -54,6 +55,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [sharingCustomer, setSharingCustomer] = useState<Customer | null>(null);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery) {
@@ -93,37 +95,9 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     }
   }, [deletingCustomer, onDeleteCustomer]);
 
-  const handleShareCustomer = useCallback((customer: Customer) => {
-    const customerDataToShare = {
-      name: customer.name,
-      cpfRg: customer.cpfRg,
-      cidade: customer.cidade,
-      endereco: customer.endereco,
-      telefone: customer.telefone,
-      linhaNumero: customer.linhaNumero,
-      latitude: customer.latitude,
-      longitude: customer.longitude,
-      equipment: customer.equipment.map(({ id, ...rest }) => rest) // Remove runtime ID
-    };
-
-    const textToCopy = JSON.stringify(customerDataToShare, null, 2);
-
-    if (navigator.share) {
-      navigator.share({
-        title: `Dados do Cliente: ${customer.name}`,
-        text: textToCopy,
-      }).then(() => {
-        showNotification('Cliente compartilhado com sucesso!');
-      }).catch((error) => console.error('Erro ao compartilhar', error));
-    } else {
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        showNotification('Dados do cliente copiados para a área de transferência!');
-      }).catch(err => {
-        showNotification('Erro ao copiar dados.', 'error');
-        console.error('Could not copy text: ', err);
-      });
-    }
-  }, [showNotification]);
+  const handleOpenShareModal = useCallback((customer: Customer) => {
+    setSharingCustomer(customer);
+  }, []);
   
   const handleBillCustomer = useCallback((customer: Customer) => {
     if (customer.equipment?.length === 1) {
@@ -201,7 +175,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                 onDelete={() => setDeletingCustomer(customer)}
                                 onPayDebt={setPayingDebtCustomer}
                                 onHistory={setHistoryCustomer}
-                                onShare={handleShareCustomer}
+                                onShare={handleOpenShareModal}
                                 hasActiveWarning={hasActiveWarning}
                             />
                         );
@@ -225,6 +199,15 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         />
       )}
       
+      {sharingCustomer && (
+        <ShareCustomerModal
+            isOpen={!!sharingCustomer}
+            onClose={() => setSharingCustomer(null)}
+            customer={sharingCustomer}
+            showNotification={showNotification}
+        />
+      )}
+
       {selectingEquipmentFor && (
         <EquipmentSelectionModal
           isOpen={!!selectingEquipmentFor}
