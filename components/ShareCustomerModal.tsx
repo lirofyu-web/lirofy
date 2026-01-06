@@ -62,9 +62,12 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     root.render(<CustomerSheet customer={customer} />);
 
     try {
+        // Garante que todas as fontes foram carregadas.
         await document.fonts.ready;
+        // Sequência de espera robusta para garantir a renderização completa.
+        await new Promise(resolve => setTimeout(resolve, 50)); 
         await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Aumentado para 10 segundos
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         const elementToCapture = sheetContainer.firstChild as HTMLElement;
         if (!elementToCapture) {
@@ -115,9 +118,12 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     root.render(<CustomerSheet customer={customer} />);
 
     try {
+        // Garante que todas as fontes foram carregadas.
         await document.fonts.ready;
+        // Sequência de espera robusta para garantir a renderização completa.
+        await new Promise(resolve => setTimeout(resolve, 50));
         await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Aumentado para 10 segundos
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         const elementToCapture = sheetContainer.firstChild as HTMLElement;
         if (!elementToCapture) {
