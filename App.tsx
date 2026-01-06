@@ -19,6 +19,9 @@ import Notification from './components/Notification';
 import BottomNavBar from './components/BottomNavBar';
 import MobileHeader from './components/MobileHeader';
 import InstallPwaBanner from './components/InstallPwaBanner';
+import CustomerSheet from './components/CustomerSheet';
+import { PrinterIcon } from './components/icons/PrinterIcon';
+
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 export type Theme = 'light' | 'dark';
@@ -38,6 +41,45 @@ const viewTitles: Record<View, string> = {
     'CONFIGURACOES': 'Configurações',
 };
 
+const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }> = ({ customer, onCancel }) => {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      onCancel();
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [onCancel]);
+
+  return (
+    <div className="print-overlay fixed inset-0 bg-slate-200 dark:bg-slate-900 z-[100] flex flex-col">
+      <header className="print-controls no-print sticky top-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 shadow-md flex justify-center gap-4 flex-shrink-0">
+        <button 
+          onClick={onCancel} 
+          className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400"
+        >
+          Cancelar
+        </button>
+        <button 
+          onClick={handlePrint}
+          className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 flex items-center gap-2"
+        >
+          <PrinterIcon className="w-5 h-5" />
+          Salvar PDF / Imprimir
+        </button>
+      </header>
+      <div className="print-content overflow-y-auto flex-grow">
+        <CustomerSheet customer={customer} />
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -55,15 +97,15 @@ const App: React.FC = () => {
 
     const [isSaving, setIsSaving] = useState(false);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
-
     const [notification, setNotification] = useState<NotificationState>(null);
     
-    // Modal States
+    // Modal & Print States
     const [provisionalReceiptBilling, setProvisionalReceiptBilling] = useState<Billing | null>(null);
     const [provisionalReceiptCallback, setProvisionalReceiptCallback] = useState<(() => void) | null>(null);
     const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
     const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
-    
+    const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
+
     // PWA Install Prompt State
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
 
@@ -414,6 +456,10 @@ const App: React.FC = () => {
         setProvisionalReceiptCallback(() => onComplete);
     }, []);
 
+    const handlePrintCustomer = useCallback((customer: Customer) => {
+        setPrintingCustomer(customer);
+    }, []);
+
     const handleInstallClick = () => {
         if (deferredInstallPrompt) {
             deferredInstallPrompt.prompt();
@@ -435,7 +481,7 @@ const App: React.FC = () => {
             case 'DASHBOARD':
                 return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} />;
             case 'CLIENTES':
-                return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} warnings={warnings} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} />;
+                return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} warnings={warnings} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} onPrintCustomer={handlePrintCustomer} />;
             case 'COBRANCAS':
                 return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling} onDeleteBilling={handleDeleteBilling}/>;
             case 'DESPESAS':
@@ -458,7 +504,6 @@ const App: React.FC = () => {
     const customerForProvisionalBilling = useMemo(() => {
         return customers.find(c => c.id === provisionalReceiptBilling?.customerId);
     }, [provisionalReceiptBilling, customers]);
-
 
     return (
         <div className="text-slate-800 dark:text-slate-100 min-h-screen">
@@ -561,6 +606,13 @@ const App: React.FC = () => {
                     onInstall={handleInstallClick}
                     onDismiss={handleDismissInstall}
                 />
+            )}
+
+            {printingCustomer && (
+              <PrintPreviewOverlay 
+                customer={printingCustomer} 
+                onCancel={() => setPrintingCustomer(null)} 
+              />
             )}
         </div>
     );

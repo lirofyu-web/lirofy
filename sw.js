@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v40'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v41'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [

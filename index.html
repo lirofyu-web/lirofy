@@ -117,14 +117,22 @@
           display: none !important;
         }
         body {
-          background-color: #ffffff !important;
-          background-image: none !important;
-          padding-top: 0;
+          background: #ffffff !important;
+          padding-top: 0 !important;
         }
-        main {
-          padding: 0 !important;
-          overflow: visible !important;
-          width: 100% !important;
+        /* Hide everything in the app's root div except the print overlay */
+        body > #root > div > *:not(.print-overlay) {
+            display: none !important;
+        }
+        /* Style the overlay and its content for printing */
+        .print-overlay {
+            position: static !important;
+            background: none !important;
+            display: block !important;
+            border: none !important;
+        }
+        .print-content {
+            overflow: visible !important;
         }
       }
     </style>

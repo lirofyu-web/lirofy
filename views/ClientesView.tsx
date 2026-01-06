@@ -28,6 +28,7 @@ interface ClientesViewProps {
   isSaving: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onTriggerProvisionalReceiptAction: (billing: Billing, onComplete: () => void) => void;
+  onPrintCustomer: (customer: Customer) => void;
 }
 
 const ClientesView: React.FC<ClientesViewProps> = ({ 
@@ -42,7 +43,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     warnings,
     isSaving,
     showNotification,
-    onTriggerProvisionalReceiptAction
+    onTriggerProvisionalReceiptAction,
+    onPrintCustomer
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -205,6 +207,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             onClose={() => setSharingCustomer(null)}
             customer={sharingCustomer}
             showNotification={showNotification}
+            onPrintCustomer={onPrintCustomer}
         />
       )}
 

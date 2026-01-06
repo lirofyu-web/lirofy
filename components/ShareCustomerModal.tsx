@@ -6,8 +6,6 @@ import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
 import { ImageIcon } from './icons/ImageIcon';
 import CustomerSheet from './CustomerSheet';
 import { createRoot } from 'react-dom/client';
-import { SaveIcon } from './icons/SaveIcon';
-
 
 // Declara html2canvas para TypeScript, já que é carregado via tag de script global.
 declare const html2canvas: any;
@@ -17,20 +15,14 @@ interface ShareCustomerModalProps {
   onClose: () => void;
   customer: Customer;
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  onPrintCustomer: (customer: Customer) => void;
 }
 
-const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose, customer, showNotification }) => {
+const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose, customer, showNotification, onPrintCustomer }) => {
   const [isSharing, setIsSharing] = useState(false);
-  const [isGeneratingPng, setIsGeneratingPng] = useState(false);
-  const [pngPreviewUrl, setPngPreviewUrl] = useState<string | null>(null);
 
   // Verifica se o navegador suporta a API de compartilhamento Web Share.
   const canShareFiles = !!(navigator.share && navigator.canShare);
-
-  const handleModalClose = () => {
-    setPngPreviewUrl(null);
-    onClose();
-  };
 
   const handleCopyJson = () => {
     const customerDataToShare = {
@@ -53,48 +45,12 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
         showNotification('Erro ao copiar dados.', 'error');
         console.error('Could not copy text: ', err);
     });
-    handleModalClose();
+    onClose();
   };
   
-  const handleGeneratePngPreview = async () => {
-    setIsGeneratingPng(true);
-    showNotification('Gerando pré-visualização, por favor aguarde...', 'success');
-
-    const sheetContainer = document.createElement('div');
-    sheetContainer.style.position = 'absolute';
-    sheetContainer.style.left = '-9999px';
-    sheetContainer.style.width = '210mm';
-    document.body.appendChild(sheetContainer);
-
-    const root = createRoot(sheetContainer);
-    root.render(<CustomerSheet customer={customer} />);
-
-    try {
-        await document.fonts.ready;
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const elementToCapture = sheetContainer.firstChild as HTMLElement;
-        if (!elementToCapture) {
-            throw new Error("O componente da ficha do cliente não renderizou para captura.");
-        }
-
-        const canvas = await html2canvas(elementToCapture, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#f1f5f9'
-        });
-
-        setPngPreviewUrl(canvas.toDataURL('image/png'));
-
-    } catch (error) {
-        console.error('Erro ao gerar imagem PNG:', error);
-        showNotification('Ocorreu um erro ao gerar a imagem PNG.', 'error');
-    } finally {
-        root.unmount();
-        document.body.removeChild(sheetContainer);
-        setIsGeneratingPng(false);
-    }
+  const handlePrint = () => {
+    onPrintCustomer(customer);
+    onClose();
   };
 
   const handleShareAsImage = async () => {
@@ -162,7 +118,7 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
             root.unmount();
             document.body.removeChild(sheetContainer);
             setIsSharing(false);
-            handleModalClose();
+            onClose();
 
         }, 'image/jpeg', 0.9);
 
@@ -187,80 +143,46 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     >
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
         <div className="p-6">
-          <h2 id="share-modal-title" className="text-2xl font-bold text-white">
-            {pngPreviewUrl ? 'Pré-visualização da Imagem' : 'Exportar Cliente'}
-          </h2>
-          <p className="text-slate-400 mt-2">
-            {pngPreviewUrl ? 'Confira a imagem e clique para baixar.' : `Como você deseja exportar os dados de ${customer.name}?`}
-          </p>
+          <h2 id="share-modal-title" className="text-2xl font-bold text-white">Exportar Cliente</h2>
+          <p className="text-slate-400 mt-2">Como você deseja exportar os dados de {customer.name}?</p>
         </div>
-
-        {pngPreviewUrl ? (
-            <div className="p-6 space-y-4">
-                <div className="bg-slate-900/50 p-2 border border-slate-700 rounded-lg">
-                    <img src={pngPreviewUrl} alt="Pré-visualização da ficha do cliente" className="max-h-[40vh] w-auto mx-auto rounded" />
-                </div>
-                 <a
-                    href={pngPreviewUrl}
-                    download={`ficha_${customer.name.replace(/\s/g, '_')}.png`}
-                    className="w-full flex items-center justify-center gap-4 p-4 bg-lime-600 rounded-lg border border-lime-500 text-left text-white hover:bg-lime-500 transition-colors"
-                >
-                    <SaveIcon className="w-8 h-8 flex-shrink-0" />
-                    <div>
-                        <h3 className="font-bold">Baixar Imagem PNG</h3>
-                        <p className="text-sm text-lime-100">Clique aqui para salvar o arquivo em seu dispositivo.</p>
-                    </div>
-                </a>
-            </div>
-        ) : (
-            <div className="p-6 space-y-4">
-                <button
-                    onClick={handleGeneratePngPreview}
-                    disabled={isGeneratingPng}
-                    className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                >
-                    <PrinterIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
-                    <div>
-                        <h3 className="font-bold text-white">{isGeneratingPng ? 'Gerando Pré-visualização...' : 'Salvar como PNG'}</h3>
-                        <p className="text-sm text-slate-400">Gera uma imagem de alta qualidade da ficha do cliente para download.</p>
-                    </div>
-                </button>
-                <button
-                    onClick={handleCopyJson}
-                    className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-lime-500 transition-colors"
-                >
-                    <DocumentDuplicateIcon className="w-8 h-8 text-lime-400 flex-shrink-0" />
-                    <div>
-                        <h3 className="font-bold text-white">Copiar Dados (JSON)</h3>
-                        <p className="text-sm text-slate-400">Copia os dados brutos. Útil para backups ou importação em texto.</p>
-                    </div>
-                </button>
-                <button
-                    onClick={handleShareAsImage}
-                    disabled={isSharing || !canShareFiles}
-                    className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-green-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                    title={!canShareFiles ? "Seu navegador não suporta compartilhamento de arquivos" : "Compartilhar como imagem JPG"}
-                >
-                    <ImageIcon className="w-8 h-8 text-green-400 flex-shrink-0" />
-                    <div>
-                        <h3 className="font-bold text-white">{isSharing ? 'Gerando Imagem...' : 'Compartilhar Imagem (JPG)'}</h3>
-                        <p className="text-sm text-slate-400">Gera uma imagem da ficha para enviar via WhatsApp ou outros apps.</p>
-                    </div>
-                </button>
-            </div>
-        )}
-
-        <div className="p-4 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
-          {pngPreviewUrl && (
+        <div className="p-6 space-y-4">
             <button
-                onClick={() => setPngPreviewUrl(null)}
-                className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors"
+                onClick={handlePrint}
+                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-cyan-500 transition-colors"
             >
-                Voltar
+                <PrinterIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
+                <div>
+                    <h3 className="font-bold text-white">Gerar Ficha (PDF/Impressão)</h3>
+                    <p className="text-sm text-slate-400">Abre a opção de impressão para salvar como PDF ou imprimir.</p>
+                </div>
             </button>
-          )}
+            <button
+                onClick={handleCopyJson}
+                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-lime-500 transition-colors"
+            >
+                <DocumentDuplicateIcon className="w-8 h-8 text-lime-400 flex-shrink-0" />
+                <div>
+                    <h3 className="font-bold text-white">Copiar Dados (JSON)</h3>
+                    <p className="text-sm text-slate-400">Copia os dados brutos. Útil para backups ou importação em texto.</p>
+                </div>
+            </button>
+            <button
+                onClick={handleShareAsImage}
+                disabled={isSharing || !canShareFiles}
+                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-green-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                title={!canShareFiles ? "Seu navegador não suporta compartilhamento de arquivos" : "Compartilhar como imagem JPG"}
+            >
+                <ImageIcon className="w-8 h-8 text-green-400 flex-shrink-0" />
+                <div>
+                    <h3 className="font-bold text-white">{isSharing ? 'Gerando Imagem...' : 'Compartilhar Imagem (JPG)'}</h3>
+                    <p className="text-sm text-slate-400">Gera uma imagem da ficha para enviar via WhatsApp ou outros apps.</p>
+                </div>
+            </button>
+        </div>
+        <div className="p-4 bg-slate-800/50 rounded-b-lg flex justify-end">
           <button
-            onClick={handleModalClose}
+            onClick={onClose}
             className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors"
           >
             Fechar
