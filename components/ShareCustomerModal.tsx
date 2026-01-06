@@ -1,14 +1,10 @@
 // components/ShareCustomerModal.tsx
 import React from 'react';
-import { createRoot } from 'react-dom/client';
 import { Customer } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
 import CustomerSheet from './CustomerSheet';
 import ReactDOMServer from 'react-dom/server';
-import { ImageIcon } from './icons/ImageIcon';
-
-declare const html2canvas: any;
 
 interface ShareCustomerModalProps {
   isOpen: boolean;
@@ -43,7 +39,7 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     onClose();
   };
   
-  const handlePrintSheet = () => {
+  const handleSaveAsPdf = () => {
     const printWindow = window.open('', '', 'height=1123,width=794'); // A4 dimensions in pixels approx
     if (printWindow) {
         const sheetHtml = ReactDOMServer.renderToString(<CustomerSheet customer={customer} />);
@@ -73,54 +69,6 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     }
   };
 
-  const handleExportImage = async () => {
-    onClose();
-    showNotification('Gerando imagem, por favor aguarde...', 'success');
-    
-    const root = document.documentElement;
-    const wasDark = root.classList.contains('dark');
-    if (wasDark) {
-      root.classList.remove('dark');
-    }
-
-    const sheetContainer = document.createElement('div');
-    sheetContainer.style.position = 'fixed';
-    sheetContainer.style.left = '-9999px';
-    sheetContainer.style.top = '0';
-    sheetContainer.style.width = '794px'; // Approx A4 width for rendering
-    document.body.appendChild(sheetContainer);
-
-    const sheetRoot = createRoot(sheetContainer);
-    sheetRoot.render(<CustomerSheet customer={customer} />);
-
-    // Short delay to ensure React renders and styles are applied before capture
-    setTimeout(async () => {
-        try {
-            const canvas = await html2canvas(sheetContainer, {
-                scale: 2, // For higher resolution
-                useCORS: true, // Important for loading external fonts/images
-                backgroundColor: '#ffffff'
-            });
-
-            const link = document.createElement('a');
-            link.download = `ficha_${customer.name.replace(/\s+/g, '_')}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            showNotification('Imagem da ficha gerada com sucesso!', 'success');
-        } catch (error) {
-            console.error('Erro ao gerar imagem:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            showNotification(`Erro ao gerar imagem:\n${errorMessage}`, 'error');
-        } finally {
-            if (wasDark) {
-              root.classList.add('dark');
-            }
-            sheetRoot.unmount();
-            document.body.removeChild(sheetContainer);
-        }
-    }, 500);
-  };
-
 
   if (!isOpen) return null;
 
@@ -138,23 +86,13 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
         </div>
         <div className="p-6 space-y-4">
             <button
-                onClick={handlePrintSheet}
+                onClick={handleSaveAsPdf}
                 className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-cyan-500 transition-colors"
             >
                 <PrinterIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
                 <div>
-                    <h3 className="font-bold text-white">Imprimir ou Salvar como PDF</h3>
-                    <p className="text-sm text-slate-400">Abre a tela de impressão do navegador, onde você pode imprimir ou escolher "Salvar como PDF" para gerar um arquivo digital.</p>
-                </div>
-            </button>
-            <button
-                onClick={handleExportImage}
-                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-orange-500 transition-colors"
-            >
-                <ImageIcon className="w-8 h-8 text-orange-400 flex-shrink-0" />
-                <div>
-                    <h3 className="font-bold text-white">Exportar como Imagem (PNG)</h3>
-                    <p className="text-sm text-slate-400">Salva a ficha do cliente como um arquivo de imagem de alta qualidade, ideal para compartilhamento rápido.</p>
+                    <h3 className="font-bold text-white">Salvar como PDF</h3>
+                    <p className="text-sm text-slate-400">Gera um arquivo PDF da ficha do cliente utilizando a função de impressão do navegador.</p>
                 </div>
             </button>
             <button
