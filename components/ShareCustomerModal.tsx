@@ -5,7 +5,6 @@ import { PrinterIcon } from './icons/PrinterIcon';
 import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
 import { ImageIcon } from './icons/ImageIcon';
 import CustomerSheet from './CustomerSheet';
-import ReactDOMServer from 'react-dom/server';
 import { createRoot } from 'react-dom/client';
 
 // Declara html2canvas para TypeScript, já que é carregado via tag de script global.
@@ -20,6 +19,7 @@ interface ShareCustomerModalProps {
 
 const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose, customer, showNotification }) => {
   const [isSharing, setIsSharing] = useState(false);
+  const [isSavingPng, setIsSavingPng] = useState(false);
 
   // Verifica se o navegador suporta a API de compartilhamento Web Share.
   const canShareFiles = !!(navigator.share && navigator.canShare);
@@ -48,32 +48,49 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     onClose();
   };
   
-  const handleSaveAsPdf = () => {
-    const printWindow = window.open('', '', 'height=1123,width=794'); // A4 dimensions in pixels approx
-    if (printWindow) {
-        const sheetHtml = ReactDOMServer.renderToString(<CustomerSheet customer={customer} />);
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Ficha Cadastral - ${customer.name}</title>
-                    <script src="https://cdn.tailwindcss.com"></script>
-                    <link rel="preconnect" href="https://fonts.googleapis.com">
-                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-                    <style>
-                        body { 
-                            font-family: 'Inter', sans-serif;
-                            -webkit-print-color-adjust: exact; 
-                            print-color-adjust: exact;
-                        }
-                    </style>
-                </head>
-                <body onload="setTimeout(() => { window.print(); window.close(); }, 250);">
-                    ${sheetHtml}
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
+  const handleSaveAsPng = async () => {
+    setIsSavingPng(true);
+    showNotification('Gerando imagem PNG, por favor aguarde...', 'success');
+
+    const sheetContainer = document.createElement('div');
+    sheetContainer.style.position = 'absolute';
+    sheetContainer.style.left = '-9999px';
+    sheetContainer.style.width = '210mm';
+    document.body.appendChild(sheetContainer);
+
+    const root = createRoot(sheetContainer);
+    root.render(<CustomerSheet customer={customer} />);
+
+    try {
+        await document.fonts.ready;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        const elementToCapture = sheetContainer.firstChild as HTMLElement;
+        if (!elementToCapture) {
+            throw new Error("O componente da ficha do cliente não renderizou para captura.");
+        }
+
+        const canvas = await html2canvas(elementToCapture, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#f1f5f9'
+        });
+
+        const image = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `ficha_${customer.name.replace(/\s/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error('Erro ao gerar imagem PNG:', error);
+        showNotification('Ocorreu um erro ao gerar a imagem PNG.', 'error');
+    } finally {
+        root.unmount();
+        document.body.removeChild(sheetContainer);
+        setIsSavingPng(false);
         onClose();
     }
   };
@@ -97,7 +114,6 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     root.render(<CustomerSheet customer={customer} />);
 
     try {
-        // Aguarda as fontes carregarem e o navegador pintar o conteúdo. É mais confiável que um timeout.
         await document.fonts.ready;
         await new Promise(resolve => requestAnimationFrame(resolve));
         
@@ -107,9 +123,9 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
         }
 
         const canvas = await html2canvas(elementToCapture, {
-            scale: 2, // Aumenta a resolução da imagem
+            scale: 2,
             useCORS: true,
-            backgroundColor: '#f1f5f9' // Cor de fundo do CustomerSheet
+            backgroundColor: '#f1f5f9'
         });
 
         canvas.toBlob(async (blob) => {
@@ -140,13 +156,12 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                  showNotification('Não é possível compartilhar este tipo de arquivo ou o navegador não suporta a função.', 'error');
             }
             
-            // Limpa e fecha
             root.unmount();
             document.body.removeChild(sheetContainer);
             setIsSharing(false);
             onClose();
 
-        }, 'image/jpeg', 0.9); // Qualidade da imagem JPG
+        }, 'image/jpeg', 0.9);
 
     } catch (error) {
         console.error('Erro ao gerar imagem com html2canvas:', error);
@@ -174,13 +189,14 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
         </div>
         <div className="p-6 space-y-4">
             <button
-                onClick={handleSaveAsPdf}
-                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-cyan-500 transition-colors"
+                onClick={handleSaveAsPng}
+                disabled={isSavingPng}
+                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-cyan-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
             >
                 <PrinterIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
                 <div>
-                    <h3 className="font-bold text-white">Salvar como PDF</h3>
-                    <p className="text-sm text-slate-400">Gera um arquivo PDF da ficha do cliente utilizando a função de impressão do navegador.</p>
+                    <h3 className="font-bold text-white">{isSavingPng ? 'Salvando PNG...' : 'Salvar como PNG'}</h3>
+                    <p className="text-sm text-slate-400">Salva uma imagem de alta qualidade da ficha do cliente em formato PNG.</p>
                 </div>
             </button>
             <button
