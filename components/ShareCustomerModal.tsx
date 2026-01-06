@@ -97,9 +97,16 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     root.render(<CustomerSheet customer={customer} />);
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Aguarda as fontes carregarem e o navegador pintar o conteúdo. É mais confiável que um timeout.
+        await document.fonts.ready;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        const elementToCapture = sheetContainer.firstChild as HTMLElement;
+        if (!elementToCapture) {
+            throw new Error("O componente da ficha do cliente não renderizou para captura.");
+        }
 
-        const canvas = await html2canvas(sheetContainer, {
+        const canvas = await html2canvas(elementToCapture, {
             scale: 2, // Aumenta a resolução da imagem
             useCORS: true,
             backgroundColor: '#f1f5f9' // Cor de fundo do CustomerSheet
@@ -116,7 +123,7 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
 
             const file = new File([blob], `ficha_${customer.name.replace(/\s/g, '_')}.jpg`, { type: 'image/jpeg' });
             
-            if (navigator.canShare({ files: [file] })) {
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
                         title: `Ficha Cadastral - ${customer.name}`,
@@ -125,11 +132,12 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                     });
                 } catch (error) {
                     if ((error as DOMException).name !== 'AbortError') {
+                        console.error('Share API error:', error);
                         showNotification('O compartilhamento falhou.', 'error');
                     }
                 }
             } else {
-                 showNotification('Não foi possível compartilhar este tipo de arquivo.', 'error');
+                 showNotification('Não é possível compartilhar este tipo de arquivo ou o navegador não suporta a função.', 'error');
             }
             
             // Limpa e fecha
