@@ -99,7 +99,6 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
             const canvas = await html2canvas(sheetContainer, {
                 scale: 2, // For higher resolution
                 useCORS: true, // Important for loading external fonts/images
-                allowTaint: true,
                 backgroundColor: '#ffffff'
             });
 
