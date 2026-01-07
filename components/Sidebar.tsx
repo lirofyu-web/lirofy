@@ -7,7 +7,8 @@ import { CalculatorIcon } from './icons/CalculatorIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { LogoIcon } from './icons/LogoIcon';
 import { MapIcon } from './icons/MapIcon';
-import { CogIcon } from './icons/CogIcon'; // New Icon
+import { CogIcon } from './icons/CogIcon';
+import { ListBulletIcon } from './icons/ListBulletIcon';
 
 interface SidebarProps {
   currentView: View;
@@ -20,6 +21,7 @@ const navItems = [
     { view: 'DASHBOARD' as View, label: 'Dashboard', icon: HomeIcon },
     { view: 'CLIENTES' as View, label: 'Clientes', icon: UsersIcon },
     { view: 'COBRANCAS' as View, label: 'Cobranças', icon: ReceiptIcon },
+    { view: 'EQUIPAMENTOS' as View, label: 'Equipamentos', icon: ListBulletIcon },
     { view: 'DESPESAS' as View, label: 'Despesas', icon: CalculatorIcon },
     { view: 'ROTAS' as View, label: 'Rotas', icon: MapIcon },
     { view: 'RELATORIOS' as View, label: 'Relatórios', icon: ChartBarIcon },

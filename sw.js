@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v41'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v46'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -24,6 +24,7 @@ const urlsToCache = [
   '/views/DespesasView.tsx',
   '/views/RelatoriosView.tsx',
   '/views/RotasView.tsx',
+  '/views/EquipamentosView.tsx',
 
   // Todos os componentes reutilizáveis.
   '/components/ActionModal.tsx',
@@ -36,7 +37,10 @@ const urlsToCache = [
   '/components/CustomerQrCodeModal.tsx',
   '/components/QrScannerModal.tsx',
   '/components/DebtPaymentModal.tsx',
+  '/components/DebtReceiptActionsModal.tsx',
   '/components/DebtReceiptModal.tsx',
+  '/components/DebtReceiptSheet.tsx',
+  '/components/DebtReminders.tsx',
   '/components/EditCustomerModal.tsx',
   '/components/EquipmentSelectionModal.tsx',
   '/components/HistoryModal.tsx',
@@ -47,14 +51,19 @@ const urlsToCache = [
   '/components/PageHeader.tsx',
   '/components/ReceiptActionsModal.tsx',
   '/components/ReceiptModal.tsx',
+  '/components/ReceiptSheet.tsx',
   '/components/Sidebar.tsx',
   '/components/WarningsManager.tsx',
+  '/components/WarningsReminders.tsx',
   '/components/ShareCustomerModal.tsx',
   '/components/CustomerSheet.tsx',
+  '/components/EquipmentQrCodeModal.tsx',
+  '/components/EquipmentLabel.tsx',
 
   // Todos os ícones SVG usados nos componentes.
   '/components/icons/AlertIcon.tsx',
   '/components/icons/AndroidIcon.tsx',
+  '/components/icons/BellAlertIcon.tsx',
   '/components/icons/BilliardIcon.tsx',
   '/components/icons/CalculatorIcon.tsx',
   '/components/icons/ChartBarIcon.tsx',

@@ -2,6 +2,7 @@
 import React, { useRef } from 'react';
 import { DebtPayment } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
+import DebtReceiptSheet from './DebtReceiptSheet';
 
 interface DebtReceiptModalProps {
   isOpen: boolean;
@@ -46,11 +47,6 @@ const DebtReceiptModal: React.FC<DebtReceiptModalProps> = ({ isOpen, onClose, de
   };
 
   if (!isOpen) return null;
-  
-  const paymentMethodText = {
-      pix: 'PIX',
-      dinheiro: 'DINHEIRO',
-  };
 
   return (
     <div 
@@ -69,27 +65,7 @@ const DebtReceiptModal: React.FC<DebtReceiptModalProps> = ({ isOpen, onClose, de
 
         <div className="p-4 overflow-y-auto bg-white text-black font-mono text-sm">
             <div ref={printRef}>
-              <div className="header text-center mb-4">
-                  <h3 className="font-bold text-base">MONTANHA BILHAR & JUKEBOX</h3>
-                  <p>COMPROVANTE DE PAGAMENTO DE DÍVIDA</p>
-                  <p>--------------------------------</p>
-              </div>
-              
-              <div className="space-y-1">
-                  <p>CLIENTE: {debtPayment.customerName}</p>
-                  <p>DATA: {new Date(debtPayment.paidAt).toLocaleString('pt-BR')}</p>
-                  <hr className="border-dashed border-black my-2" />
-                  
-                  <div className="flex justify-between font-bold text-base pt-2 mt-2">
-                      <span>VALOR PAGO:</span>
-                      <span>R$ {debtPayment.amountPaid.toFixed(2)}</span>
-                  </div>
-                   <div className="flex justify-between pt-1">
-                      <span>Pagamento:</span>
-                      <span>{paymentMethodText[debtPayment.paymentMethod]}</span>
-                  </div>
-
-              </div>
+              <DebtReceiptSheet debtPayment={debtPayment} />
             </div>
         </div>
 

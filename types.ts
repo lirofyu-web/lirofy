@@ -92,6 +92,7 @@ export interface Expense {
   description: string;
   amount: number;
   date: Date;
+  category: 'mesa' | 'jukebox' | 'grua' | 'geral';
 }
 
 export interface DebtPayment {

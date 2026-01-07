@@ -1,18 +1,18 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { PrinterIcon } from './icons/PrinterIcon';
 
 interface CraneReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (startDate: string, endDate: string, moneyDeposit: number, expenses: number) => void;
+  onConfirm: (startDate: string, endDate: string, moneyDeposit: number) => void;
 }
 
 const CraneReportModal: React.FC<CraneReportModalProps> = ({ isOpen, onClose, onConfirm }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [moneyDeposit, setMoneyDeposit] = useState('');
-  const [expenses, setExpenses] = useState('');
 
   // Set default dates to current month
   useEffect(() => {
@@ -23,7 +23,6 @@ const CraneReportModal: React.FC<CraneReportModalProps> = ({ isOpen, onClose, on
       setStartDate(firstDay.toISOString().split('T')[0]);
       setEndDate(lastDay.toISOString().split('T')[0]);
       setMoneyDeposit('');
-      setExpenses('');
     }
   }, [isOpen]);
 
@@ -36,8 +35,7 @@ const CraneReportModal: React.FC<CraneReportModalProps> = ({ isOpen, onClose, on
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const depositNum = parseCurrencyInput(moneyDeposit);
-    const expensesNum = parseCurrencyInput(expenses);
-    onConfirm(startDate, endDate, depositNum, expensesNum);
+    onConfirm(startDate, endDate, depositNum);
   };
 
   if (!isOpen) return null;
@@ -86,18 +84,7 @@ const CraneReportModal: React.FC<CraneReportModalProps> = ({ isOpen, onClose, on
               onChange={(e) => setMoneyDeposit(e.target.value.replace(/[^0-9,.]/g, ''))}
               className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:ring-emerald-500 focus:outline-none"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Total de Despesas (R$)</label>
-            <input 
-              type="text" 
-              inputMode="decimal"
-              placeholder="0,00"
-              value={expenses}
-              onChange={(e) => setExpenses(e.target.value.replace(/[^0-9,.]/g, ''))}
-              className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:ring-emerald-500 focus:outline-none"
-            />
+             <p className="text-xs text-slate-400 mt-1">Este valor é apenas informativo e não afeta o cálculo do lucro.</p>
           </div>
 
           <div className="pt-4 flex justify-end gap-4">

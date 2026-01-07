@@ -9,21 +9,27 @@ import DashboardView from './views/DashboardView';
 import ClientesView from './views/ClientesView';
 import CobrancasView from './views/CobrancasView';
 import DespesasView from './views/DespesasView';
+import EquipamentosView from './views/EquipamentosView';
 import RotasView from './views/RotasView';
 import RelatoriosView from './views/RelatoriosView';
 import ConfiguracoesView from './views/ConfiguracoesView';
 import ReceiptModal from './components/ReceiptModal';
 import DebtReceiptModal from './components/DebtReceiptModal';
 import ReceiptActionsModal from './components/ReceiptActionsModal';
+import DebtReceiptActionsModal from './components/DebtReceiptActionsModal';
 import Notification from './components/Notification';
 import BottomNavBar from './components/BottomNavBar';
 import MobileHeader from './components/MobileHeader';
 import InstallPwaBanner from './components/InstallPwaBanner';
 import CustomerSheet from './components/CustomerSheet';
 import { PrinterIcon } from './components/icons/PrinterIcon';
+import ReceiptSheet from './components/ReceiptSheet';
+import DebtReceiptSheet from './components/DebtReceiptSheet';
 
+// Declara html2canvas para TypeScript, já que é carregado via tag de script global.
+declare const html2canvas: any;
 
-export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
+export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 export type Theme = 'light' | 'dark';
 
 type NotificationState = {
@@ -35,6 +41,7 @@ const viewTitles: Record<View, string> = {
     'DASHBOARD': 'Dashboard',
     'CLIENTES': 'Clientes',
     'COBRANCAS': 'Cobranças',
+    'EQUIPAMENTOS': 'Equipamentos',
     'DESPESAS': 'Despesas',
     'ROTAS': 'Rotas',
     'RELATORIOS': 'Relatórios',
@@ -80,6 +87,115 @@ const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }
   );
 };
 
+const generateReceiptText = (billing: Billing, isProvisional: boolean): string => {
+    const isMesa = billing.equipmentType === 'mesa';
+    const isGrua = billing.equipmentType === 'grua';
+    const paymentMethodText = {
+        pix: 'PIX',
+        dinheiro: 'DINHEIRO',
+        fiado: 'FIADO (ANOTADO)',
+        misto: 'MISTO',
+    };
+
+    let details = '';
+
+    if (isGrua) {
+        details = `
+*EQUIPAMENTO: GRUA ${billing.equipmentNumero}*
+Leitura Anterior: ${billing.relogioAnterior}
+Leitura Atual: ${billing.relogioAtual}
+--------------------------------
+SALDO: R$ ${(billing.saldo || 0).toFixed(2)}
+Recebido Espécie: R$ ${(billing.recebimentoEspecie || 0).toFixed(2)}
+Recebido PIX: R$ ${(billing.recebimentoPix || 0).toFixed(2)}
+--------------------------------
+Qtd. Pelúcias (Capacidade): ${billing.quantidadePelucia || 0}
+Sobra de Pelúcias: ${billing.sobraPelucia || 0}
+Reposição de Pelúcias: ${billing.reposicaoPelucia || 0}
+--------------------------------
+ALUGUEL (PAGO AO CLIENTE): R$ ${(billing.aluguelValor || 0).toFixed(2)}
+--------------------------------
+*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
+        `.trim();
+    } else { // Mesa or Jukebox
+        if (isMesa && billing.billingType === 'monthly') {
+            details = `
+*EQUIPAMENTO: MESA ${billing.equipmentNumero} (MENSAL)*
+--------------------------------
+Partidas Jogadas (Período): ${billing.partidasJogadas}
+--------------------------------
+*MENSALIDADE FIXA: R$ ${billing.valorTotal.toFixed(2)}*
+            `.trim();
+        } else {
+            let mesaDetails = '';
+            if (isMesa) {
+                mesaDetails = `
+Partidas Jogadas: ${billing.partidasJogadas}
+Partidas Desconto: ${billing.descontoPartidas || 0}
+Partidas Cobradas: ${billing.partidasCobradas || 0}
+Valor Ficha: R$ ${(billing.valorFicha ?? 0).toFixed(2)}
+--------------------------------`;
+            }
+            details = `
+*EQUIPAMENTO: ${isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}*
+Leitura Anterior: ${billing.relogioAnterior}
+Leitura Atual: ${billing.relogioAtual}
+--------------------------------${mesaDetails}
+Valor Bruto: R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0)).toFixed(2)}
+Parte Cliente: R$ ${(billing.parteCliente ?? 0).toFixed(2)}
+--------------------------------
+*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
+            `.trim();
+        }
+    }
+
+    let paymentDetails = '';
+    if (!isProvisional && !isGrua) {
+        if (billing.paymentMethod === 'misto') {
+            let parts = [];
+            if (billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0) parts.push(`- Dinheiro: R$ ${billing.valorPagoDinheiro.toFixed(2)}`);
+            if (billing.valorPagoPix && billing.valorPagoPix > 0) parts.push(`- PIX: R$ ${billing.valorPagoPix.toFixed(2)}`);
+            if (billing.valorPagoFiado && billing.valorPagoFiado > 0) parts.push(`- Fiado: R$ ${billing.valorPagoFiado.toFixed(2)}`);
+            paymentDetails = `\n*PAGAMENTO:*\n${parts.join('\n')}`;
+        } else {
+            paymentDetails = `\nPagamento: ${paymentMethodText[billing.paymentMethod]}`;
+        }
+    }
+
+    const provisionalFooter = isProvisional ? `
+--------------------------------
+*** COMPROVANTE PARA CONFERÊNCIA ***
+*** SEM VALOR FISCAL ***` : '';
+
+    return `*MONTANHA BILHAR & JUKEBOX*
+${isProvisional ? 'DEMONSTRATIVO DE COBRANÇA' : 'ACERTO DE CONTAS'}
+--------------------------------
+CLIENTE: ${billing.customerName}
+DATA: ${new Date(billing.settledAt).toLocaleString('pt-BR')}
+--------------------------------
+${details}
+${paymentDetails}
+${provisionalFooter}
+    `.replace(/\n\s+\n/g, '\n\n').trim();
+};
+
+const generateDebtReceiptText = (debtPayment: DebtPayment): string => {
+    const paymentMethodText = {
+        pix: 'PIX',
+        dinheiro: 'DINHEIRO',
+    };
+    return `*MONTANHA BILHAR & JUKEBOX*
+COMPROVANTE DE PAGAMENTO DE DÍVIDA
+--------------------------------
+CLIENTE: ${debtPayment.customerName}
+DATA: ${new Date(debtPayment.paidAt).toLocaleString('pt-BR')}
+--------------------------------
+*VALOR PAGO: R$ ${debtPayment.amountPaid.toFixed(2)}*
+Pagamento: ${paymentMethodText[debtPayment.paymentMethod]}
+    `.trim();
+};
+
+
 const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -91,7 +207,7 @@ const App: React.FC = () => {
     // Initialize currentView from localStorage or default to DASHBOARD
     const [currentView, setCurrentView] = useState<View>(() => {
         const savedView = localStorage.getItem('lastActiveView');
-        const validViews: View[] = ['DASHBOARD', 'CLIENTES', 'COBRANCAS', 'DESPESAS', 'ROTAS', 'RELATORIOS', 'CONFIGURACOES'];
+        const validViews: View[] = ['DASHBOARD', 'CLIENTES', 'COBRANCAS', 'EQUIPAMENTOS', 'DESPESAS', 'ROTAS', 'RELATORIOS', 'CONFIGURACOES'];
         return (savedView && validViews.includes(savedView as View)) ? (savedView as View) : 'DASHBOARD';
     });
 
@@ -214,6 +330,84 @@ const App: React.FC = () => {
         }
     }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
 
+    const handleShareReceipt = useCallback(async (billing: Billing, isProvisional: boolean = false) => {
+        const customer = customers.find(c => c.id === billing.customerId);
+        if (!customer) return;
+
+        const receiptText = generateReceiptText(billing, isProvisional);
+
+        const cleanup = () => {
+            if (isProvisional) {
+                if (provisionalReceiptCallback) provisionalReceiptCallback();
+                setProvisionalReceiptBilling(null);
+                setProvisionalReceiptCallback(null);
+            } else {
+                setFinalizedBilling(null);
+            }
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Comprovante - ${customer.name}`,
+                    text: receiptText,
+                });
+            } catch (error) {
+                if ((error as DOMException).name !== 'AbortError') {
+                    console.error('Share API error:', error);
+                    showNotification('O compartilhamento falhou.', 'error');
+                }
+            } finally {
+                cleanup();
+            }
+        } else {
+            const phone = customer.telefone?.replace(/\D/g, '');
+            if (phone) {
+                const url = `https://wa.me/55${phone}?text=${encodeURIComponent(receiptText)}`;
+                window.open(url, '_blank');
+            } else {
+                showNotification('Cliente sem telefone cadastrado.', 'error');
+            }
+            cleanup();
+        }
+    }, [customers, showNotification, provisionalReceiptCallback]);
+
+    const handleShareDebtReceipt = useCallback(async (debtPayment: DebtPayment) => {
+        const customer = customers.find(c => c.id === debtPayment.customerId);
+        if (!customer) return;
+
+        const receiptText = generateDebtReceiptText(debtPayment);
+        
+        const cleanup = () => {
+            setFinalizedDebtPayment(null);
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Comprovante de Pagamento - ${customer.name}`,
+                    text: receiptText,
+                });
+            } catch (error) {
+                if ((error as DOMException).name !== 'AbortError') {
+                    console.error('Share API error:', error);
+                    showNotification('O compartilhamento falhou.', 'error');
+                }
+            } finally {
+                cleanup();
+            }
+        } else {
+            const phone = customer.telefone?.replace(/\D/g, '');
+            if (phone) {
+                const url = `https://wa.me/55${phone}?text=${encodeURIComponent(receiptText)}`;
+                window.open(url, '_blank');
+            } else {
+                showNotification('Cliente sem telefone cadastrado.', 'error');
+            }
+            cleanup();
+        }
+    }, [customers, showNotification]);
+
     const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
         setIsSaving(true);
         const newCustomer: Customer = {
@@ -319,12 +513,13 @@ const App: React.FC = () => {
         showNotification("Cobrança excluída com sucesso!", "success");
     };
 
-    const handleAddExpense = (description: string, amount: number) => {
+    const handleAddExpense = (description: string, amount: number, category: Expense['category']) => {
         const newExpense: Expense = {
             id: uuidv4(),
             description,
             amount,
             date: new Date(),
+            category,
         };
         setExpenses(prev => [...prev, newExpense]);
         showNotification("Despesa adicionada com sucesso!", "success");
@@ -336,10 +531,13 @@ const App: React.FC = () => {
     };
     
     const handlePayDebt = (customerId: string, amountPaid: number, paymentMethod: 'pix' | 'dinheiro') => {
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return;
+
         const newPayment: DebtPayment = {
             id: uuidv4(),
             customerId,
-            customerName: customers.find(c => c.id === customerId)?.name || 'N/A',
+            customerName: customer.name,
             amountPaid,
             paidAt: new Date(),
             paymentMethod,
@@ -484,6 +682,8 @@ const App: React.FC = () => {
                 return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} warnings={warnings} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} onPrintCustomer={handlePrintCustomer} />;
             case 'COBRANCAS':
                 return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling} onDeleteBilling={handleDeleteBilling}/>;
+            case 'EQUIPAMENTOS':
+                return <EquipamentosView customers={customers} billings={billings} />;
             case 'DESPESAS':
                 return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
             case 'ROTAS':
@@ -504,6 +704,10 @@ const App: React.FC = () => {
     const customerForProvisionalBilling = useMemo(() => {
         return customers.find(c => c.id === provisionalReceiptBilling?.customerId);
     }, [provisionalReceiptBilling, customers]);
+
+    const customerForFinalizedDebtPayment = useMemo(() => {
+        return customers.find(c => c.id === finalizedDebtPayment?.customerId);
+    }, [finalizedDebtPayment, customers]);
 
     return (
         <div className="text-slate-800 dark:text-slate-100 min-h-screen">
@@ -551,13 +755,7 @@ const App: React.FC = () => {
                         );
                         root.render(<PrintComponent />);
                     }}
-                    onWhatsApp={() => {
-                        if (customerForProvisionalBilling?.telefone) {
-                            const phone = customerForProvisionalBilling.telefone.replace(/\D/g, '');
-                            const text = encodeURIComponent(`Olá, segue o demonstrativo de cobrança para ${provisionalReceiptBilling.customerName}.`);
-                            window.open(`https://wa.me/55${phone}?text=${text}`, '_blank');
-                        }
-                    }}
+                    onWhatsApp={() => handleShareReceipt(provisionalReceiptBilling, true)}
                     customerHasPhone={!!customerForProvisionalBilling?.telefone}
                 />
             )}
@@ -582,22 +780,34 @@ const App: React.FC = () => {
                         );
                         root.render(<PrintComponent />);
                     }}
-                    onWhatsApp={() => {
-                        if (customerForFinalizedBilling?.telefone) {
-                            const phone = customerForFinalizedBilling.telefone.replace(/\D/g, '');
-                            const text = encodeURIComponent(`Olá, segue o comprovante de cobrança para ${finalizedBilling.customerName}. Valor: R$ ${finalizedBilling.valorTotal.toFixed(2)}.`);
-                            window.open(`https://wa.me/55${phone}?text=${text}`, '_blank');
-                        }
-                    }}
+                    onWhatsApp={() => handleShareReceipt(finalizedBilling)}
                     customerHasPhone={!!customerForFinalizedBilling?.telefone}
                 />
             )}
 
             {finalizedDebtPayment && (
-                 <DebtReceiptModal
+                 <DebtReceiptActionsModal
                     isOpen={!!finalizedDebtPayment}
                     onClose={() => setFinalizedDebtPayment(null)}
                     debtPayment={finalizedDebtPayment}
+                    onPrint={() => {
+                        const modal = document.createElement('div');
+                        document.body.appendChild(modal);
+                        const root = createRoot(modal);
+                        const PrintComponent = () => (
+                             <DebtReceiptModal
+                                isOpen={true}
+                                onClose={() => {
+                                    root.unmount();
+                                    document.body.removeChild(modal);
+                                }}
+                                debtPayment={finalizedDebtPayment}
+                            />
+                        );
+                        root.render(<PrintComponent />);
+                    }}
+                    onWhatsApp={() => handleShareDebtReceipt(finalizedDebtPayment)}
+                    customerHasPhone={!!customerForFinalizedDebtPayment?.telefone}
                 />
             )}
 

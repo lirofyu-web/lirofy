@@ -4,6 +4,7 @@ import { View } from '../App';
 import { HomeIcon } from './icons/HomeIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { ReceiptIcon } from './icons/ReceiptIcon';
+import { ListBulletIcon } from './icons/ListBulletIcon';
 import { CalculatorIcon } from './icons/CalculatorIcon';
 
 interface BottomNavBarProps {
@@ -12,8 +13,9 @@ interface BottomNavBarProps {
 }
 
 const navItems = [
-    { view: 'DASHBOARD' as View, label: 'Dashboard', icon: HomeIcon },
+    { view: 'DASHBOARD' as View, label: 'Início', icon: HomeIcon },
     { view: 'CLIENTES' as View, label: 'Clientes', icon: UsersIcon },
+    { view: 'EQUIPAMENTOS' as View, label: 'Equips', icon: ListBulletIcon },
     { view: 'COBRANCAS' as View, label: 'Cobranças', icon: ReceiptIcon },
     { view: 'DESPESAS' as View, label: 'Despesas', icon: CalculatorIcon },
 ];

@@ -174,7 +174,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       const recebimentoPix = safeParseFloat(formState.recebimentoPix);
       let aluguelValor = safeParseFloat(formState.aluguelValor);
       
-      if(equipment.aluguelPercentual && equipment.aluguelPercentual > 0){
+      if(equipment.aluguelPercentual != null){
           aluguelValor = saldo * (equipment.aluguelPercentual / 100);
       }
 
@@ -231,7 +231,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             newState.saldo = String(saldoBruto);
 
             let aluguelValorNum = safeParseFloat(newState.aluguelValor);
-            if (equipment.aluguelPercentual && equipment.aluguelPercentual > 0) {
+            if (equipment.aluguelPercentual != null) {
                 aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
                 newState.aluguelValor = String(aluguelValorNum.toFixed(2).replace('.', ','));
             }
@@ -393,7 +393,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
       <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
       <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly />
-      {equipment.aluguelPercentual && equipment.aluguelPercentual > 0
+      {equipment.aluguelPercentual != null
           ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
           : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
       }

@@ -11,6 +11,7 @@ import { CraneIcon } from './icons/CraneIcon';
 import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 
 interface AddCustomerFormProps {
+  customers: Customer[];
   onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => Promise<void>;
   isSaving: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
@@ -46,7 +47,7 @@ const FormField: React.FC<{
 ));
 
 
-const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSaving, showNotification }) => {
+const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCustomer, isSaving, showNotification }) => {
   const [formData, setFormData] = useState<{
     name: string;
     cpfRg: string;
@@ -73,18 +74,32 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
     const { name, value } = e.target;
     setFormData(prev => {
         const newEquipment = [...prev.equipment];
-        const currentItem = { ...newEquipment[index], [name]: value };
+        const currentItem = { ...newEquipment[index] };
+
+        // Handle aluguelTipo switch for gruas
+        if (name === 'aluguelTipo') {
+            if (value === 'percentual') {
+                currentItem.aluguelPercentual = currentItem.aluguelPercentual ?? 50;
+                delete currentItem.aluguelValor;
+            } else { // 'fixo'
+                currentItem.aluguelValor = currentItem.aluguelValor ?? 0;
+                delete currentItem.aluguelPercentual;
+            }
+        } else {
+            // Handle all other field changes
+            (currentItem as any)[name] = value;
+        }
         
+        // Handle billingType switch for mesas
         if(name === 'billingType' && value === 'monthly') {
-          // Clear per-play fields when switching to monthly
           delete currentItem.valorFicha;
           delete currentItem.parteFirma;
           delete currentItem.parteCliente;
         } else if (name === 'billingType' && value === 'perPlay') {
-          // Clear monthly field when switching to per-play
           delete currentItem.monthlyFeeValue;
         }
 
+        // Handle automatic percentage calculation
         const numericValue = parseInt(value, 10);
         if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
             const remaining = 100 - numericValue;
@@ -194,6 +209,30 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation for unique equipment numbers
+    const allExistingNumbers = new Set<string>();
+    customers.forEach(c => {
+        c.equipment.forEach(e => {
+            if (e.numero) allExistingNumbers.add(e.numero);
+        });
+    });
+
+    const formNumbers = new Set<string>();
+    for (const equip of formData.equipment) {
+        if (!equip.numero) continue;
+        
+        if (allExistingNumbers.has(equip.numero)) {
+            showNotification(`O número de equipamento '${equip.numero}' já está em uso.`, "error");
+            return;
+        }
+        if (formNumbers.has(equip.numero)) {
+            showNotification(`Número de equipamento '${equip.numero}' duplicado neste formulário.`, "error");
+            return;
+        }
+        formNumbers.add(equip.numero);
+    }
+
     const finalEquipment: Equipment[] = formData.equipment.map(eq => {
       const base = {
         id: eq.id!,
@@ -230,8 +269,8 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
       if (eq.type === 'grua') {
         return {
           ...base,
-          aluguelPercentual: Number(eq.aluguelPercentual) || 0,
-          aluguelValor: Number(eq.aluguelValor) || 0,
+          aluguelPercentual: eq.aluguelPercentual != null ? Number(eq.aluguelPercentual) : undefined,
+          aluguelValor: eq.aluguelValor != null ? Number(eq.aluguelValor) : undefined,
           saldo: Number(eq.saldo) || 0,
           quantidadePelucia: Number(eq.quantidadePelucia) || 0,
           reposicaoPelucia: Number(eq.reposicaoPelucia) || 0,
@@ -391,8 +430,24 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ onAddCustomer, isSavi
                                             <FormField label="Número da Grua" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} />
                                             <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} />
                                             <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="number" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
-                                            <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Tipo de Aluguel</label>
+                                                <select
+                                                    name="aluguelTipo"
+                                                    value={equip.aluguelPercentual != null ? 'percentual' : 'fixo'}
+                                                    onChange={e => handleEquipmentChange(index, e)}
+                                                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                >
+                                                    <option value="fixo">Valor Fixo (R$)</option>
+                                                    <option value="percentual">Percentual (%)</option>
+                                                </select>
+                                            </div>
+
+                                            {equip.aluguelPercentual != null ? (
+                                                <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            ) : (
+                                                <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} />
+                                            )}
                                         </div>
                                     )}
                                 </div>

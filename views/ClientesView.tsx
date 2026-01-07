@@ -31,6 +31,8 @@ interface ClientesViewProps {
   onPrintCustomer: (customer: Customer) => void;
 }
 
+type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
+
 const ClientesView: React.FC<ClientesViewProps> = ({ 
     customers, 
     onAddCustomer, 
@@ -47,6 +49,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onPrintCustomer
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   
   // Modal states
   const [billingCustomer, setBillingCustomer] = useState<Customer | null>(null);
@@ -60,15 +63,20 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [sharingCustomer, setSharingCustomer] = useState<Customer | null>(null);
 
   const filteredCustomers = useMemo(() => {
-    if (!searchQuery) {
-      return customers;
-    }
-    return customers.filter(customer =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.cidade.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.linhaNumero.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [customers, searchQuery]);
+    return customers
+        .filter(customer => {
+            // Search query filter
+            if (!searchQuery) return true;
+            return customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   customer.cidade.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   customer.linhaNumero.toLowerCase().includes(searchQuery.toLowerCase());
+        })
+        .filter(customer => {
+            // Equipment filter
+            if (equipmentFilter === 'all') return true;
+            return customer.equipment.some(e => e.type === equipmentFilter);
+        });
+  }, [customers, searchQuery, equipmentFilter]);
 
   const customersByCity = useMemo(() => {
     const grouped = filteredCustomers.reduce((acc, customer) => {
@@ -121,14 +129,41 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   }, [selectingEquipmentFor]);
 
   const handleScanSuccess = useCallback((decodedText: string) => {
-    setIsScannerOpen(false);
-    const customer = customers.find(c => c.id === decodedText);
-    if (customer) {
-        showNotification(`Cliente ${customer.name} encontrado!`, 'success');
-        handleBillCustomer(customer);
-    } else {
-        showNotification("Cliente não encontrado. O QR Code pode ser inválido.", "error");
-    }
+      setIsScannerOpen(false);
+      try {
+          // First, try to parse as JSON for equipment QR codes
+          const data = JSON.parse(decodedText);
+          if (data.type === 'equipment' && data.id) {
+              let foundCustomer: Customer | null = null;
+              let foundEquipment: Equipment | null = null;
+              for (const customer of customers) {
+                  const eq = customer.equipment.find(e => e.id === data.id);
+                  if (eq) {
+                      foundCustomer = customer;
+                      foundEquipment = eq;
+                      break;
+                  }
+              }
+
+              if (foundCustomer && foundEquipment) {
+                  showNotification(`Equipamento ${foundEquipment.numero} de ${foundCustomer.name} encontrado!`, 'success');
+                  setBillingCustomer(foundCustomer);
+                  setBillingEquipment(foundEquipment);
+              } else {
+                  showNotification("Equipamento não encontrado ou não associado a um cliente.", "error");
+              }
+              return;
+          }
+      } catch (e) {
+          // If JSON parsing fails, assume it's a plain customer ID
+          const customer = customers.find(c => c.id === decodedText);
+          if (customer) {
+              showNotification(`Cliente ${customer.name} encontrado!`, 'success');
+              handleBillCustomer(customer);
+          } else {
+              showNotification("QR Code inválido. Não corresponde a um cliente ou equipamento conhecido.", "error");
+          }
+      }
   }, [customers, showNotification, handleBillCustomer]);
 
   return (
@@ -136,29 +171,37 @@ const ClientesView: React.FC<ClientesViewProps> = ({
       <PageHeader title="Clientes" subtitle="Gerencie seus clientes e equipamentos." />
 
       <div className="mb-8">
-        <AddCustomerForm onAddCustomer={onAddCustomer} isSaving={isSaving} showNotification={showNotification} />
+        <AddCustomerForm customers={customers} onAddCustomer={onAddCustomer} isSaving={isSaving} showNotification={showNotification} />
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-col sm:flex-row items-center gap-4">
-         <div className="relative flex-grow w-full">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <SearchIcon className="w-5 h-5 text-slate-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
+            <div className="relative flex-grow w-full">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <SearchIcon className="w-5 h-5 text-slate-400" />
+                </div>
+                <input
+                    type="text"
+                    placeholder="Filtrar por nome, cidade ou linha..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
             </div>
-            <input
-                type="text"
-                placeholder="Filtrar por nome, cidade ou linha..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
+            <button
+                onClick={() => setIsScannerOpen(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500 transition-colors"
+            >
+                <QrCodeIcon className="w-5 h-5" />
+                <span>Escanear QR Code</span>
+            </button>
         </div>
-        <button
-            onClick={() => setIsScannerOpen(true)}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500 transition-colors"
-        >
-            <QrCodeIcon className="w-5 h-5" />
-            <span>Escanear QR Code</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button onClick={() => setEquipmentFilter('all')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Todos</button>
+            <button onClick={() => setEquipmentFilter('mesa')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Mesas</button>
+            <button onClick={() => setEquipmentFilter('jukebox')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Jukebox</button>
+            <button onClick={() => setEquipmentFilter('grua')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Gruas</button>
+        </div>
       </div>
       
       <div className="space-y-8">
@@ -186,7 +229,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             </section>
         )) : (
             <p className="text-center py-10 text-slate-500 dark:text-slate-400">
-                Nenhum cliente encontrado.
+                Nenhum cliente encontrado para os filtros selecionados.
             </p>
         )}
       </div>
@@ -247,6 +290,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                 setEditingCustomer(null);
             }}
             customer={editingCustomer}
+            customers={customers}
             isSaving={isSaving}
             showNotification={showNotification}
         />
