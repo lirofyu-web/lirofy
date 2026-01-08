@@ -318,7 +318,52 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 </div>
             </div>
 
-            <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-10">
+            {/* Mobile View: Cards */}
+            <div className="md:hidden space-y-4 mb-10">
+                {sortedBillings.length > 0 ? sortedBillings.map(billing => (
+                    <div key={billing.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-bold text-slate-900 dark:text-white break-words">{billing.customerName}</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</p>
+                                <PaymentMethodDisplay method={billing.paymentMethod} />
+                            </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                            <span className="flex items-center gap-2 text-sm">
+                                {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
+                                 billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
+                                 <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
+                                <span className="text-slate-600 dark:text-slate-300">
+                                    {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
+                                     billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
+                                     `Grua ${billing.equipmentNumero}`}
+                                </span>
+                            </span>
+                            <div className="flex gap-4">
+                                <button onClick={() => onShowReceipt(billing)} className="text-sm font-semibold text-lime-600 dark:text-lime-400 hover:underline">Ver</button>
+                                <button onClick={() => setDeletingBilling(billing)} className="text-red-500 dark:text-red-400" title="Excluir Cobrança">
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )) : (
+                     <p className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada para os filtros selecionados.</p>
+                )}
+                 {sortedBillings.length > 0 && (
+                    <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex justify-between items-center font-bold text-slate-900 dark:text-white">
+                        <span className="text-lg">TOTAL FILTRADO</span>
+                        <span className="font-mono text-xl text-lime-600 dark:text-lime-400">R$ {totalBilled.toFixed(2)}</span>
+                    </div>
+                 )}
+            </div>
+
+            {/* Desktop View: Table */}
+            <div className="hidden md:block bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-10">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300 min-w-[800px]">
                         <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
@@ -392,7 +437,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                 className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                                 aria-expanded={isExpanded}
                             >
-                                <span className="font-bold text-slate-900 dark:text-white">{customer.name}</span>
+                                <span className="font-bold text-slate-900 dark:text-white break-words">{customer.name}</span>
                                 <div className="flex items-center gap-2">
                                      <span className="text-sm text-slate-500 dark:text-slate-400">{customerBillings.length} cobrança(s)</span>
                                      <ChevronDownIcon className={`w-5 h-5 text-slate-500 dark:text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -409,7 +454,31 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                             <span>Imprimir Histórico</span>
                                         </button>
                                     </div>
-                                    <div className="overflow-x-auto">
+                                    {/* Mobile History View */}
+                                    <div className="md:hidden space-y-3">
+                                       {customerBillings.sort((a,b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()).map(billing => (
+                                            <div key={billing.id} className="bg-white dark:bg-slate-800 p-3 rounded-md border border-slate-200 dark:border-slate-700">
+                                                <div className="flex justify-between items-start text-sm">
+                                                    <div>
+                                                        <p className="text-slate-500">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
+                                                        <PaymentMethodDisplay method={billing.paymentMethod} />
+                                                    </div>
+                                                    <p className="font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</p>
+                                                </div>
+                                                <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
+                                                    <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                                        {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
+                                                        billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
+                                                        <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
+                                                        Equipamento: {billing.equipmentType.charAt(0).toUpperCase() + billing.equipmentType.slice(1)} {billing.equipmentNumero}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                       ))}
+                                    </div>
+
+                                    {/* Desktop History View */}
+                                    <div className="hidden md:block overflow-x-auto">
                                         <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
                                             <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
                                                 <tr>
@@ -426,7 +495,16 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                                 {customerBillings.sort((a,b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()).map(billing => (
                                                     <tr key={billing.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 last:border-b-0">
                                                         <td className="px-4 py-2">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
-                                                        <td className="px-4 py-2">{billing.equipmentType.charAt(0).toUpperCase() + billing.equipmentType.slice(1)} {billing.equipmentNumero}</td>
+                                                        <td className="px-4 py-2">
+                                                            <span className="flex items-center gap-2">
+                                                                {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
+                                                                billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
+                                                                <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
+                                                                {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
+                                                                billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
+                                                                `Grua ${billing.equipmentNumero}`}
+                                                            </span>
+                                                        </td>
                                                         {billing.equipmentType === 'mesa' ? (
                                                             <>
                                                                 <td className="px-4 py-2 text-center font-mono">{billing.relogioAnterior}</td>
@@ -465,8 +543,47 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                       <span>Imprimir Lista</span>
                     </button>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300 min-w-[720px]">
+
+                {/* Mobile View: Debtor Cards */}
+                <div className="md:hidden">
+                    <div className="p-4 space-y-3">
+                        {debtorCustomers.length > 0 ? debtorCustomers.map(customer => {
+                            const debtItems = billings
+                                .filter(b => b.customerId === customer.id && b.valorPagoFiado && b.valorPagoFiado > 0)
+                                .map(b => b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox');
+                            const uniqueItems = [...new Set(debtItems)].join(', ');
+
+                            return (
+                                <div key={customer.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white break-words">{customer.name}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 break-words">{customer.cidade}</p>
+                                        </div>
+                                        <p className="font-mono font-bold text-lg text-red-500 dark:text-red-400 whitespace-nowrap">
+                                            R$ {customer.debtAmount.toFixed(2)}
+                                        </p>
+                                    </div>
+                                    {uniqueItems && (
+                                        <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">Origem: {uniqueItems}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        }) : (
+                            <p className="text-center py-10 text-slate-500 dark:text-slate-400 italic">Nenhum cliente com dívidas.</p>
+                        )}
+                    </div>
+                     <div className="p-4 bg-slate-100 dark:bg-slate-700/50 flex justify-between items-center font-bold text-slate-900 dark:text-white">
+                        <span className="text-lg uppercase">Total Geral de Dívidas</span>
+                        <span className="font-mono text-xl">R$ {totalDebt.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                {/* Desktop View: Debtor Table */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
                         <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
                             <tr>
                                 <th scope="col" className="px-6 py-3">Cliente</th>

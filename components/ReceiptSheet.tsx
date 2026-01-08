@@ -1,6 +1,7 @@
 // components/ReceiptSheet.tsx
 import React from 'react';
 import { Billing } from '../types';
+import PixQrCode from './PixQrCode';
 
 interface ReceiptSheetProps {
   billing: Billing;
@@ -122,10 +123,13 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional }) =
                 )}
                 
                 {isProvisional && (
-                    <div className="text-center font-bold mt-4 border-t border-b border-dashed border-black py-1">
-                        <p>*** COMPROVANTE PARA CONFERÊNCIA ***</p>
-                        <p>*** SEM VALOR FISCAL ***</p>
-                    </div>
+                    <>
+                        <div className="text-center font-bold mt-4 border-t border-b border-dashed border-black py-1">
+                            <p>*** COMPROVANTE PARA CONFERÊNCIA ***</p>
+                            <p>*** SEM VALOR FISCAL ***</p>
+                        </div>
+                        <PixQrCode />
+                    </>
                 )}
             </div>
         </div>

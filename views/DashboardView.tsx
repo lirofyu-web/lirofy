@@ -10,6 +10,7 @@ import DebtReminders from '../components/DebtReminders';
 import { ChartBarIcon } from '../components/icons/ChartBarIcon';
 import { CreditCardIcon } from '../components/icons/CreditCardIcon';
 import WarningsReminders from '../components/WarningsReminders';
+import BackupReminder from '../components/BackupReminder';
 
 
 interface DashboardViewProps {
@@ -21,6 +22,8 @@ interface DashboardViewProps {
   onAddWarning: (customerId: string, message: string) => void;
   onResolveWarning: (warningId: string) => void;
   onDeleteWarning: (warningId: string) => void;
+  lastBackupDate: string | null;
+  onNavigateToSettings: () => void;
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
@@ -82,7 +85,7 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
 
 // --- Main View Component ---
 
-const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const handleMonthChange = useCallback((month: number) => {
@@ -166,6 +169,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             />
 
             <div className="space-y-8">
+                <BackupReminder lastBackupDate={lastBackupDate} onNavigate={onNavigateToSettings} />
                 <DebtReminders customers={customers} />
                 <WarningsReminders warnings={warnings} />
             </div>

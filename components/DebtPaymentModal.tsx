@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Customer } from '../types';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
+import { safeParseFloat } from '../utils';
 
 interface DebtPaymentModalProps {
   isOpen: boolean;
@@ -14,27 +15,6 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
   const [amountStr, setAmountStr] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('dinheiro');
   const [error, setError] = useState('');
-
-  const safeParseFloat = (str: string | number | undefined): number => {
-    if (typeof str === 'number') return str;
-    if (typeof str !== 'string' || !str) return 0;
-
-    const cleaned = str.replace(/[^0-9,.]/g, '');
-    const withDot = cleaned.replace(',', '.');
-    const lastSeparator = withDot.lastIndexOf('.');
-    
-    if (lastSeparator === -1) {
-        return parseFloat(withDot) || 0;
-    }
-
-    if (withDot.indexOf('.') < lastSeparator) {
-        const integerPart = withDot.substring(0, lastSeparator).replace(/\./g, '');
-        const decimalPart = withDot.substring(lastSeparator + 1);
-        return parseFloat(`${integerPart}.${decimalPart}`) || 0;
-    }
-
-    return parseFloat(withDot) || 0;
-  };
 
   useEffect(() => {
     if (isOpen) {
@@ -87,7 +67,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
         <div className="p-6 border-b border-slate-700">
           <h2 id="debt-modal-title" className="text-2xl font-bold text-white">Pagar Dívida</h2>
-          <p className="text-slate-400">Cliente: {customer.name}</p>
+          <p className="text-slate-400 break-words">Cliente: {customer.name}</p>
         </div>
         <div className="p-6 space-y-6">
             <div className="text-center">

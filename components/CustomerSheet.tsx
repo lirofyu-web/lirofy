@@ -126,7 +126,7 @@ const CustomerSheet: React.FC<CustomerSheetProps> = ({ customer }) => {
               <div className="col-span-2"><InfoRow label="Endereço" value={customer.endereco} /></div>
               <div><InfoRow label="Cidade" value={customer.cidade} /></div>
               <div><InfoRow label="Telefone" value={customer.telefone} /></div>
-              <div><InfoRow label="Linha / Rota" value={customer.linhaNumero} /></div>
+              <div><InfoRow label="Cobrador" value={customer.linhaNumero} /></div>
             </div>
           </section>
 

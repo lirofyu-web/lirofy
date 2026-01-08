@@ -29,7 +29,7 @@ const DebtReminders: React.FC<DebtRemindersProps> = ({ customers }) => {
         {debtors.map(customer => (
           <div key={customer.id} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex justify-between items-center gap-4">
             <div>
-              <p className="font-bold text-slate-800 dark:text-white">{customer.name}</p>
+              <p className="font-bold text-slate-800 dark:text-white break-words">{customer.name}</p>
               <p className="text-sm font-mono font-semibold text-red-600 dark:text-red-400">
                 Dívida: R$ {customer.debtAmount.toFixed(2)}
               </p>

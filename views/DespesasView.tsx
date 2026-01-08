@@ -103,7 +103,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
     <div key={expense.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 flex justify-between items-center">
       <div>
         <div className="mb-2"><CategoryDisplay category={expense.category} /></div>
-        <p className="font-bold text-slate-900 dark:text-white">{expense.description}</p>
+        <p className="font-bold text-slate-900 dark:text-white break-words">{expense.description}</p>
         <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(expense.date).toLocaleDateString('pt-BR')}</p>
       </div>
       <div className="text-right">

@@ -22,7 +22,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, t
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 animate-fade-in-up">
         <div className="p-6">
           <h2 id="action-modal-title" className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h2>
-          <div className="text-slate-600 dark:text-slate-400 mt-4">{children}</div>
+          <div className="text-slate-600 dark:text-slate-400 mt-4 break-words">{children}</div>
         </div>
         <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
           <button

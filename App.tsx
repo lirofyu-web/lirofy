@@ -90,6 +90,7 @@ const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }
 const generateReceiptText = (billing: Billing, isProvisional: boolean): string => {
     const isMesa = billing.equipmentType === 'mesa';
     const isGrua = billing.equipmentType === 'grua';
+    const pixKey = "43999581993";
     const paymentMethodText = {
         pix: 'PIX',
         dinheiro: 'DINHEIRO',
@@ -164,6 +165,9 @@ Parte Cliente: R$ ${(billing.parteCliente ?? 0).toFixed(2)}
 
     const provisionalFooter = isProvisional ? `
 --------------------------------
+*Pague com PIX!*
+Chave (Celular): ${pixKey}
+--------------------------------
 *** COMPROVANTE PARA CONFERÊNCIA ***
 *** SEM VALOR FISCAL ***` : '';
 
@@ -214,6 +218,7 @@ const App: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
     const [notification, setNotification] = useState<NotificationState>(null);
+    const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
     
     // Modal & Print States
     const [provisionalReceiptBilling, setProvisionalReceiptBilling] = useState<Billing | null>(null);
@@ -298,6 +303,8 @@ const App: React.FC = () => {
         setDebtPayments(parseWithDates(localStorage.getItem('debtPayments'), ['paidAt']));
         setWarnings(parseWithDates(localStorage.getItem('warnings'), ['createdAt']));
         
+        const storedBackupDate = localStorage.getItem('lastBackupDate');
+        setLastBackupDate(storedBackupDate);
 
     } catch (error) {
         console.error("Failed to load data from localStorage", error);
@@ -591,6 +598,11 @@ const App: React.FC = () => {
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
+
+        const backupDate = new Date().toISOString();
+        localStorage.setItem('lastBackupDate', backupDate);
+        setLastBackupDate(backupDate);
+
         showNotification("Dados exportados!", "success");
     };
 
@@ -677,7 +689,7 @@ const App: React.FC = () => {
     const renderView = () => {
         switch (currentView) {
             case 'DASHBOARD':
-                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} />;
+                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />;
             case 'CLIENTES':
                 return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} warnings={warnings} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} onPrintCustomer={handlePrintCustomer} />;
             case 'COBRANCAS':
@@ -693,7 +705,7 @@ const App: React.FC = () => {
             case 'CONFIGURACOES':
                 return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
             default:
-                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} />;
+                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />;
         }
     };
     

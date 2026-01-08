@@ -19,6 +19,7 @@ type HistoryItem = {
     description: string;
     amount: number;
     paymentMethod: 'pix' | 'dinheiro' | 'fiado' | 'misto';
+    equipmentType?: 'mesa' | 'jukebox' | 'grua';
 };
 
 const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
@@ -61,6 +62,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                     description: description,
                     amount: b.valorTotal,
                     paymentMethod: b.paymentMethod,
+                    equipmentType: b.equipmentType,
                 };
             });
 
@@ -81,6 +83,13 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
 
     if (!isOpen) return null;
 
+    const colorStyles = {
+        mesa: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-600 dark:text-cyan-400' },
+        jukebox: { bg: 'bg-fuchsia-100 dark:bg-fuchsia-900/50', text: 'text-fuchsia-600 dark:text-fuchsia-400' },
+        grua: { bg: 'bg-orange-100 dark:bg-orange-900/50', text: 'text-orange-600 dark:text-orange-400' },
+        payment: { bg: 'bg-emerald-100 dark:bg-emerald-900/50', text: 'text-emerald-600 dark:text-emerald-400' }
+    };
+
     return (
         <div 
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
@@ -96,12 +105,14 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                 <div className="p-6 overflow-y-auto">
                     {historyItems.length > 0 ? (
                         <ul className="space-y-4">
-                            {historyItems.map(item => (
+                            {historyItems.map(item => {
+                                const style = item.type === 'billing' ? colorStyles[item.equipmentType || 'mesa'] : colorStyles.payment;
+                                return (
                                 <li key={item.id} className="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${item.type === 'billing' ? 'bg-cyan-100 dark:bg-cyan-900/50' : 'bg-emerald-100 dark:bg-emerald-900/50'}`}>
+                                    <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${style.bg}`}>
                                         {item.type === 'billing' 
-                                            ? <ReceiptIcon className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-                                            : <CurrencyDollarIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                            ? <ReceiptIcon className={`w-5 h-5 ${style.text}`} />
+                                            : <CurrencyDollarIcon className={`w-5 h-5 ${style.text}`} />
                                         }
                                     </div>
                                     <div className="flex-grow">
@@ -110,7 +121,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                                                 <p className="font-semibold text-slate-900 dark:text-white">{item.description}</p>
                                                 <p className="text-sm text-slate-500 dark:text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
                                             </div>
-                                            <p className={`font-mono font-bold text-lg ${item.type === 'billing' ? 'text-cyan-700 dark:text-cyan-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+                                            <p className={`font-mono font-bold text-lg ${style.text}`}>
                                                 R$ {item.amount.toFixed(2)}
                                             </p>
                                         </div>
@@ -121,7 +132,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                                         )}
                                     </div>
                                 </li>
-                            ))}
+                            )})}
                         </ul>
                     ) : (
                         <div className="text-center py-12 text-slate-500 dark:text-slate-400">

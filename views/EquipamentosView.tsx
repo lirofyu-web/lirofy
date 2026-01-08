@@ -65,7 +65,7 @@ const EquipmentCard: React.FC<{
               <div key={equip.id} className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 flex justify-between items-start gap-4">
                 <div className="flex-grow">
                   <p className="font-bold text-slate-800 dark:text-white">Nº: {equip.numero}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 truncate">Cliente: {equip.customerName}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 break-words">Cliente: {equip.customerName}</p>
                   <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
                     <p className="text-xs text-slate-500 dark:text-slate-400">Arrecadado (6m)</p>
                     <p className="font-mono font-semibold text-sm text-lime-600 dark:text-lime-400">

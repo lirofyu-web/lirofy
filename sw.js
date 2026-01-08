@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v46'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v48'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -11,6 +11,7 @@ const urlsToCache = [
   '/sw.js',
   '/types.ts',
   '/App.tsx',
+  '/utils.ts',
 
   // Ícones PWA referenciados no manifesto.
   '/icon-192.svg',
@@ -22,26 +23,29 @@ const urlsToCache = [
   '/views/ConfiguracoesView.tsx',
   '/views/DashboardView.tsx',
   '/views/DespesasView.tsx',
+  '/views/EquipamentosView.tsx',
   '/views/RelatoriosView.tsx',
   '/views/RotasView.tsx',
-  '/views/EquipamentosView.tsx',
 
   // Todos os componentes reutilizáveis.
   '/components/ActionModal.tsx',
   '/components/AddCustomerForm.tsx',
+  '/components/BackupReminder.tsx',
   '/components/BillingModal.tsx',
   '/components/BottomNavBar.tsx',
   '/components/CityAutocomplete.tsx',
   '/components/CraneReportModal.tsx',
   '/components/CustomerCard.tsx',
   '/components/CustomerQrCodeModal.tsx',
-  '/components/QrScannerModal.tsx',
+  '/components/CustomerSheet.tsx',
   '/components/DebtPaymentModal.tsx',
   '/components/DebtReceiptActionsModal.tsx',
   '/components/DebtReceiptModal.tsx',
   '/components/DebtReceiptSheet.tsx',
   '/components/DebtReminders.tsx',
   '/components/EditCustomerModal.tsx',
+  '/components/EquipmentLabel.tsx',
+  '/components/EquipmentQrCodeModal.tsx',
   '/components/EquipmentSelectionModal.tsx',
   '/components/HistoryModal.tsx',
   '/components/InstallPwaBanner.tsx',
@@ -49,16 +53,15 @@ const urlsToCache = [
   '/components/MobileHeader.tsx',
   '/components/Notification.tsx',
   '/components/PageHeader.tsx',
+  '/components/PixQrCode.tsx',
+  '/components/QrScannerModal.tsx',
   '/components/ReceiptActionsModal.tsx',
   '/components/ReceiptModal.tsx',
   '/components/ReceiptSheet.tsx',
+  '/components/ShareCustomerModal.tsx',
   '/components/Sidebar.tsx',
   '/components/WarningsManager.tsx',
   '/components/WarningsReminders.tsx',
-  '/components/ShareCustomerModal.tsx',
-  '/components/CustomerSheet.tsx',
-  '/components/EquipmentQrCodeModal.tsx',
-  '/components/EquipmentLabel.tsx',
 
   // Todos os ícones SVG usados nos componentes.
   '/components/icons/AlertIcon.tsx',
@@ -176,6 +179,11 @@ self.addEventListener('activate', (event) => {
 // Se não, é buscado na rede. Se a busca for bem-sucedida,
 // a resposta é adicionada ao cache para futuras requisições offline.
 self.addEventListener('fetch', (event) => {
+  // Ignora requisições que não são GET
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
@@ -197,7 +205,11 @@ self.addEventListener('fetch', (event) => {
             // Retorna a resposta da rede para o navegador.
             return networkResponse;
           }
-        );
+        ).catch(error => {
+          console.log('Fetch falhou; retornando offline page em vez.', error);
+          // Se a rede falhar (e não estiver no cache), você pode retornar uma página offline padrão.
+          // Por simplicidade, este exemplo não implementa uma página offline fallback.
+        });
       })
   );
 });

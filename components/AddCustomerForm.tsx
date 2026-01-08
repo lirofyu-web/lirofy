@@ -355,7 +355,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                  <label htmlFor="cidade" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cidade</label>
                  <CityAutocomplete id="cidade" value={formData.cidade} onChange={handleCityChange} required />
             </div>
-            <FormField label="Número da Linha/Rota" name="linhaNumero" value={formData.linhaNumero} onChange={handleBaseChange} />
+            <FormField label="Cobrador" name="linhaNumero" value={formData.linhaNumero} onChange={handleBaseChange} />
         </div>
 
         <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -364,7 +364,13 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                 {formData.equipment.map((equip, index) => {
                     const EquipmentIcon = equip.type === 'mesa' ? BilliardIcon : equip.type === 'jukebox' ? JukeboxIcon : CraneIcon;
                     const equipmentTitle = equip.type === 'mesa' ? `Mesa de Sinuca` : equip.type === 'jukebox' ? `Jukebox` : `Grua de Pelúcia`;
-                    
+                    const colorMap = {
+                        mesa: 'text-cyan-500 dark:text-cyan-400',
+                        jukebox: 'text-fuchsia-500 dark:text-fuchsia-400',
+                        grua: 'text-orange-500 dark:text-orange-400',
+                    };
+                    const equipmentColor = colorMap[equip.type!] || 'text-slate-500 dark:text-slate-400';
+
                     return (
                         <div key={equip.id} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300">
                             <button
@@ -373,9 +379,9 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                                 className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-100 dark:hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500"
                             >
                                 <div className="flex items-center gap-3">
-                                    <EquipmentIcon className="w-5 h-5 text-lime-500 dark:text-lime-400" />
+                                    <EquipmentIcon className={`w-5 h-5 ${equipmentColor}`} />
                                     <h4 className="text-md font-bold text-slate-900 dark:text-white capitalize">
-                                        {equipmentTitle}: <span className="font-normal text-slate-600 dark:text-slate-300">{equip.numero || '(Novo)'}</span>
+                                        <span className={equipmentColor}>{equipmentTitle}</span>: <span className="font-normal text-slate-600 dark:text-slate-300">{equip.numero || '(Novo)'}</span>
                                     </h4>
                                 </div>
                                 <div className="flex items-center gap-2">

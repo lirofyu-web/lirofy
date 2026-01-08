@@ -3,9 +3,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Customer, Equipment, Billing } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertIcon } from './icons/AlertIcon';
+import { safeParseFloat } from '../utils';
 
 type FormState = {
   relogioAtual: string;
+  totalArrecadadoJukebox: string; // Jukebox specific
   descontoPartidas: string; // Mesa specific
   // Grua specific
   aluguelPercentual: string;
@@ -32,30 +34,6 @@ interface BillingModalProps {
   equipment: Equipment;
   onTriggerProvisionalReceiptAction: (billing: Billing, onComplete: () => void) => void;
 }
-
-const safeParseFloat = (str: string | number | undefined): number => {
-    if (typeof str === 'number') return str;
-    if (typeof str !== 'string' || !str) return 0;
-
-    // Standardize to use dot as decimal separator
-    const cleaned = str.replace(/[^0-9,.]/g, '');
-    const withDot = cleaned.replace(',', '.');
-    const lastSeparator = withDot.lastIndexOf('.');
-    
-    // No decimal separator found
-    if (lastSeparator === -1) {
-        return parseFloat(withDot) || 0;
-    }
-
-    // Standard US format with thousand separators
-    if (withDot.indexOf('.') < lastSeparator) {
-        const integerPart = withDot.substring(0, lastSeparator).replace(/\./g, '');
-        const decimalPart = withDot.substring(lastSeparator + 1);
-        return parseFloat(`${integerPart}.${decimalPart}`) || 0;
-    }
-
-    return parseFloat(withDot) || 0;
-};
 
 const FormField: React.FC<{
     label: string;
@@ -111,14 +89,22 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const [paymentValues, setPaymentValues] = useState<PaymentState>({ dinheiro: '', pix: '', fiado: ''});
   const [error, setError] = useState<string | null>(null);
   const [mesaStep, setMesaStep] = useState(1);
+  const [jukeboxStep, setJukeboxStep] = useState(1);
   const [gruaStep, setGruaStep] = useState(1);
   
   const isMonthlyFee = equipment.type === 'mesa' && equipment.billingType === 'monthly';
+
+  const colorMap = {
+      mesa: 'text-cyan-400',
+      jukebox: 'text-fuchsia-400',
+      grua: 'text-orange-400',
+  };
 
   useEffect(() => {
     if (isOpen) {
       const initialState: FormState = {
         relogioAtual: '',
+        totalArrecadadoJukebox: '',
         descontoPartidas: '0',
         aluguelPercentual: String(equipment.aluguelPercentual || ''),
         aluguelValor: String(equipment.aluguelValor || '0').replace('.',','),
@@ -133,7 +119,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       setPaymentValues({ dinheiro: '', pix: '', fiado: ''});
       setError(null);
       setGruaStep(1);
-      setMesaStep(1); // Always start at step 1 for non-grua equipment
+      setMesaStep(1);
+      setJukeboxStep(1);
     }
   }, [isOpen, equipment]);
 
@@ -148,26 +135,40 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
     if (equipment.type === 'mesa') {
       if (equipment.billingType === 'monthly') {
-          return {
+          result = {
             valorTotal: equipment.monthlyFeeValue || 0,
             billingType: 'monthly',
             partidasJogadas: partidasJogadas,
             relogioAnterior: equipment.relogioAnterior,
             relogioAtual: relogioAtual,
           };
+      } else {
+        const descontoPartidas = parseInt(formState.descontoPartidas || '0', 10);
+        const partidasCobradas = Math.max(0, partidasJogadas - descontoPartidas);
+        const valorFicha = equipment.valorFicha || 0;
+        const valorBruto = partidasCobradas * valorFicha;
+        const parteFirma = valorBruto * ((equipment.parteFirma || 0) / 100);
+        const parteCliente = valorBruto * ((equipment.parteCliente || 0) / 100);
+        result = { billingType: 'perPlay', partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha, valorBruto };
       }
-      const descontoPartidas = parseInt(formState.descontoPartidas || '0', 10);
-      const partidasCobradas = Math.max(0, partidasJogadas - descontoPartidas);
-      const valorFicha = equipment.valorFicha || 0;
-      const valorBruto = partidasCobradas * valorFicha;
-      const parteFirma = valorBruto * ((equipment.parteFirma || 0) / 100);
-      const parteCliente = valorBruto * ((equipment.parteCliente || 0) / 100);
-      result = { billingType: 'perPlay', partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha, valorBruto };
     } else if (equipment.type === 'jukebox') {
-      const valorBruto = partidasJogadas; // Assume 1 tick = R$ 1,00
-      const parteFirma = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
-      const parteCliente = valorBruto * ((equipment.porcentagemJukeboxCliente || 0) / 100);
-      result = { partidasJogadas, valorTotal: parteFirma, parteFirma, parteCliente };
+        const valorBruto = safeParseFloat(formState.totalArrecadadoJukebox);
+        const parteFirma = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
+        const parteCliente = valorBruto * ((equipment.porcentagemJukeboxCliente || 0) / 100);
+        
+        // This part is for record keeping and will update in step 2
+        const relogioAtualJukebox = parseInt(formState.relogioAtual, 10) || 0;
+        const partidasJogadasJukebox = (formState.relogioAtual !== '' && relogioAtualJukebox >= equipment.relogioAnterior) 
+                                ? relogioAtualJukebox - equipment.relogioAnterior 
+                                : 0;
+
+        result = { 
+            valorBruto,
+            parteFirma, 
+            parteCliente, 
+            valorTotal: parteFirma,
+            partidasJogadas: partidasJogadasJukebox
+        };
     } else if (equipment.type === 'grua') {
       const saldo = safeParseFloat(formState.saldo);
       const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
@@ -192,8 +193,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       };
     }
     
-    // Always include partidasJogadas, even if 0.
-    if (!result.partidasJogadas) {
+    if (result.partidasJogadas === undefined) {
         result.partidasJogadas = partidasJogadas;
     }
     return result;
@@ -208,11 +208,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const remainingAmountLiquido = useMemo(() => liquidoAReceber - totalPagoEmCaixa, [liquidoAReceber, totalPagoEmCaixa]);
 
   useEffect(() => {
-    if (mesaStep === 2 && equipment.type !== 'grua') {
+    if ((mesaStep === 2 || jukeboxStep === 2) && equipment.type !== 'grua') {
       const initialTotal = calculation.valorTotal || 0;
       setPaymentValues({ dinheiro: initialTotal > 0 ? initialTotal.toFixed(2).replace('.', ',') : '', pix: '', fiado: '' });
     }
-  }, [mesaStep, equipment.type, calculation.valorTotal]);
+  }, [mesaStep, jukeboxStep, equipment.type, calculation.valorTotal]);
   
   const handleFormChange = useCallback((field: keyof FormState, value: string) => {
     setFormState(prev => {
@@ -250,28 +250,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [equipment]);
 
   const handlePaymentChange = useCallback((field: keyof PaymentState, value: string) => {
-    setPaymentValues(prev => {
-        const newValues = { ...prev, [field]: value };
-        
-        if (field !== 'dinheiro') {
-            const currentValorTotal = calculation.valorTotal || 0;
-            const currentFiadoValue = safeParseFloat(newValues.fiado);
-            const currentLiquidoAReceber = Math.max(0, currentValorTotal - currentFiadoValue);
-            const currentPixValue = safeParseFloat(newValues.pix);
-            const dinheiroRestante = currentLiquidoAReceber - currentPixValue;
-            
-            newValues.dinheiro = Math.max(0, dinheiroRestante).toFixed(2).replace('.', ',');
-        }
-        
-        return newValues;
-    });
-  }, [calculation.valorTotal]);
+    setPaymentValues(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   const generateBillingObject = useCallback((): Billing | null => {
     const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
 
-    if (relogioAtual < equipment.relogioAnterior) {
-        return null; // Safeguard
+    if (equipment.type !== 'jukebox' && relogioAtual < equipment.relogioAnterior) {
+        return null; // Safeguard for non-jukebox
     }
 
     let billingData;
@@ -325,6 +311,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [formState, calculation, equipment, customer, paymentValues]);
 
   const validateAndProceed = useCallback(() => {
+    if(equipment.type === 'jukebox') return true;
+
     if (!formState.relogioAtual && formState.relogioAtual !== '0') {
       setError("Nenhuma leitura inserida. Preencha o campo de Leitura Atual.");
       return false;
@@ -336,7 +324,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
     setError(null);
     return true;
-  }, [formState.relogioAtual, equipment.relogioAnterior]);
+  }, [formState.relogioAtual, equipment.relogioAnterior, equipment.type]);
 
   const handleProvisionalAction = () => {
     if (!validateAndProceed()) return;
@@ -352,8 +340,32 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
   };
 
+  const validateJukeboxStep1 = useCallback(() => {
+    const valorBruto = safeParseFloat(formState.totalArrecadadoJukebox);
+    if (valorBruto <= 0) {
+      setError("O total arrecadado deve ser maior que zero.");
+      return false;
+    }
+    setError(null);
+    return true;
+  }, [formState.totalArrecadadoJukebox]);
+
+  const handleJukeboxNextStep = () => {
+      if (validateJukeboxStep1()) {
+          setJukeboxStep(2);
+      }
+  };
+
   const handleFinalize = () => {
-    if (!validateAndProceed()) return;
+    if (equipment.type === 'jukebox') {
+        if (!validateJukeboxStep1()) return;
+        if (!formState.relogioAtual) {
+            setError("Por favor, insira a Leitura Atual para confirmação.");
+            return;
+        }
+    } else {
+        if (!validateAndProceed()) return;
+    }
 
     if (equipment.type === 'grua') {
         const totalRecebido = safeParseFloat(formState.recebimentoEspecie) + safeParseFloat(formState.recebimentoPix);
@@ -386,7 +398,73 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   if (!isOpen) return null;
 
   const isGrua = equipment.type === 'grua';
+  const isJukebox = equipment.type === 'jukebox';
   const isReadingInvalid = (parseInt(formState.relogioAtual, 10) || 0) < equipment.relogioAnterior;
+
+  const renderJukeboxStep1 = () => (
+    <div className="space-y-4">
+        <FormField 
+            label="Total Arrecadado na Jukebox (R$)" 
+            name="totalArrecadadoJukebox" 
+            value={formState.totalArrecadadoJukebox} 
+            type="text" 
+            equipmentId={equipment.id} 
+            onChange={handleFormChange} 
+            autoFocus 
+        />
+        {formState.totalArrecadadoJukebox && (
+            <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
+                <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Rateio</h4>
+                <div className="flex justify-between font-bold text-lg text-white">
+                    <span>VALOR BRUTO TOTAL:</span>
+                    <span className="font-mono">R$ {(calculation.valorBruto || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+                <hr className="border-dashed border-slate-600 my-2" />
+                <div className="flex justify-between text-slate-300">
+                    <span>Parte Cliente ({equipment.porcentagemJukeboxCliente}%):</span>
+                    <span className="font-mono">R$ {(calculation.parteCliente || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lime-400">
+                    <span>Parte Firma ({equipment.porcentagemJukeboxFirma}%):</span>
+                    <span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+            </div>
+        )}
+    </div>
+  );
+
+  const renderJukeboxStep2 = () => (
+      <div className="space-y-4 animate-fade-in">
+          <div>
+              <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
+              <FormField 
+                  label="Leitura Atual (Confirmação)" 
+                  name="relogioAtual" 
+                  value={formState.relogioAtual} 
+                  type="number" 
+                  equipmentId={equipment.id}
+                  isReadingInvalid={isReadingInvalid && !!formState.relogioAtual}
+                  onChange={handleFormChange}
+              />
+              <p className="text-xs text-slate-400 mt-1">Este valor é apenas para registro e não afeta o cálculo financeiro.</p>
+          </div>
+          <hr className="border-slate-700" />
+          <h4 className="block text-md font-bold text-lime-400 mb-2">Pagamento</h4>
+          <PaymentField label="Deixar Fiado (R$)" name="fiado" value={paymentValues.fiado} onChange={handlePaymentChange} />
+          {valorFiado > 0 && (
+              <div className="text-right py-2 border-t border-b border-slate-700">
+                  <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toFixed(2).replace('.', ',')}</span></p>
+              </div>
+          )}
+          <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
+          <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
+          {Math.abs(remainingAmountLiquido) > 0.01 && (
+              <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
+                  {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toFixed(2).replace('.', ',')}`}
+              </div>
+          )}
+      </div>
+  );
 
   const renderGruaStep1 = () => (
     <div className="space-y-4">
@@ -435,8 +513,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
         <div className="p-6 border-b border-slate-700">
-          <h2 className="text-2xl font-bold text-white">Faturamento: {equipment.type} {equipment.numero}</h2>
-          <p className="text-slate-400">Cliente: {customer.name}</p>
+          <h2 className="text-2xl font-bold text-white">
+            Faturamento: <span className={`${colorMap[equipment.type]} capitalize`}>{equipment.type}</span> {equipment.numero}
+          </h2>
+          <p className="text-slate-400 break-words">Cliente: {customer.name}</p>
         </div>
         
         <div className="p-6 space-y-6 overflow-y-auto">
@@ -445,6 +525,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               {gruaStep === 1 && renderGruaStep1()}
               {gruaStep === 2 && renderGruaStep2()}
               {gruaStep === 3 && renderGruaStep3()}
+            </>
+          ) : isJukebox ? (
+             <>
+              {jukeboxStep === 1 && renderJukeboxStep1()}
+              {jukeboxStep === 2 && renderJukeboxStep2()}
             </>
           ) : (
              mesaStep === 1 ? (
@@ -523,6 +608,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   {gruaStep === 2 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Confirmar e Continuar</button>}
                   {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
                 </>
+              ) : isJukebox ? (
+                 <>
+                    {jukeboxStep === 1 && (
+                      <button onClick={handleJukeboxNextStep} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
+                          Ir para Pagamento &rarr;
+                      </button>
+                    )}
+                    {jukeboxStep === 2 && (
+                      <>
+                        <button onClick={() => setJukeboxStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
+                        <button 
+                          onClick={handleFinalize} 
+                          disabled={!!error || Math.abs(remainingAmountLiquido) > 0.01}
+                          className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
+                        >
+                          Finalizar Cobrança
+                        </button>
+                      </>
+                    )}
+                 </>
               ) : (
                  mesaStep === 1 ? (
                   <>

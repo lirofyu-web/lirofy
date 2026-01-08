@@ -67,7 +67,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                 <div className="p-3">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 break-words">
                                 {customer.name}
                                 {hasActiveWarning && (
                                     <div title="Aviso pendente">
@@ -75,7 +75,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                                     </div>
                                 )}
                             </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{customer.cidade} - Linha: {customer.linhaNumero}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 break-words">{customer.cidade} - Cobrador: {customer.linhaNumero}</p>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-3">
                             {visitIsPending ? (

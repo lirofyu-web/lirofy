@@ -4,6 +4,11 @@ import { Billing, Customer, DebtPayment, Expense } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import CraneReportModal from '../components/CraneReportModal';
+import { BilliardIcon } from '../components/icons/BilliardIcon';
+import { JukeboxIcon } from '../components/icons/JukeboxIcon';
+import { CraneIcon } from '../components/icons/CraneIcon';
+import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
+import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 
 interface RelatoriosViewProps {
   customers: Customer[];
@@ -17,10 +22,14 @@ interface RelatoriosViewProps {
 interface InfoCardProps {
     title: string;
     children: React.ReactNode;
+    icon?: React.ReactNode;
 }
-const InfoCard: React.FC<InfoCardProps> = React.memo(({ title, children }) => (
+const InfoCard: React.FC<InfoCardProps> = React.memo(({ title, children, icon }) => (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full flex flex-col">
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">{title}</h3>
+        <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 flex items-center gap-2">
+          {icon}
+          {title}
+        </h3>
         <div className="flex-grow">
             <dl className="space-y-3">
                 {children}
@@ -475,11 +484,11 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     printReport('Relatório de Despesas', content);
   }, [stats, printReport]);
 
-  const PrintButton = ({ onClick, label }: { onClick: () => void, label: string }) => (
+  const PrintButton = ({ onClick, label, colorClass }: { onClick: () => void, label: string, colorClass: string }) => (
      <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
         <button
             onClick={onClick}
-            className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-3 rounded-md hover:bg-cyan-500 transition-colors"
+            className={`w-full inline-flex items-center justify-center gap-2 text-white font-bold py-2 px-3 rounded-md transition-colors ${colorClass}`}
         >
             <PrinterIcon className="w-4 h-4" />
             <span>{label}</span>
@@ -502,7 +511,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <InfoCard title="Desempenho: Mesas de Sinuca">
+        <InfoCard title="Desempenho: Mesas de Sinuca" icon={<BilliardIcon className="w-6 h-6 text-cyan-500" />}>
             <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
             <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueMesaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
             <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedMesa.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
@@ -510,10 +519,10 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                 <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueMesaTotal - stats.periodExpensesMesa).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
-            <PrintButton onClick={handlePrintMesaReport} label="Imprimir Relatório de Mesas" />
+            <PrintButton onClick={handlePrintMesaReport} label="Imprimir Relatório de Mesas" colorClass="bg-cyan-600 hover:bg-cyan-500" />
         </InfoCard>
 
-        <InfoCard title="Desempenho: Jukebox">
+        <InfoCard title="Desempenho: Jukebox" icon={<JukeboxIcon className="w-6 h-6 text-fuchsia-500" />}>
             <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
             <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueJukeboxPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
             <InfoRow label="Débito Gerado (Fiado)" value={`R$ ${stats.debtGeneratedJukebox.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
@@ -521,10 +530,10 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                 <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueJukeboxTotal - stats.periodExpensesJukebox).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
-            <PrintButton onClick={handlePrintJukeboxReport} label="Imprimir Relatório de Jukebox" />
+            <PrintButton onClick={handlePrintJukeboxReport} label="Imprimir Relatório de Jukebox" colorClass="bg-fuchsia-600 hover:bg-fuchsia-500" />
         </InfoCard>
 
-         <InfoCard title="Desempenho: Gruas">
+         <InfoCard title="Desempenho: Gruas" icon={<CraneIcon className="w-6 h-6 text-orange-500" />}>
             <InfoRow label="Receita Bruta (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
             <InfoRow label="Receita Bruta (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
             <InfoRow label="Aluguel Pago (p/ Cliente)" value={`- R$ ${stats.totalAluguelPagoGrua.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
@@ -533,17 +542,17 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                 <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueGruaFirma - stats.periodExpensesGrua).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
-            <PrintButton onClick={() => setIsCraneReportModalOpen(true)} label="Imprimir Relatório de Gruas" />
+            <PrintButton onClick={() => setIsCraneReportModalOpen(true)} label="Imprimir Relatório de Gruas" colorClass="bg-orange-600 hover:bg-orange-500" />
         </InfoCard>
 
-        <InfoCard title="Pagamentos de Dívidas">
+        <InfoCard title="Pagamentos de Dívidas" icon={<CurrencyDollarIcon className="w-6 h-6 text-green-500" />}>
             <InfoRow label="Total Recebido" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400" />
-             <PrintButton onClick={handlePrintDebtReport} label="Imprimir Relatório de Dívidas" />
+             <PrintButton onClick={handlePrintDebtReport} label="Imprimir Relatório de Dívidas" colorClass="bg-green-600 hover:bg-green-500" />
         </InfoCard>
         
-        <InfoCard title="Despesas do Período">
+        <InfoCard title="Despesas do Período" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />}>
             <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
-            <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" />
+            <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" colorClass="bg-red-600 hover:bg-red-500" />
         </InfoCard>
       </div>
 
