@@ -1,13 +1,14 @@
 // views/EquipamentosView.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Customer, Equipment, Billing } from '../types';
 import PageHeader from '../components/PageHeader';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
-import EquipmentQrCodeModal from '../components/EquipmentQrCodeModal';
+import EquipmentLabel from '../components/EquipmentLabel';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
+import { downloadComponentAsPng } from '../utils/imageGenerator';
 
 
 interface EquipamentosViewProps {
@@ -77,7 +78,7 @@ const EquipmentCard: React.FC<{
                 <button
                   onClick={() => onGenerateLabel(equip)}
                   className="flex-shrink-0 inline-flex items-center gap-2 bg-slate-600 text-white text-xs font-bold py-1.5 px-3 rounded-md hover:bg-slate-500 mt-1"
-                  title="Gerar Etiqueta com QR Code"
+                  title="Baixar Etiqueta com QR Code"
                 >
                   <QrCodeIcon className="w-4 h-4" />
                   <span>Etiqueta</span>
@@ -131,7 +132,6 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
 
 
 const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification }) => {
-  const [labelEquipment, setLabelEquipment] = useState<EquipmentWithCustomer | null>(null);
 
   const allEquipment = useMemo(() => {
     const flatList: EquipmentWithCustomer[] = customers.flatMap(customer =>
@@ -149,6 +149,19 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
     };
   }, [customers]);
 
+  const handleGenerateLabel = useCallback(async (equipment: EquipmentWithCustomer) => {
+    try {
+      await downloadComponentAsPng(
+        <EquipmentLabel equipment={equipment} />,
+        `etiqueta-equip-${equipment.numero}.png`
+      );
+      showNotification('Download da etiqueta iniciado.', 'success');
+    } catch (error) {
+      showNotification('Falha ao gerar etiqueta para download.', 'error');
+      console.error(error);
+    }
+  }, [showNotification]);
+
   return (
     <>
       <PageHeader
@@ -163,7 +176,7 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
           equipments={allEquipment.mesas}
           billings={billings}
           type="mesa"
-          onGenerateLabel={setLabelEquipment}
+          onGenerateLabel={handleGenerateLabel}
         />
         <EquipmentCard
           title="Jukeboxes"
@@ -171,7 +184,7 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
           equipments={allEquipment.jukeboxes}
           billings={billings}
           type="jukebox"
-          onGenerateLabel={setLabelEquipment}
+          onGenerateLabel={handleGenerateLabel}
         />
         <EquipmentCard
           title="Gruas de Pelúcia"
@@ -179,19 +192,10 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
           equipments={allEquipment.gruas}
           billings={billings}
           type="grua"
-          onGenerateLabel={setLabelEquipment}
+          onGenerateLabel={handleGenerateLabel}
         />
         <GrandTotalCard billings={billings} />
       </div>
-
-      {labelEquipment && (
-        <EquipmentQrCodeModal
-          isOpen={!!labelEquipment}
-          onClose={() => setLabelEquipment(null)}
-          equipment={labelEquipment}
-          showNotification={showNotification}
-        />
-      )}
     </>
   );
 };

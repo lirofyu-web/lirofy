@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v51'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v52'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -15,6 +15,7 @@ const urlsToCache = [
   '/utils/receiptGenerator.ts',
   '/utils/bluetoothPrinter.ts',
   '/utils/escpos.ts',
+  '/utils/imageGenerator.ts',
 
   // Ícones PWA referenciados no manifesto.
   '/icon-192.svg',
@@ -39,7 +40,6 @@ const urlsToCache = [
   '/components/CityAutocomplete.tsx',
   '/components/CraneReportModal.tsx',
   '/components/CustomerCard.tsx',
-  '/components/CustomerQrCodeModal.tsx',
   '/components/CustomerQrLabel.tsx',
   '/components/CustomerSheet.tsx',
   '/components/DebtPaymentModal.tsx',
@@ -49,7 +49,6 @@ const urlsToCache = [
   '/components/DebtReminders.tsx',
   '/components/EditCustomerModal.tsx',
   '/components/EquipmentLabel.tsx',
-  '/components/EquipmentQrCodeModal.tsx',
   '/components/EquipmentSelectionModal.tsx',
   '/components/HistoryModal.tsx',
   '/components/InstallPwaBanner.tsx',

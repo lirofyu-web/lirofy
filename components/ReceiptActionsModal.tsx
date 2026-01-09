@@ -1,11 +1,7 @@
 // components/ReceiptActionsModal.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { Billing } from '../types';
-import { ShareIcon } from './icons/ShareIcon';
-import { generateBillingEscpos, generateBillingText } from '../utils/receiptGenerator';
-import { BluetoothIcon } from './icons/BluetoothIcon';
-import { bluetoothPrinter } from '../utils/bluetoothPrinter';
 
 interface ReceiptActionsModalProps {
   isOpen: boolean;
@@ -22,76 +18,8 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
   onClose,
   onWhatsApp,
   customerHasPhone,
-  billing,
-  isProvisional,
-  showNotification,
 }) => {
-  const [isSharing, setIsSharing] = useState(false);
-  const [btStatus, setBtStatus] = useState<'idle' | 'connecting' | 'printing' | 'failed'>('idle');
-
-  const handleShareTxt = async () => {
-    setIsSharing(true);
-    try {
-      const textContent = generateBillingText(billing, isProvisional);
-      const file = new File([textContent], `recibo_${billing.customerName.replace(/\s/g, '_')}.txt`, { type: 'text/plain' });
-
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Recibo - ${billing.customerName}`,
-          files: [file],
-        });
-        showNotification('Recibo compartilhado.', 'success');
-        onClose();
-      } else {
-        throw new Error('Seu navegador não suporta o compartilhamento de arquivos.');
-      }
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
-        showNotification(`Erro ao compartilhar: ${error.message}`, 'error');
-        console.error("Share error:", error);
-      }
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
-  const handleBluetoothPrint = async () => {
-    setBtStatus('connecting');
-    try {
-      if (!bluetoothPrinter.isConnected()) {
-        const status = await bluetoothPrinter.connect();
-        if (status !== 'connected') {
-          throw new Error(status === 'cancelled' ? 'Seleção de impressora cancelada.' : 'Falha ao conectar na impressora.');
-        }
-      }
-
-      setBtStatus('printing');
-      const commands = generateBillingEscpos(billing, isProvisional);
-      await bluetoothPrinter.print(commands);
-      
-      showNotification('Recibo enviado para a impressora.', 'success');
-      onClose();
-    } catch (error: any) {
-      console.error('Bluetooth print error:', error);
-      showNotification(error.message || 'Erro na impressão Bluetooth.', 'error');
-      setBtStatus('failed');
-    } finally {
-      if (btStatus !== 'failed') {
-          setTimeout(() => setBtStatus('idle'), 1000);
-      }
-    }
-  };
-
   if (!isOpen) return null;
-
-  const getBtButtonText = () => {
-    switch (btStatus) {
-        case 'connecting': return 'Conectando...';
-        case 'printing': return 'Imprimindo...';
-        case 'failed': return 'Tentar Novamente';
-        default: return 'Bluetooth';
-    }
-  };
 
   return (
     <div 
@@ -120,22 +48,6 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
           >
             <WhatsAppIcon className="w-5 h-5" />
             <span>WhatsApp</span>
-          </button>
-          <button
-            onClick={handleBluetoothPrint}
-            disabled={btStatus === 'connecting' || btStatus === 'printing'}
-            className={`inline-flex items-center justify-center gap-2 text-white font-bold py-2 px-6 rounded-md transition-colors ${btStatus === 'failed' ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'} disabled:bg-slate-500 disabled:cursor-wait`}
-          >
-            <BluetoothIcon className="w-5 h-5" />
-            <span>{getBtButtonText()}</span>
-          </button>
-          <button
-            onClick={handleShareTxt}
-            disabled={isSharing}
-            className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-6 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-slate-500 disabled:cursor-wait"
-          >
-            <ShareIcon className="w-5 h-5" />
-            <span>{isSharing ? 'Gerando...' : 'TXT'}</span>
           </button>
         </div>
       </div>

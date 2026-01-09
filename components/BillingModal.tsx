@@ -238,10 +238,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             
             const totalParaFirma = saldoBruto - aluguelValorNum;
 
-            if (field !== 'recebimentoPix') {
+            if (field === 'recebimentoEspecie') {
                 const recebidoEspecieNum = safeParseFloat(newState.recebimentoEspecie);
                 const recebidoPix = totalParaFirma - recebidoEspecieNum;
                 newState.recebimentoPix = recebidoPix >= 0 ? recebidoPix.toFixed(2).replace('.', ',') : '0,00';
+            } else if (field === 'recebimentoPix') {
+                const recebidoPixNum = safeParseFloat(newState.recebimentoPix);
+                const recebidoEspecie = totalParaFirma - recebidoPixNum;
+                newState.recebimentoEspecie = recebidoEspecie >= 0 ? recebidoEspecie.toFixed(2).replace('.', ',') : '0,00';
             }
         }
         
@@ -501,7 +505,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       <div className="space-y-4">
           <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
           <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
-          <FormField label="Recebido em PIX (Automático)" name="recebimentoPix" value={formState.recebimentoPix} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
+          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
           <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} />
           <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} />
