@@ -1,5 +1,5 @@
 // utils/receiptGenerator.ts
-import { Billing, DebtPayment } from '../types';
+import { Billing, DebtPayment, Equipment } from '../types';
 import * as escpos from './escpos';
 
 const formatField = (id: string, value: string): string => {
@@ -225,4 +225,37 @@ export function generateEscPosFromReceipt(
     commands.push(escpos.CUT_PAPER);
 
     return escpos.combine(...commands);
+}
+
+export function generateEscPosFromLabel(equipment: Equipment): Uint8Array {
+  const equipmentTypeText = {
+      'mesa': 'Mesa de Sinuca',
+      'jukebox': 'Jukebox',
+      'grua': 'Grua de Pelucia'
+  };
+
+  const qrData = JSON.stringify({
+      type: 'equipment',
+      id: equipment.id,
+  });
+
+  const commands = escpos.combine(
+      escpos.INIT,
+      escpos.ALIGN_CENTER,
+      escpos.BOLD_ON,
+      escpos.text('MONTANHA BILHAR & JUKEBOX\n'),
+      escpos.BOLD_OFF,
+      escpos.text('--------------------------------\n'),
+      escpos.text('EQUIPAMENTO\n\n'),
+      escpos.qrCode(qrData),
+      escpos.text('\n'),
+      escpos.BOLD_ON,
+      escpos.text(equipmentTypeText[equipment.type] + '\n'),
+      escpos.text(`Nº: ${equipment.numero}\n`),
+      escpos.BOLD_OFF,
+      escpos.text('\n\n\n'),
+      escpos.CUT_PAPER
+  );
+  
+  return commands;
 }

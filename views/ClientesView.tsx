@@ -222,6 +222,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                 onHistory={setHistoryCustomer}
                                 onShare={handleOpenShareModal}
                                 hasActiveWarning={hasActiveWarning}
+                                showNotification={showNotification}
                             />
                         );
                     })}

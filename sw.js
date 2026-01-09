@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v48'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v49'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -37,6 +37,7 @@ const urlsToCache = [
   '/components/CraneReportModal.tsx',
   '/components/CustomerCard.tsx',
   '/components/CustomerQrCodeModal.tsx',
+  '/components/CustomerQrLabel.tsx',
   '/components/CustomerSheet.tsx',
   '/components/DebtPaymentModal.tsx',
   '/components/DebtReceiptActionsModal.tsx',

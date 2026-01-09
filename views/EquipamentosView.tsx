@@ -13,6 +13,7 @@ import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 interface EquipamentosViewProps {
   customers: Customer[];
   billings: Billing[];
+  showNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
 type EquipmentWithCustomer = Equipment & {
@@ -129,7 +130,7 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
 };
 
 
-const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings }) => {
+const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification }) => {
   const [labelEquipment, setLabelEquipment] = useState<EquipmentWithCustomer | null>(null);
 
   const allEquipment = useMemo(() => {
@@ -188,6 +189,7 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
           isOpen={!!labelEquipment}
           onClose={() => setLabelEquipment(null)}
           equipment={labelEquipment}
+          showNotification={showNotification}
         />
       )}
     </>

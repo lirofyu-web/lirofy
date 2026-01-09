@@ -29,9 +29,10 @@ interface CustomerCardProps {
   onHistory: (customer: Customer) => void;
   onShare: (customer: Customer) => void;
   hasActiveWarning: boolean;
+  showNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, hasActiveWarning }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, hasActiveWarning, showNotification }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
@@ -155,6 +156,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     isOpen={isQrModalOpen}
                     onClose={() => setIsQrModalOpen(false)}
                     customer={customer}
+                    showNotification={showNotification}
                 />
             )}
         </>

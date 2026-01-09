@@ -1,10 +1,13 @@
 // components/ReceiptActionsModal.tsx
-import React, { useState, useRef } from 'react';
-import { PrinterIcon } from './icons/PrinterIcon';
+import React, { useState, useEffect } from 'react';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { Billing } from '../types';
-import { BluetoothPrinter } from '../utils/bluetoothPrinter';
-import { generateEscPosFromReceipt, generatePixPayload } from '../utils/receiptGenerator';
+import { ShareIcon } from './icons/ShareIcon';
+import { createRoot } from 'react-dom/client';
+import ReceiptSheet from './ReceiptSheet';
+
+// Declara html2canvas para TypeScript
+declare const html2canvas: any;
 
 interface ReceiptActionsModalProps {
   isOpen: boolean;
@@ -25,47 +28,102 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
   isProvisional,
   showNotification,
 }) => {
-  const [isPrinting, setIsPrinting] = useState(false);
-  const printer = useRef(new BluetoothPrinter());
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const handleBluetoothPrint = async () => {
-    setIsPrinting(true);
-    
+  useEffect(() => {
+    if (!isOpen) {
+      setImageFile(null);
+      return;
+    }
+
+    const generateImage = async () => {
+      setIsGenerating(true);
+      setImageFile(null);
+
+      const sheetContainer = document.createElement('div');
+      sheetContainer.style.position = 'absolute';
+      sheetContainer.style.left = '-9999px';
+      sheetContainer.style.width = '320px';
+      document.body.appendChild(sheetContainer);
+
+      const root = createRoot(sheetContainer);
+      root.render(
+        <div className="p-4 bg-white text-black font-mono text-sm">
+          <ReceiptSheet billing={billing} isProvisional={isProvisional} />
+        </div>
+      );
+      
+      const cleanup = () => {
+        root.unmount();
+        if (document.body.contains(sheetContainer)) {
+          document.body.removeChild(sheetContainer);
+        }
+        setIsGenerating(false);
+      };
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        const elementToCapture = sheetContainer.firstChild as HTMLElement;
+        if (!elementToCapture) throw new Error("Falha ao renderizar recibo para captura.");
+
+        const canvas = await html2canvas(elementToCapture, { scale: 2, backgroundColor: '#ffffff' });
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showNotification('Falha ao gerar a imagem.', 'error');
+            cleanup();
+            return;
+          }
+          const file = new File([blob], `recibo_${billing.customerName.replace(/\s/g, '_')}.png`, { type: 'image/png' });
+          setImageFile(file);
+          cleanup();
+        }, 'image/png');
+      } catch (error: any) {
+        console.error('Erro ao gerar imagem do recibo:', error);
+        showNotification(`Erro ao gerar imagem: ${error.message}`, 'error');
+        cleanup();
+      }
+    };
+
+    generateImage();
+  }, [isOpen, billing, isProvisional, showNotification]);
+
+  const handleShare = async () => {
+    if (!imageFile) {
+        showNotification('A imagem ainda está sendo gerada, por favor aguarde.', 'error');
+        return;
+    }
+
+    const downloadFallback = () => {
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(imageFile);
+      link.href = url;
+      link.download = imageFile.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
     try {
-        if (!printer.current.isConnected()) {
-            const status = await printer.current.connect();
-
-            if (status === 'cancelled') {
-                // User cancelled the prompt, so we just stop. No error message needed.
-                setIsPrinting(false);
-                return;
-            }
-
-            if (status === 'failed') {
-                showNotification('Conexão com a impressora falhou.', 'error');
-                setIsPrinting(false);
-                return;
-            }
-            // If status is 'connected', proceed.
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+            await navigator.share({
+                title: `Recibo - ${billing.customerName}`,
+                files: [imageFile],
+            });
+            onClose();
+        } else {
+            showNotification('Compartilhamento não suportado. Baixando imagem...', 'success');
+            downloadFallback();
         }
-
-        showNotification('Enviando para impressão...', 'success');
-        
-        const pixPayload = isProvisional ? generatePixPayload() : undefined;
-        const commands = generateEscPosFromReceipt(billing, isProvisional, pixPayload);
-
-        await printer.current.print(commands);
-        showNotification('Impresso com sucesso!', 'success');
-        onClose();
-
     } catch (error: any) {
-        console.error('Bluetooth print error:', error);
-        showNotification(`Erro de impressão: ${error.message}`, 'error');
-        if (printer.current.isConnected()) {
-            await printer.current.disconnect();
+        if (error.name !== 'AbortError') {
+            console.error('Share API error:', error);
+            showNotification('Falha ao compartilhar. Iniciando download...', 'success');
+            downloadFallback();
         }
-    } finally {
-        setIsPrinting(false);
     }
   };
 
@@ -100,12 +158,12 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
             <span>WhatsApp</span>
           </button>
           <button
-            onClick={handleBluetoothPrint}
-            disabled={isPrinting}
+            onClick={handleShare}
+            disabled={isGenerating || !imageFile}
             className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-6 rounded-md hover:bg-cyan-500 transition-colors order-1 sm:order-3 disabled:bg-slate-500 disabled:cursor-wait"
           >
-            <PrinterIcon className="w-5 h-5" />
-            <span>{isPrinting ? 'Imprimindo...' : 'Imprimir'}</span>
+            <ShareIcon className="w-5 h-5" />
+            <span>{isGenerating ? 'Gerando...' : 'Compartilhar'}</span>
           </button>
         </div>
       </div>

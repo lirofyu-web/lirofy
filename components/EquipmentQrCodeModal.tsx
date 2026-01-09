@@ -1,38 +1,116 @@
 // components/EquipmentQrCodeModal.tsx
-import React, { useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Equipment } from '../types';
-import { PrinterIcon } from './icons/PrinterIcon';
+import { ShareIcon } from './icons/ShareIcon';
 import EquipmentLabel from './EquipmentLabel';
+import { createRoot } from 'react-dom/client';
+
+declare const html2canvas: any;
 
 interface EquipmentQrCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   equipment: Equipment;
+  showNotification: (message: string, type: 'success' | 'error') => void;
 }
 
-const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onClose, equipment }) => {
-  const printRef = useRef<HTMLDivElement>(null);
+const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onClose, equipment, showNotification }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const handlePrint = () => {
-    const printContent = printRef.current?.innerHTML;
-    if (printContent) {
-      const printWindow = window.open('', '', 'height=400,width=300');
-      if (printWindow) {
-        printWindow.document.write('<html><head><title>Etiqueta de Equipamento</title>');
-        printWindow.document.write(`
-          <style>
-            @page { margin: 0; size: 57mm 32mm; }
-            body { 
-              margin: 0; 
-              font-family: 'Courier New', Courier, monospace;
-            }
-          </style>
-        `);
-        printWindow.document.write('</head><body onload="window.print();window.close()">');
-        printWindow.document.write(printContent);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
+  useEffect(() => {
+    if (!isOpen) {
+      setImageFile(null);
+      return;
+    }
+
+    const generateImage = async () => {
+      setIsGenerating(true);
+      setImageFile(null);
+
+      const labelContainer = document.createElement('div');
+      labelContainer.style.position = 'absolute';
+      labelContainer.style.left = '-9999px';
+
+      // html2canvas captures based on the background of the element it's given.
+      // So, we wrap the component in a div with the desired background color.
+      const renderContainer = document.createElement('div');
+      renderContainer.style.backgroundColor = '#d1d5db'; // Corresponde a bg-gray-300
+      renderContainer.style.display = 'inline-block';
+      renderContainer.style.padding = '1rem'; // Corresponde a p-4
+      renderContainer.appendChild(labelContainer);
+      document.body.appendChild(renderContainer);
+
+      const root = createRoot(labelContainer);
+      root.render(<EquipmentLabel equipment={equipment} />);
+      
+      const cleanup = () => {
+        root.unmount();
+        if (document.body.contains(renderContainer)) {
+          document.body.removeChild(renderContainer);
+        }
+        setIsGenerating(false);
+      };
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render and paint
+
+        const canvas = await html2canvas(renderContainer, { scale: 3 });
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showNotification('Falha ao gerar a imagem da etiqueta.', 'error');
+            cleanup();
+            return;
+          }
+          const file = new File([blob], `etiqueta_${equipment.numero}.png`, { type: 'image/png' });
+          setImageFile(file);
+          cleanup();
+        }, 'image/png');
+      } catch (error) {
+        console.error('Erro ao gerar imagem da etiqueta:', error);
+        showNotification('Erro ao gerar imagem da etiqueta.', 'error');
+        cleanup();
       }
+    };
+
+    generateImage();
+  }, [isOpen, equipment, showNotification]);
+  
+  const handleShare = async () => {
+    if (!imageFile) {
+        showNotification('A imagem da etiqueta ainda está sendo gerada, por favor aguarde.', 'error');
+        return;
+    }
+
+    const downloadFallback = () => {
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(imageFile);
+      link.href = url;
+      link.download = imageFile.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    try {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+            await navigator.share({
+                title: `Etiqueta Equipamento Nº ${equipment.numero}`,
+                files: [imageFile],
+            });
+            onClose();
+        } else {
+            showNotification('Compartilhamento não suportado. Baixando arquivo...', 'success');
+            downloadFallback();
+        }
+    } catch (error: any) {
+        if (error.name !== 'AbortError') {
+            console.error('Share API error:', error);
+            showNotification('Falha ao compartilhar. Iniciando download do arquivo.', 'success');
+            downloadFallback();
+        }
     }
   };
 
@@ -50,14 +128,14 @@ const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onC
             <h2 id="equipment-label-modal-title" className="text-lg font-bold text-white">Etiqueta de Equipamento</h2>
         </div>
         <div className="p-4 bg-gray-300 flex justify-center">
-            <div ref={printRef}>
+            <div>
                 <EquipmentLabel equipment={equipment} />
             </div>
         </div>
         <div className="p-4 bg-slate-800/50 rounded-b-lg flex justify-between items-center gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Fechar</button>
-          <button onClick={handlePrint} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500">
-            <PrinterIcon className="w-5 h-5"/> <span>Imprimir</span>
+          <button onClick={handleShare} disabled={isGenerating || !imageFile} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 disabled:bg-slate-500 disabled:cursor-wait">
+            <ShareIcon className="w-5 h-5"/> <span>{isGenerating || !imageFile ? 'Gerando...' : 'Compartilhar'}</span>
           </button>
         </div>
       </div>

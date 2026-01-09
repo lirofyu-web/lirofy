@@ -690,7 +690,7 @@ const App: React.FC = () => {
             case 'COBRANCAS':
                 return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling} onDeleteBilling={handleDeleteBilling}/>;
             case 'EQUIPAMENTOS':
-                return <EquipamentosView customers={customers} billings={billings} />;
+                return <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} />;
             case 'DESPESAS':
                 return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
             case 'ROTAS':

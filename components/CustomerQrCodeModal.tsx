@@ -1,49 +1,117 @@
 // components/CustomerQrCodeModal.tsx
-import React, { useRef, useEffect } from 'react';
-import QRCode from 'qrcode';
+import React, { useState, useEffect } from 'react';
 import { Customer } from '../types';
-import { PrinterIcon } from './icons/PrinterIcon';
+import { ShareIcon } from './icons/ShareIcon';
+import CustomerQrLabel from './CustomerQrLabel';
+import { createRoot } from 'react-dom/client';
+
+declare const html2canvas: any;
 
 interface CustomerQrCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer;
+  showNotification: (message: string, type: 'success' | 'error') => void;
 }
 
-const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClose, customer }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClose, customer, showNotification }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   useEffect(() => {
-    if (isOpen && canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, customer.id, {
-        width: 256,
-        margin: 2,
-        errorCorrectionLevel: 'H',
-        color: {
-          dark: '#FFFFFF',
-          light: '#1e293b'
-        }
-      }, (error) => {
-        if (error) console.error('Erro ao gerar QR Code:', error);
-      });
+    if (!isOpen) {
+      setImageFile(null);
+      return;
     }
-  }, [isOpen, customer.id]);
 
-  const handlePrint = () => {
-    const printContent = printRef.current?.innerHTML;
-    if (printContent) {
-      const printWindow = window.open('', '', 'height=400,width=400');
-      if (printWindow) {
-        printWindow.document.write('<html><head><title>QR Code Cliente</title>');
-        printWindow.document.write('<style> body { text-align: center; font-family: sans-serif; } canvas { width: 250px !important; height: 250px !important; } </style>');
-        printWindow.document.write('</head><body onload="window.print();window.close()">');
-        printWindow.document.write(printContent);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
+    const generateImage = async () => {
+      setIsGenerating(true);
+      setImageFile(null);
+
+      const labelContainer = document.createElement('div');
+      labelContainer.style.position = 'absolute';
+      labelContainer.style.left = '-9999px';
+      
+      const renderContainer = document.createElement('div');
+      renderContainer.style.backgroundColor = '#d1d5db'; // Corresponde a bg-gray-300
+      renderContainer.style.display = 'inline-block';
+      renderContainer.style.padding = '1rem'; // p-4
+      renderContainer.appendChild(labelContainer);
+      document.body.appendChild(renderContainer);
+
+      const root = createRoot(labelContainer);
+      root.render(<CustomerQrLabel customer={customer} />);
+      
+      const cleanup = () => {
+        root.unmount();
+        if (document.body.contains(renderContainer)) {
+          document.body.removeChild(renderContainer);
+        }
+        setIsGenerating(false);
+      };
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        const canvas = await html2canvas(renderContainer, { scale: 3 });
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showNotification('Falha ao gerar a imagem do QR Code.', 'error');
+            cleanup();
+            return;
+          }
+          const file = new File([blob], `qrcode_${customer.name.replace(/\s/g, '_')}.png`, { type: 'image/png' });
+          setImageFile(file);
+          cleanup();
+        }, 'image/png');
+      } catch (error) {
+        console.error('Erro ao gerar imagem do QR Code:', error);
+        showNotification('Erro ao gerar imagem do QR Code.', 'error');
+        cleanup();
       }
+    };
+
+    generateImage();
+  }, [isOpen, customer, showNotification]);
+
+  const handleShare = async () => {
+    if (!imageFile) {
+        showNotification('A imagem do QR Code ainda está sendo gerada, aguarde.', 'error');
+        return;
+    }
+
+    const downloadFallback = () => {
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(imageFile);
+      link.href = url;
+      link.download = imageFile.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    try {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+            await navigator.share({
+                title: `QR Code de Identificação - ${customer.name}`,
+                files: [imageFile],
+            });
+            onClose();
+        } else {
+            showNotification('Compartilhamento não suportado. Baixando arquivo...', 'success');
+            downloadFallback();
+        }
+    } catch (error: any) {
+        if (error.name !== 'AbortError') {
+            console.error('Share API error:', error);
+            showNotification('Falha ao compartilhar. Iniciando download do arquivo.', 'success');
+            downloadFallback();
+        }
     }
   };
+
 
   if (!isOpen) return null;
 
@@ -54,18 +122,17 @@ const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClo
       aria-modal="true"
       aria-labelledby="qr-code-modal-title"
     >
-      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-sm border border-slate-700 animate-fade-in-up">
-        <div className="p-6 border-b border-slate-700 text-center">
-            <h2 id="qr-code-modal-title" className="text-xl font-bold text-white">QR Code de Identificação</h2>
-            <p className="text-slate-400">{customer.name}</p>
+      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-xs border border-slate-700 animate-fade-in-up">
+        <div className="p-4 border-b border-slate-700 text-center">
+            <h2 id="qr-code-modal-title" className="text-lg font-bold text-white">QR Code de Identificação</h2>
         </div>
-        <div className="p-6 flex justify-center bg-slate-900" ref={printRef}>
-            <canvas ref={canvasRef} className="rounded-lg"></canvas>
+        <div className="p-4 bg-gray-300 flex justify-center">
+            <CustomerQrLabel customer={customer} />
         </div>
         <div className="p-4 bg-slate-800/50 rounded-b-lg flex justify-between items-center gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Fechar</button>
-          <button onClick={handlePrint} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500">
-            <PrinterIcon className="w-5 h-5"/> <span>Imprimir</span>
+          <button onClick={handleShare} disabled={isGenerating || !imageFile} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 disabled:bg-slate-500 disabled:cursor-wait">
+            <ShareIcon className="w-5 h-5"/> <span>{isGenerating || !imageFile ? 'Gerando...' : 'Compartilhar'}</span>
           </button>
         </div>
       </div>

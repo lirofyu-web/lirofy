@@ -1,5 +1,5 @@
 // components/ShareCustomerModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Customer } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
@@ -19,10 +19,75 @@ interface ShareCustomerModalProps {
 }
 
 const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose, customer, showNotification, onPrintCustomer }) => {
-  const [isSharing, setIsSharing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
-  // Verifica se o navegador suporta a API de compartilhamento Web Share.
   const canShareFiles = !!(navigator.share && navigator.canShare);
+
+  useEffect(() => {
+    if (!isOpen || !canShareFiles) {
+        setImageFile(null);
+        return;
+    }
+
+    const generateImage = async () => {
+        setIsGenerating(true);
+        setImageFile(null);
+
+        const sheetContainer = document.createElement('div');
+        sheetContainer.style.position = 'absolute';
+        sheetContainer.style.left = '-9999px';
+        sheetContainer.style.width = '210mm';
+        document.body.appendChild(sheetContainer);
+
+        const root = createRoot(sheetContainer);
+        root.render(<CustomerSheet customer={customer} />);
+        
+        const cleanup = () => {
+            root.unmount();
+            if (document.body.contains(sheetContainer)) {
+                document.body.removeChild(sheetContainer);
+            }
+            setIsGenerating(false);
+        };
+
+        try {
+            await document.fonts.ready;
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const elementToCapture = sheetContainer.firstChild as HTMLElement;
+            if (!elementToCapture) {
+                throw new Error("O componente da ficha do cliente não renderizou para captura.");
+            }
+
+            const canvas = await html2canvas(elementToCapture, {
+                scale: 1.5, // Reduced scale for faster generation on large elements
+                useCORS: true,
+                backgroundColor: '#f1f5f9'
+            });
+
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    showNotification('Falha ao gerar a imagem.', 'error');
+                    cleanup();
+                    return;
+                }
+                const file = new File([blob], `ficha_${customer.name.replace(/\s/g, '_')}.jpg`, { type: 'image/jpeg' });
+                setImageFile(file);
+                cleanup();
+            }, 'image/jpeg', 0.9);
+
+        } catch (error) {
+            console.error('Erro ao gerar imagem com html2canvas:', error);
+            showNotification('Ocorreu um erro ao gerar a imagem.', 'error');
+            cleanup();
+        }
+    };
+
+    generateImage();
+  }, [isOpen, customer, showNotification, canShareFiles]);
+
 
   const handleCopyJson = () => {
     const customerDataToShare = {
@@ -54,80 +119,40 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
   };
 
   const handleShareAsImage = async () => {
-    if (!canShareFiles) {
-        showNotification('Seu navegador não suporta o compartilhamento de arquivos.', 'error');
+    if (!imageFile) {
+        showNotification('A imagem ainda está sendo gerada, por favor aguarde.', 'error');
         return;
     }
-
-    setIsSharing(true);
-    showNotification('Gerando imagem, por favor aguarde...', 'success');
-
-    const sheetContainer = document.createElement('div');
-    sheetContainer.style.position = 'absolute';
-    sheetContainer.style.left = '-9999px';
-    sheetContainer.style.width = '210mm';
-    document.body.appendChild(sheetContainer);
-
-    const root = createRoot(sheetContainer);
-    root.render(<CustomerSheet customer={customer} />);
+    
+    const downloadFallback = () => {
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(imageFile);
+      link.href = url;
+      link.download = imageFile.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
 
     try {
-        await document.fonts.ready;
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const elementToCapture = sheetContainer.firstChild as HTMLElement;
-        if (!elementToCapture) {
-            throw new Error("O componente da ficha do cliente não renderizou para captura.");
-        }
-
-        const canvas = await html2canvas(elementToCapture, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#f1f5f9'
-        });
-
-        canvas.toBlob(async (blob) => {
-            if (!blob) {
-                showNotification('Falha ao gerar a imagem.', 'error');
-                setIsSharing(false);
-                root.unmount();
-                document.body.removeChild(sheetContainer);
-                return;
-            }
-
-            const file = new File([blob], `ficha_${customer.name.replace(/\s/g, '_')}.jpg`, { type: 'image/jpeg' });
-            
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        title: `Ficha Cadastral - ${customer.name}`,
-                        text: `Segue a ficha cadastral de ${customer.name}.`,
-                        files: [file],
-                    });
-                } catch (error) {
-                    if ((error as DOMException).name !== 'AbortError') {
-                        console.error('Share API error:', error);
-                        showNotification('O compartilhamento falhou.', 'error');
-                    }
-                }
-            } else {
-                 showNotification('Não é possível compartilhar este tipo de arquivo ou o navegador não suporta a função.', 'error');
-            }
-            
-            root.unmount();
-            document.body.removeChild(sheetContainer);
-            setIsSharing(false);
+        if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+            await navigator.share({
+                title: `Ficha Cadastral - ${customer.name}`,
+                text: `Segue a ficha cadastral de ${customer.name}.`,
+                files: [imageFile],
+            });
             onClose();
-
-        }, 'image/jpeg', 0.9);
-
+        } else {
+            showNotification('Compartilhamento de arquivo não suportado. Baixando imagem...', 'success');
+            downloadFallback();
+        }
     } catch (error) {
-        console.error('Erro ao gerar imagem com html2canvas:', error);
-        showNotification('Ocorreu um erro ao gerar a imagem.', 'error');
-        root.unmount();
-        document.body.removeChild(sheetContainer);
-        setIsSharing(false);
+        if ((error as DOMException).name !== 'AbortError') {
+            console.error('Share API error:', error);
+            showNotification('O compartilhamento falhou. Iniciando download...', 'success');
+            downloadFallback();
+        }
     }
   };
 
@@ -169,13 +194,13 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
             </button>
             <button
                 onClick={handleShareAsImage}
-                disabled={isSharing || !canShareFiles}
+                disabled={isGenerating || !imageFile}
                 className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-green-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
                 title={!canShareFiles ? "Seu navegador não suporta compartilhamento de arquivos" : "Compartilhar como imagem JPG"}
             >
                 <ImageIcon className="w-8 h-8 text-green-400 flex-shrink-0" />
                 <div>
-                    <h3 className="font-bold text-white">{isSharing ? 'Gerando Imagem...' : 'Compartilhar Imagem (JPG)'}</h3>
+                    <h3 className="font-bold text-white">{isGenerating || !imageFile ? 'Gerando Imagem...' : 'Compartilhar Imagem (JPG)'}</h3>
                     <p className="text-sm text-slate-400">Gera uma imagem da ficha para enviar via WhatsApp ou outros apps.</p>
                 </div>
             </button>
