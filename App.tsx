@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning } from './types';
-import { createRoot } from 'react-dom/client';
 
 import Sidebar from './components/Sidebar';
 import DashboardView from './views/DashboardView';
@@ -13,8 +12,6 @@ import EquipamentosView from './views/EquipamentosView';
 import RotasView from './views/RotasView';
 import RelatoriosView from './views/RelatoriosView';
 import ConfiguracoesView from './views/ConfiguracoesView';
-import ReceiptModal from './components/ReceiptModal';
-import DebtReceiptModal from './components/DebtReceiptModal';
 import ReceiptActionsModal from './components/ReceiptActionsModal';
 import DebtReceiptActionsModal from './components/DebtReceiptActionsModal';
 import Notification from './components/Notification';
@@ -23,8 +20,6 @@ import MobileHeader from './components/MobileHeader';
 import InstallPwaBanner from './components/InstallPwaBanner';
 import CustomerSheet from './components/CustomerSheet';
 import { PrinterIcon } from './components/icons/PrinterIcon';
-import ReceiptSheet from './components/ReceiptSheet';
-import DebtReceiptSheet from './components/DebtReceiptSheet';
 
 // Declara html2canvas para TypeScript, já que é carregado via tag de script global.
 declare const html2canvas: any;
@@ -745,55 +740,28 @@ const App: React.FC = () => {
             {(provisionalReceiptBilling && provisionalReceiptCallback) && (
                  <ReceiptActionsModal
                     isOpen={true}
+                    billing={provisionalReceiptBilling}
+                    isProvisional={true}
                     onClose={() => {
                         provisionalReceiptCallback();
                         setProvisionalReceiptBilling(null);
                         setProvisionalReceiptCallback(null);
                     }}
-                    onPrint={() => {
-                        const modal = document.createElement('div');
-                        document.body.appendChild(modal);
-                        const root = createRoot(modal);
-                        const PrintComponent = () => (
-                             <ReceiptModal
-                                isOpen={true}
-                                onClose={() => {
-                                    root.unmount();
-                                    document.body.removeChild(modal);
-                                }}
-                                billing={provisionalReceiptBilling}
-                                isProvisional
-                            />
-                        );
-                        root.render(<PrintComponent />);
-                    }}
                     onWhatsApp={() => handleShareReceipt(provisionalReceiptBilling, true)}
                     customerHasPhone={!!customerForProvisionalBilling?.telefone}
+                    showNotification={showNotification}
                 />
             )}
             
             {finalizedBilling && (
                 <ReceiptActionsModal
                     isOpen={!!finalizedBilling}
+                    billing={finalizedBilling}
+                    isProvisional={false}
                     onClose={() => setFinalizedBilling(null)}
-                    onPrint={() => {
-                        const modal = document.createElement('div');
-                        document.body.appendChild(modal);
-                        const root = createRoot(modal);
-                        const PrintComponent = () => (
-                             <ReceiptModal
-                                isOpen={true}
-                                onClose={() => {
-                                    root.unmount();
-                                    document.body.removeChild(modal);
-                                }}
-                                billing={finalizedBilling}
-                            />
-                        );
-                        root.render(<PrintComponent />);
-                    }}
                     onWhatsApp={() => handleShareReceipt(finalizedBilling)}
                     customerHasPhone={!!customerForFinalizedBilling?.telefone}
+                    showNotification={showNotification}
                 />
             )}
 
@@ -802,24 +770,9 @@ const App: React.FC = () => {
                     isOpen={!!finalizedDebtPayment}
                     onClose={() => setFinalizedDebtPayment(null)}
                     debtPayment={finalizedDebtPayment}
-                    onPrint={() => {
-                        const modal = document.createElement('div');
-                        document.body.appendChild(modal);
-                        const root = createRoot(modal);
-                        const PrintComponent = () => (
-                             <DebtReceiptModal
-                                isOpen={true}
-                                onClose={() => {
-                                    root.unmount();
-                                    document.body.removeChild(modal);
-                                }}
-                                debtPayment={finalizedDebtPayment}
-                            />
-                        );
-                        root.render(<PrintComponent />);
-                    }}
                     onWhatsApp={() => handleShareDebtReceipt(finalizedDebtPayment)}
                     customerHasPhone={!!customerForFinalizedDebtPayment?.telefone}
+                    showNotification={showNotification}
                 />
             )}
 

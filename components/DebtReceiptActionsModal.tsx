@@ -1,25 +1,65 @@
 // components/DebtReceiptActionsModal.tsx
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { DebtPayment } from '../types';
+import { BluetoothPrinter } from '../utils/bluetoothPrinter';
+import { generateEscPosFromReceipt } from '../utils/receiptGenerator';
 
 interface DebtReceiptActionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPrint: () => void;
   onWhatsApp: () => void;
   customerHasPhone: boolean;
   debtPayment: DebtPayment;
+  showNotification: (message: string, type: 'success' | 'error') => void;
 }
 
 const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
   isOpen,
   onClose,
-  onPrint,
   onWhatsApp,
   customerHasPhone,
+  debtPayment,
+  showNotification,
 }) => {
+  const [isPrinting, setIsPrinting] = useState(false);
+  const printer = useRef(new BluetoothPrinter());
+
+  const handleBluetoothPrint = async () => {
+    setIsPrinting(true);
+    
+    try {
+        if (!printer.current.isConnected()) {
+            showNotification('Conectando à impressora...', 'success');
+            const connected = await printer.current.connect();
+            if (!connected) {
+                showNotification('Conexão com impressora falhou ou foi cancelada.', 'error');
+                setIsPrinting(false);
+                return;
+            }
+        }
+
+        showNotification('Enviando para impressão...', 'success');
+        
+        const commands = generateEscPosFromReceipt(debtPayment);
+
+        await printer.current.print(commands);
+        showNotification('Impresso com sucesso!', 'success');
+        onClose();
+
+    } catch (error: any) {
+        console.error('Bluetooth print error:', error);
+        showNotification(`Erro de impressão: ${error.message}`, 'error');
+        if (printer.current.isConnected()) {
+            await printer.current.disconnect();
+        }
+    } finally {
+        setIsPrinting(false);
+    }
+  };
+
+
   if (!isOpen) return null;
 
   return (
@@ -51,11 +91,12 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
             <span>WhatsApp</span>
           </button>
           <button
-            onClick={onPrint}
-            className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-6 rounded-md hover:bg-cyan-500 transition-colors order-1 sm:order-3"
+            onClick={handleBluetoothPrint}
+            disabled={isPrinting}
+            className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-6 rounded-md hover:bg-cyan-500 transition-colors order-1 sm:order-3 disabled:bg-slate-500 disabled:cursor-wait"
           >
             <PrinterIcon className="w-5 h-5" />
-            <span>Imprimir</span>
+            <span>{isPrinting ? 'Imprimindo...' : 'Imprimir'}</span>
           </button>
         </div>
       </div>
