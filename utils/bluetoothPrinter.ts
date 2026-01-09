@@ -11,7 +11,7 @@ export class BluetoothPrinter {
     private device: any | null = null;
     private characteristic: any | null = null;
 
-    async connect(): Promise<boolean> {
+    async connect(): Promise<'connected' | 'cancelled' | 'failed'> {
         try {
             // FIX: Cast navigator to 'any' to access the 'bluetooth' property, as its type definition is missing.
             this.device = await (navigator as any).bluetooth.requestDevice({
@@ -34,11 +34,18 @@ export class BluetoothPrinter {
 
             this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
 
-            return true;
-        } catch (error) {
+            return 'connected';
+        } catch (error: any) {
+            // Don't treat user cancellation as a critical error.
+            if (error.name === 'NotFoundError') {
+                console.log("Bluetooth device selection cancelled by user.");
+                this.disconnect();
+                return 'cancelled';
+            }
+            
             console.error("Bluetooth connection failed:", error);
             this.disconnect(); // Clean up on failure
-            return false;
+            return 'failed';
         }
     }
 

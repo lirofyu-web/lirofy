@@ -31,13 +31,20 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
     
     try {
         if (!printer.current.isConnected()) {
-            showNotification('Conectando à impressora...', 'success');
-            const connected = await printer.current.connect();
-            if (!connected) {
-                showNotification('Conexão com impressora falhou ou foi cancelada.', 'error');
+            const status = await printer.current.connect();
+
+            if (status === 'cancelled') {
+                // User cancelled the prompt, so we just stop. No error message needed.
                 setIsPrinting(false);
                 return;
             }
+
+            if (status === 'failed') {
+                showNotification('Conexão com a impressora falhou.', 'error');
+                setIsPrinting(false);
+                return;
+            }
+            // If status is 'connected', proceed.
         }
 
         showNotification('Enviando para impressão...', 'success');
