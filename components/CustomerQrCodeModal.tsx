@@ -51,9 +51,15 @@ const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClo
       };
 
       try {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await document.fonts.ready;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
 
-        const canvas = await html2canvas(renderContainer, { scale: 3 });
+        const canvas = await html2canvas(renderContainer, { 
+          scale: 3,
+          useCORS: true,
+          logging: false
+        });
 
         canvas.toBlob((blob) => {
           if (!blob) {
@@ -65,9 +71,9 @@ const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClo
           setImageFile(file);
           cleanup();
         }, 'image/png');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao gerar imagem do QR Code:', error);
-        showNotification('Erro ao gerar imagem do QR Code.', 'error');
+        showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
         cleanup();
       }
     };

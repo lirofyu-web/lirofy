@@ -32,12 +32,10 @@ const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onC
       labelContainer.style.position = 'absolute';
       labelContainer.style.left = '-9999px';
 
-      // html2canvas captures based on the background of the element it's given.
-      // So, we wrap the component in a div with the desired background color.
       const renderContainer = document.createElement('div');
-      renderContainer.style.backgroundColor = '#d1d5db'; // Corresponde a bg-gray-300
+      renderContainer.style.backgroundColor = '#d1d5db';
       renderContainer.style.display = 'inline-block';
-      renderContainer.style.padding = '1rem'; // Corresponde a p-4
+      renderContainer.style.padding = '1rem';
       renderContainer.appendChild(labelContainer);
       document.body.appendChild(renderContainer);
 
@@ -53,9 +51,15 @@ const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onC
       };
 
       try {
-        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for render and paint
+        await document.fonts.ready;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
 
-        const canvas = await html2canvas(renderContainer, { scale: 3 });
+        const canvas = await html2canvas(renderContainer, { 
+            scale: 3,
+            useCORS: true,
+            logging: false
+        });
 
         canvas.toBlob((blob) => {
           if (!blob) {
@@ -67,9 +71,9 @@ const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onC
           setImageFile(file);
           cleanup();
         }, 'image/png');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao gerar imagem da etiqueta:', error);
-        showNotification('Erro ao gerar imagem da etiqueta.', 'error');
+        showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
         cleanup();
       }
     };
@@ -79,7 +83,7 @@ const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onC
   
   const handleShare = async () => {
     if (!imageFile) {
-        showNotification('A imagem da etiqueta ainda está sendo gerada, por favor aguarde.', 'error');
+        showNotification('A imagem da etiqueta ainda está sendo gerada, aguarde.', 'error');
         return;
     }
 

@@ -61,12 +61,20 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
       };
 
       try {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Wait for fonts, next frame, and a short delay to ensure React has rendered.
+        await document.fonts.ready;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
 
         const elementToCapture = sheetContainer.firstChild as HTMLElement;
         if (!elementToCapture) throw new Error("Falha ao renderizar comprovante para captura.");
 
-        const canvas = await html2canvas(elementToCapture, { scale: 2, backgroundColor: '#ffffff' });
+        const canvas = await html2canvas(elementToCapture, { 
+          scale: 2, 
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false
+        });
 
         canvas.toBlob((blob) => {
           if (!blob) {
@@ -80,7 +88,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
         }, 'image/png');
       } catch (error: any) {
         console.error('Erro ao gerar imagem do comprovante:', error);
-        showNotification(`Erro ao gerar imagem: ${error.message}`, 'error');
+        showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
         cleanup();
       }
     };

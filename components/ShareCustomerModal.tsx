@@ -54,7 +54,7 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
         try {
             await document.fonts.ready;
             await new Promise(resolve => requestAnimationFrame(resolve));
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
             
             const elementToCapture = sheetContainer.firstChild as HTMLElement;
             if (!elementToCapture) {
@@ -62,9 +62,10 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
             }
 
             const canvas = await html2canvas(elementToCapture, {
-                scale: 1.5, // Reduced scale for faster generation on large elements
+                scale: 1.5,
                 useCORS: true,
-                backgroundColor: '#f1f5f9'
+                backgroundColor: '#f1f5f9',
+                logging: false
             });
 
             canvas.toBlob((blob) => {
@@ -78,9 +79,9 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                 cleanup();
             }, 'image/jpeg', 0.9);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao gerar imagem com html2canvas:', error);
-            showNotification('Ocorreu um erro ao gerar a imagem.', 'error');
+            showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
             cleanup();
         }
     };
