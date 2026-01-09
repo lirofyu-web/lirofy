@@ -47,7 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                     onClick={() => handleViewChange(item.view)}
                     className={`w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium ${
                         isActive 
-                        ? 'bg-lime-500 text-white shadow-lg' 
+                        ? 'bg-[var(--color-primary)] text-[var(--color-primary-text)] shadow-lg' 
                         : 'text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                     }`}
                 >

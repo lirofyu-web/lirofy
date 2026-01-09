@@ -28,6 +28,15 @@
       }
     </script>
     <style>
+      :root {
+        --color-primary: #84cc16;
+        --color-primary-hover: #65a30d;
+        --color-primary-text: #ffffff;
+
+        --color-accent: #06b6d4;
+        --color-accent-hover: #0891b2;
+        --color-accent-text: #ffffff;
+      }
       html, body, #root {
         height: 100%;
         overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile which feels native */
@@ -76,7 +85,7 @@
         }
         50% {
           transform: scale(1.2);
-          filter: drop-shadow(0 0 10px #06b6d4);
+          filter: drop-shadow(0 0 10px var(--color-accent));
         }
         100% {
           transform: scale(1);

@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v52'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v54'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -12,6 +12,7 @@ const urlsToCache = [
   '/types.ts',
   '/App.tsx',
   '/utils.ts',
+  '/utils/theme.ts',
   '/utils/receiptGenerator.ts',
   '/utils/bluetoothPrinter.ts',
   '/utils/escpos.ts',
@@ -40,6 +41,7 @@ const urlsToCache = [
   '/components/CityAutocomplete.tsx',
   '/components/CraneReportModal.tsx',
   '/components/CustomerCard.tsx',
+  '/components/CustomerQrCodeModal.tsx',
   '/components/CustomerQrLabel.tsx',
   '/components/CustomerSheet.tsx',
   '/components/DebtPaymentModal.tsx',
@@ -49,6 +51,7 @@ const urlsToCache = [
   '/components/DebtReminders.tsx',
   '/components/EditCustomerModal.tsx',
   '/components/EquipmentLabel.tsx',
+  '/components/EquipmentQrCodeModal.tsx',
   '/components/EquipmentSelectionModal.tsx',
   '/components/HistoryModal.tsx',
   '/components/InstallPwaBanner.tsx',
@@ -211,7 +214,7 @@ self.addEventListener('fetch', (event) => {
           }
         ).catch(error => {
           console.log('Fetch falhou; retornando offline page em vez.', error);
-          // Se a rede falhar (e não estiver no cache), você pode retornar uma página offline padrão.
+          // Se a rede falhar (e não estiver no cache), você pode retornar uma página offline fallback.
           // Por simplicidade, este exemplo não implementa uma página offline fallback.
         });
       })

@@ -21,6 +21,7 @@ import InstallPwaBanner from './components/InstallPwaBanner';
 import CustomerSheet from './components/CustomerSheet';
 import { PrinterIcon } from './components/icons/PrinterIcon';
 import { generateBillingText, generateDebtText } from './utils/receiptGenerator';
+import { applyThemeColors, defaultColors } from './utils/theme';
 
 // Declara html2canvas para TypeScript, já que é carregado via tag de script global.
 declare const html2canvas: any;
@@ -70,7 +71,7 @@ const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }
         </button>
         <button 
           onClick={handlePrint}
-          className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 flex items-center gap-2"
+          className="bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-6 rounded-md hover:bg-[var(--color-primary-hover)] flex items-center gap-2"
         >
           <PrinterIcon className="w-5 h-5" />
           Salvar PDF / Imprimir
@@ -140,6 +141,22 @@ const App: React.FC = () => {
         root.classList.add(theme);
         localStorage.setItem('theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        // Apply theme colors on initial load
+        const savedColors = localStorage.getItem('appThemeColors');
+        if (savedColors) {
+            try {
+                applyThemeColors(JSON.parse(savedColors));
+            } catch (e) {
+                console.error('Failed to parse theme colors from localStorage', e);
+                applyThemeColors(defaultColors);
+            }
+        } else {
+            // If no saved colors, apply defaults (which are already in index.html, but this is a good fallback)
+            applyThemeColors(defaultColors);
+        }
+    }, []);
 
     useEffect(() => {
         const handleBeforeInstallPrompt = (e: Event) => {
@@ -586,7 +603,7 @@ const App: React.FC = () => {
             case 'RELATORIOS':
                 return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
             case 'CONFIGURACOES':
-                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} />;
+                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} showNotification={showNotification} />;
             default:
                 return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />;
         }

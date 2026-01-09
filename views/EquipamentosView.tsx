@@ -6,9 +6,8 @@ import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
-import EquipmentLabel from '../components/EquipmentLabel';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
-import { downloadComponentAsPng } from '../utils/imageGenerator';
+import EquipmentQrCodeModal from '../components/EquipmentQrCodeModal';
 
 
 interface EquipamentosViewProps {
@@ -78,7 +77,7 @@ const EquipmentCard: React.FC<{
                 <button
                   onClick={() => onGenerateLabel(equip)}
                   className="flex-shrink-0 inline-flex items-center gap-2 bg-slate-600 text-white text-xs font-bold py-1.5 px-3 rounded-md hover:bg-slate-500 mt-1"
-                  title="Baixar Etiqueta com QR Code"
+                  title="Gerar Etiqueta com QR Code"
                 >
                   <QrCodeIcon className="w-4 h-4" />
                   <span>Etiqueta</span>
@@ -132,6 +131,7 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
 
 
 const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification }) => {
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithCustomer | null>(null);
 
   const allEquipment = useMemo(() => {
     const flatList: EquipmentWithCustomer[] = customers.flatMap(customer =>
@@ -149,18 +149,9 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
     };
   }, [customers]);
 
-  const handleGenerateLabel = useCallback(async (equipment: EquipmentWithCustomer) => {
-    try {
-      await downloadComponentAsPng(
-        <EquipmentLabel equipment={equipment} />,
-        `etiqueta-equip-${equipment.numero}.png`
-      );
-      showNotification('Download da etiqueta iniciado.', 'success');
-    } catch (error) {
-      showNotification('Falha ao gerar etiqueta para download.', 'error');
-      console.error(error);
-    }
-  }, [showNotification]);
+  const handleGenerateLabel = useCallback((equipment: EquipmentWithCustomer) => {
+    setSelectedEquipment(equipment);
+  }, []);
 
   return (
     <>
@@ -196,6 +187,15 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
         />
         <GrandTotalCard billings={billings} />
       </div>
+
+      {selectedEquipment && (
+        <EquipmentQrCodeModal
+          isOpen={!!selectedEquipment}
+          onClose={() => setSelectedEquipment(null)}
+          equipment={selectedEquipment}
+          showNotification={showNotification}
+        />
+      )}
     </>
   );
 };

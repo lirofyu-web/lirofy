@@ -18,7 +18,7 @@ const EquipmentCard: React.FC<{ equip: Equipment }> = ({ equip }) => {
     const typeStyles = {
         mesa: {
             title: 'Mesa de Sinuca',
-            border: 'border-cyan-500',
+            border: 'border-[var(--color-accent)]',
             text: 'text-cyan-800',
             bg: 'bg-cyan-50/50'
         },
@@ -109,7 +109,7 @@ const CustomerSheet: React.FC<CustomerSheetProps> = ({ customer }) => {
   return (
     <div className="bg-slate-100 font-sans" style={{ width: '210mm', minHeight: '297mm', margin: 'auto' }}>
       <div className="bg-white p-10 shadow-lg">
-        <header className="flex justify-between items-center pb-4 border-b-4 border-lime-500">
+        <header className="flex justify-between items-center pb-4 border-b-4 border-[var(--color-primary)]">
           <LogoIcon />
           <div className="text-right">
             <h1 className="text-2xl font-bold text-gray-800">Ficha Cadastral de Cliente</h1>
@@ -119,7 +119,7 @@ const CustomerSheet: React.FC<CustomerSheetProps> = ({ customer }) => {
 
         <main className="mt-8 space-y-8">
           <section>
-            <h2 className="text-lg font-bold text-white bg-cyan-600 px-4 py-2 rounded-t-lg -mb-1">DADOS DO CLIENTE</h2>
+            <h2 className="text-lg font-bold text-white bg-[var(--color-accent)] px-4 py-2 rounded-t-lg -mb-1">DADOS DO CLIENTE</h2>
             <div className="grid grid-cols-3 gap-x-6 gap-y-2 p-4 border border-gray-300 rounded-b-lg bg-white shadow-inner">
               <div className="col-span-2"><InfoRow label="Nome / Razão Social" value={customer.name} /></div>
               <div><InfoRow label="CPF / CNPJ" value={customer.cpfRg} /></div>

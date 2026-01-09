@@ -42,7 +42,7 @@ const FormField: React.FC<{
 }> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step }) => (
     <div>
         <label htmlFor={name} className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{label}</label>
-        <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500" />
+        <input type={type} id={name} name={name} value={value} onChange={onChange} required={required} step={step} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
     </div>
 ));
 
@@ -303,7 +303,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
         <div className="text-center">
             <button
                 onClick={() => setIsOpen(true)}
-                className="inline-flex items-center gap-2 bg-lime-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-lime-600 transition-colors shadow-lg"
+                className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-3 px-6 rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors shadow-lg"
             >
                 <PlusIcon className="w-5 h-5" />
                 <span>Adicionar Novo Cliente</span>
@@ -331,13 +331,13 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                         name="endereco" 
                         value={formData.endereco} 
                         onChange={handleBaseChange} 
-                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-3 pr-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500" 
+                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-3 pr-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" 
                     />
                     <button
                         type="button"
                         onClick={handleGeolocate}
                         disabled={isLocating}
-                        className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-lime-400 disabled:text-slate-600 disabled:cursor-wait flex items-center"
+                        className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-[var(--color-primary)] disabled:text-slate-600 disabled:cursor-wait flex items-center"
                         title="Preencher endereço com localização atual"
                     >
                         {isLocating ? (
@@ -365,7 +365,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                     const EquipmentIcon = equip.type === 'mesa' ? BilliardIcon : equip.type === 'jukebox' ? JukeboxIcon : CraneIcon;
                     const equipmentTitle = equip.type === 'mesa' ? `Mesa de Sinuca` : equip.type === 'jukebox' ? `Jukebox` : `Grua de Pelúcia`;
                     const colorMap = {
-                        mesa: 'text-cyan-500 dark:text-cyan-400',
+                        mesa: 'text-[var(--color-accent)]',
                         jukebox: 'text-fuchsia-500 dark:text-fuchsia-400',
                         grua: 'text-orange-500 dark:text-orange-400',
                     };
@@ -376,7 +376,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                             <button
                                 type="button"
                                 onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)}
-                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-100 dark:hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500"
+                                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-100 dark:hover:bg-slate-700/20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--color-primary)]"
                             >
                                 <div className="flex items-center gap-3">
                                     <EquipmentIcon className={`w-5 h-5 ${equipmentColor}`} />
@@ -402,7 +402,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                                                     name="billingType"
                                                     value={equip.billingType || 'perPlay'}
                                                     onChange={e => handleEquipmentChange(index, e)}
-                                                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                                                 >
                                                     <option value="perPlay">Por Ficha</option>
                                                     <option value="monthly">Mensal Fixo</option>
@@ -442,7 +442,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
                                                     name="aluguelTipo"
                                                     value={equip.aluguelPercentual != null ? 'percentual' : 'fixo'}
                                                     onChange={e => handleEquipmentChange(index, e)}
-                                                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                                                 >
                                                     <option value="fixo">Valor Fixo (R$)</option>
                                                     <option value="percentual">Percentual (%)</option>
@@ -473,7 +473,7 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
           <button type="button" onClick={() => setIsOpen(false)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500">
             Cancelar
           </button>
-          <button type="submit" disabled={isSaving} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-wait">
+          <button type="submit" disabled={isSaving} className="bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-6 rounded-md hover:bg-[var(--color-primary-hover)] disabled:bg-slate-500 disabled:cursor-wait">
             {isSaving ? 'Salvando...' : 'Salvar Cliente'}
           </button>
         </div>
