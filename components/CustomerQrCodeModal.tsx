@@ -1,11 +1,9 @@
 // components/CustomerQrCodeModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Customer } from '../types';
 import { ShareIcon } from './icons/ShareIcon';
 import CustomerQrLabel from './CustomerQrLabel';
-import { createRoot } from 'react-dom/client';
-
-declare const html2canvas: any;
+import { generateCustomerLabelText } from '../utils/receiptGenerator';
 
 interface CustomerQrCodeModalProps {
   isOpen: boolean;
@@ -15,109 +13,33 @@ interface CustomerQrCodeModalProps {
 }
 
 const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClose, customer, showNotification }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setImageFile(null);
-      return;
-    }
-
-    const generateImage = async () => {
-      setIsGenerating(true);
-      setImageFile(null);
-
-      const labelContainer = document.createElement('div');
-      labelContainer.style.position = 'absolute';
-      labelContainer.style.left = '-9999px';
-      
-      const renderContainer = document.createElement('div');
-      renderContainer.style.backgroundColor = '#d1d5db'; // Corresponde a bg-gray-300
-      renderContainer.style.display = 'inline-block';
-      renderContainer.style.padding = '1rem'; // p-4
-      renderContainer.appendChild(labelContainer);
-      document.body.appendChild(renderContainer);
-
-      const root = createRoot(labelContainer);
-      root.render(<CustomerQrLabel customer={customer} />);
-      
-      const cleanup = () => {
-        root.unmount();
-        if (document.body.contains(renderContainer)) {
-          document.body.removeChild(renderContainer);
-        }
-        setIsGenerating(false);
-      };
-
-      try {
-        await document.fonts.ready;
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
-
-        const canvas = await html2canvas(renderContainer, { 
-          scale: 3,
-          useCORS: true,
-          logging: false
-        });
-
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            showNotification('Falha ao gerar a imagem do QR Code.', 'error');
-            cleanup();
-            return;
-          }
-          const file = new File([blob], `qrcode_${customer.name.replace(/\s/g, '_')}.png`, { type: 'image/png' });
-          setImageFile(file);
-          cleanup();
-        }, 'image/png');
-      } catch (error: any) {
-        console.error('Erro ao gerar imagem do QR Code:', error);
-        showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
-        cleanup();
-      }
-    };
-
-    generateImage();
-  }, [isOpen, customer, showNotification]);
-
-  const handleShare = async () => {
-    if (!imageFile) {
-        showNotification('A imagem do QR Code ainda está sendo gerada, aguarde.', 'error');
-        return;
-    }
-
-    const downloadFallback = () => {
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(imageFile);
-      link.href = url;
-      link.download = imageFile.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    };
-
+  const handleShareTxt = async () => {
+    setIsSharing(true);
     try {
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
-            await navigator.share({
-                title: `QR Code de Identificação - ${customer.name}`,
-                files: [imageFile],
-            });
-            onClose();
-        } else {
-            showNotification('Compartilhamento não suportado. Baixando arquivo...', 'success');
-            downloadFallback();
-        }
+      const textContent = generateCustomerLabelText(customer);
+      const file = new File([textContent], `etiqueta_${customer.name.replace(/\s/g, '_')}.txt`, { type: 'text/plain' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Etiqueta Cliente ${customer.name}`,
+          files: [file],
+        });
+        showNotification('Etiqueta compartilhada.', 'success');
+        onClose();
+      } else {
+        throw new Error('Seu navegador não suporta o compartilhamento de arquivos.');
+      }
     } catch (error: any) {
-        if (error.name !== 'AbortError') {
-            console.error('Share API error:', error);
-            showNotification('Falha ao compartilhar. Iniciando download do arquivo.', 'success');
-            downloadFallback();
-        }
+      if (error.name !== 'AbortError') {
+        showNotification(`Erro ao compartilhar: ${error.message}`, 'error');
+        console.error("Share error:", error);
+      }
+    } finally {
+      setIsSharing(false);
     }
   };
-
 
   if (!isOpen) return null;
 
@@ -137,8 +59,13 @@ const CustomerQrCodeModal: React.FC<CustomerQrCodeModalProps> = ({ isOpen, onClo
         </div>
         <div className="p-4 bg-slate-800/50 rounded-b-lg flex justify-between items-center gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Fechar</button>
-          <button onClick={handleShare} disabled={isGenerating || !imageFile} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 disabled:bg-slate-500 disabled:cursor-wait">
-            <ShareIcon className="w-5 h-5"/> <span>{isGenerating || !imageFile ? 'Gerando...' : 'Compartilhar'}</span>
+          <button 
+            onClick={handleShareTxt} 
+            disabled={isSharing} 
+            className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 disabled:bg-slate-500 disabled:cursor-wait"
+          >
+            <ShareIcon className="w-5 h-5"/> 
+            <span>{isSharing ? 'Gerando...' : 'Compartilhar'}</span>
           </button>
         </div>
       </div>

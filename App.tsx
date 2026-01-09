@@ -20,6 +20,7 @@ import MobileHeader from './components/MobileHeader';
 import InstallPwaBanner from './components/InstallPwaBanner';
 import CustomerSheet from './components/CustomerSheet';
 import { PrinterIcon } from './components/icons/PrinterIcon';
+import { generateBillingText, generateDebtText } from './utils/receiptGenerator';
 
 // Declara html2canvas para TypeScript, já que é carregado via tag de script global.
 declare const html2canvas: any;
@@ -81,119 +82,6 @@ const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }
     </div>
   );
 };
-
-const generateReceiptText = (billing: Billing, isProvisional: boolean): string => {
-    const isMesa = billing.equipmentType === 'mesa';
-    const isGrua = billing.equipmentType === 'grua';
-    const pixKey = "43999581993";
-    const paymentMethodText = {
-        pix: 'PIX',
-        dinheiro: 'DINHEIRO',
-        fiado: 'FIADO (ANOTADO)',
-        misto: 'MISTO',
-    };
-
-    let details = '';
-
-    if (isGrua) {
-        details = `
-*EQUIPAMENTO: GRUA ${billing.equipmentNumero}*
-Leitura Anterior: ${billing.relogioAnterior}
-Leitura Atual: ${billing.relogioAtual}
---------------------------------
-SALDO: R$ ${(billing.saldo || 0).toFixed(2)}
-Recebido Espécie: R$ ${(billing.recebimentoEspecie || 0).toFixed(2)}
-Recebido PIX: R$ ${(billing.recebimentoPix || 0).toFixed(2)}
---------------------------------
-Qtd. Pelúcias (Capacidade): ${billing.quantidadePelucia || 0}
-Sobra de Pelúcias: ${billing.sobraPelucia || 0}
-Reposição de Pelúcias: ${billing.reposicaoPelucia || 0}
---------------------------------
-ALUGUEL (PAGO AO CLIENTE): R$ ${(billing.aluguelValor || 0).toFixed(2)}
---------------------------------
-*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
-        `.trim();
-    } else { // Mesa or Jukebox
-        if (isMesa && billing.billingType === 'monthly') {
-            details = `
-*EQUIPAMENTO: MESA ${billing.equipmentNumero} (MENSAL)*
---------------------------------
-Partidas Jogadas (Período): ${billing.partidasJogadas}
---------------------------------
-*MENSALIDADE FIXA: R$ ${billing.valorTotal.toFixed(2)}*
-            `.trim();
-        } else {
-            let mesaDetails = '';
-            if (isMesa) {
-                mesaDetails = `
-Partidas Jogadas: ${billing.partidasJogadas}
-Partidas Desconto: ${billing.descontoPartidas || 0}
-Partidas Cobradas: ${billing.partidasCobradas || 0}
-Valor Ficha: R$ ${(billing.valorFicha ?? 0).toFixed(2)}
---------------------------------`;
-            }
-            details = `
-*EQUIPAMENTO: ${isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.equipmentNumero}`}*
-Leitura Anterior: ${billing.relogioAnterior}
-Leitura Atual: ${billing.relogioAtual}
---------------------------------${mesaDetails}
-Valor Bruto: R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0)).toFixed(2)}
-Parte Cliente: R$ ${(billing.parteCliente ?? 0).toFixed(2)}
---------------------------------
-*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
-            `.trim();
-        }
-    }
-
-    let paymentDetails = '';
-    if (!isProvisional && !isGrua) {
-        if (billing.paymentMethod === 'misto') {
-            let parts = [];
-            if (billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0) parts.push(`- Dinheiro: R$ ${billing.valorPagoDinheiro.toFixed(2)}`);
-            if (billing.valorPagoPix && billing.valorPagoPix > 0) parts.push(`- PIX: R$ ${billing.valorPagoPix.toFixed(2)}`);
-            if (billing.valorPagoFiado && billing.valorPagoFiado > 0) parts.push(`- Fiado: R$ ${billing.valorPagoFiado.toFixed(2)}`);
-            paymentDetails = `\n*PAGAMENTO:*\n${parts.join('\n')}`;
-        } else {
-            paymentDetails = `\nPagamento: ${paymentMethodText[billing.paymentMethod]}`;
-        }
-    }
-
-    const provisionalFooter = isProvisional ? `
---------------------------------
-*Pague com PIX!*
-Chave (Celular): ${pixKey}
---------------------------------
-*** COMPROVANTE PARA CONFERÊNCIA ***
-*** SEM VALOR FISCAL ***` : '';
-
-    return `*MONTANHA BILHAR & JUKEBOX*
-${isProvisional ? 'DEMONSTRATIVO DE COBRANÇA' : 'ACERTO DE CONTAS'}
---------------------------------
-CLIENTE: ${billing.customerName}
-DATA: ${new Date(billing.settledAt).toLocaleString('pt-BR')}
---------------------------------
-${details}
-${paymentDetails}
-${provisionalFooter}
-    `.replace(/\n\s+\n/g, '\n\n').trim();
-};
-
-const generateDebtReceiptText = (debtPayment: DebtPayment): string => {
-    const paymentMethodText = {
-        pix: 'PIX',
-        dinheiro: 'DINHEIRO',
-    };
-    return `*MONTANHA BILHAR & JUKEBOX*
-COMPROVANTE DE PAGAMENTO DE DÍVIDA
---------------------------------
-CLIENTE: ${debtPayment.customerName}
-DATA: ${new Date(debtPayment.paidAt).toLocaleString('pt-BR')}
---------------------------------
-*VALOR PAGO: R$ ${debtPayment.amountPaid.toFixed(2)}*
-Pagamento: ${paymentMethodText[debtPayment.paymentMethod]}
-    `.trim();
-};
-
 
 const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -336,7 +224,7 @@ const App: React.FC = () => {
         const customer = customers.find(c => c.id === billing.customerId);
         if (!customer) return;
 
-        const receiptText = generateReceiptText(billing, isProvisional);
+        const receiptText = generateBillingText(billing, isProvisional);
 
         const cleanup = () => {
             if (isProvisional) {
@@ -378,7 +266,7 @@ const App: React.FC = () => {
         const customer = customers.find(c => c.id === debtPayment.customerId);
         if (!customer) return;
 
-        const receiptText = generateDebtReceiptText(debtPayment);
+        const receiptText = generateDebtText(debtPayment);
         
         const cleanup = () => {
             setFinalizedDebtPayment(null);

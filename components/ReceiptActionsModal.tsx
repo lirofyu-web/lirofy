@@ -1,13 +1,9 @@
 // components/ReceiptActionsModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { Billing } from '../types';
 import { ShareIcon } from './icons/ShareIcon';
-import { createRoot } from 'react-dom/client';
-import ReceiptSheet from './ReceiptSheet';
-
-// Declara html2canvas para TypeScript
-declare const html2canvas: any;
+import { generateBillingText } from '../utils/receiptGenerator';
 
 interface ReceiptActionsModalProps {
   isOpen: boolean;
@@ -28,110 +24,31 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
   isProvisional,
   showNotification,
 }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setImageFile(null);
-      return;
-    }
-
-    const generateImage = async () => {
-      setIsGenerating(true);
-      setImageFile(null);
-
-      const sheetContainer = document.createElement('div');
-      sheetContainer.style.position = 'absolute';
-      sheetContainer.style.left = '-9999px';
-      sheetContainer.style.width = '320px';
-      document.body.appendChild(sheetContainer);
-
-      const root = createRoot(sheetContainer);
-      root.render(
-        <div className="p-4 bg-white text-black font-mono text-sm">
-          <ReceiptSheet billing={billing} isProvisional={isProvisional} />
-        </div>
-      );
-      
-      const cleanup = () => {
-        root.unmount();
-        if (document.body.contains(sheetContainer)) {
-          document.body.removeChild(sheetContainer);
-        }
-        setIsGenerating(false);
-      };
-
-      try {
-        // Wait for fonts, next frame, and a short delay to ensure React has rendered.
-        await document.fonts.ready;
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
-
-        const elementToCapture = sheetContainer.firstChild as HTMLElement;
-        if (!elementToCapture) throw new Error("Falha ao renderizar recibo para captura.");
-
-        const canvas = await html2canvas(elementToCapture, { 
-          scale: 2, 
-          backgroundColor: '#ffffff',
-          useCORS: true,
-          logging: false
-        });
-
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            showNotification('Falha ao gerar a imagem.', 'error');
-            cleanup();
-            return;
-          }
-          const file = new File([blob], `recibo_${billing.customerName.replace(/\s/g, '_')}.png`, { type: 'image/png' });
-          setImageFile(file);
-          cleanup();
-        }, 'image/png');
-      } catch (error: any) {
-        console.error('Erro ao gerar imagem do recibo:', error);
-        showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
-        cleanup();
-      }
-    };
-
-    generateImage();
-  }, [isOpen, billing, isProvisional, showNotification]);
-
-  const handleShare = async () => {
-    if (!imageFile) {
-        showNotification('A imagem ainda está sendo gerada, por favor aguarde.', 'error');
-        return;
-    }
-
-    const downloadFallback = () => {
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(imageFile);
-      link.href = url;
-      link.download = imageFile.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    };
-
+  const handleShareTxt = async () => {
+    setIsSharing(true);
     try {
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
-            await navigator.share({
-                title: `Recibo - ${billing.customerName}`,
-                files: [imageFile],
-            });
-            onClose();
-        } else {
-            showNotification('Compartilhamento não suportado. Baixando imagem...', 'success');
-            downloadFallback();
-        }
+      const textContent = generateBillingText(billing, isProvisional);
+      const file = new File([textContent], `recibo_${billing.customerName.replace(/\s/g, '_')}.txt`, { type: 'text/plain' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Recibo - ${billing.customerName}`,
+          files: [file],
+        });
+        showNotification('Recibo compartilhado.', 'success');
+        onClose();
+      } else {
+        throw new Error('Seu navegador não suporta o compartilhamento de arquivos.');
+      }
     } catch (error: any) {
-        if (error.name !== 'AbortError') {
-            console.error('Share API error:', error);
-            showNotification('Falha ao compartilhar. Iniciando download...', 'success');
-            downloadFallback();
-        }
+      if (error.name !== 'AbortError') {
+        showNotification(`Erro ao compartilhar: ${error.message}`, 'error');
+        console.error("Share error:", error);
+      }
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -160,18 +77,18 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
             onClick={onWhatsApp}
             disabled={!customerHasPhone}
             className="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-2 px-6 rounded-md hover:bg-green-500 transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed order-2"
-            title={!customerHasPhone ? 'Cliente sem telefone cadastrado' : 'Enviar via WhatsApp'}
+            title={!customerHasPhone ? 'Cliente sem telefone cadastrado' : 'Enviar texto via WhatsApp'}
           >
             <WhatsAppIcon className="w-5 h-5" />
             <span>WhatsApp</span>
           </button>
           <button
-            onClick={handleShare}
-            disabled={isGenerating || !imageFile}
+            onClick={handleShareTxt}
+            disabled={isSharing}
             className="inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-6 rounded-md hover:bg-cyan-500 transition-colors order-1 sm:order-3 disabled:bg-slate-500 disabled:cursor-wait"
           >
             <ShareIcon className="w-5 h-5" />
-            <span>{isGenerating ? 'Gerando...' : 'Compartilhar'}</span>
+            <span>{isSharing ? 'Gerando...' : 'Compartilhar (TXT)'}</span>
           </button>
         </div>
       </div>

@@ -217,12 +217,18 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
     }, []);
 
     const handlePrintDebtors = useCallback(() => {
-        const itemsByCustomer = (customerId: string) => {
-            const debtItems = billings
-                .filter(b => b.customerId === customerId && b.valorPagoFiado && b.valorPagoFiado > 0)
-                .map(b => b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox');
-            return [...new Set(debtItems)].join(', ');
-        };
+        // Optimization: Create a map of debt origins once, instead of filtering for every customer.
+        const debtOrigins = new Map<string, Set<string>>();
+        billings.forEach(b => {
+            if (b.valorPagoFiado && b.valorPagoFiado > 0) {
+                if (!debtOrigins.has(b.customerId)) {
+                    debtOrigins.set(b.customerId, new Set());
+                }
+                const itemLabel = b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox';
+                debtOrigins.get(b.customerId)?.add(itemLabel);
+            }
+        });
+
         const reportHtml = `
           <html>
             <head>
@@ -250,14 +256,18 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                   </tr>
                 </thead>
                 <tbody>
-                  ${debtorCustomers.map(c => `
-                    <tr>
-                      <td>${c.name}</td>
-                      <td>${c.cidade}</td>
-                      <td>${itemsByCustomer(c.id) || 'N/A'}</td>
-                      <td class="currency">R$ ${c.debtAmount.toFixed(2)}</td>
-                    </tr>
-                  `).join('')}
+                  ${debtorCustomers.map(c => {
+                    const origins = debtOrigins.get(c.id);
+                    const itemsText = origins ? Array.from(origins).join(', ') : 'N/A';
+                    return `
+                      <tr>
+                        <td>${c.name}</td>
+                        <td>${c.cidade}</td>
+                        <td>${itemsText}</td>
+                        <td class="currency">R$ ${c.debtAmount.toFixed(2)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
                   <tr class="total-row">
                     <td colspan="3"><strong>TOTAL GERAL DE DÍVIDAS</strong></td>
                     <td class="currency"><strong>R$ ${totalDebt.toFixed(2)}</strong></td>

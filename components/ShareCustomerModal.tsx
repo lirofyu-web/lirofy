@@ -1,14 +1,9 @@
 // components/ShareCustomerModal.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Customer } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
-import { ImageIcon } from './icons/ImageIcon';
-import CustomerSheet from './CustomerSheet';
-import { createRoot } from 'react-dom/client';
 
-// Declara html2canvas para TypeScript, já que é carregado via tag de script global.
-declare const html2canvas: any;
 
 interface ShareCustomerModalProps {
   isOpen: boolean;
@@ -19,77 +14,7 @@ interface ShareCustomerModalProps {
 }
 
 const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose, customer, showNotification, onPrintCustomer }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
-  const canShareFiles = !!(navigator.share && navigator.canShare);
-
-  useEffect(() => {
-    if (!isOpen || !canShareFiles) {
-        setImageFile(null);
-        return;
-    }
-
-    const generateImage = async () => {
-        setIsGenerating(true);
-        setImageFile(null);
-
-        const sheetContainer = document.createElement('div');
-        sheetContainer.style.position = 'absolute';
-        sheetContainer.style.left = '-9999px';
-        sheetContainer.style.width = '210mm';
-        document.body.appendChild(sheetContainer);
-
-        const root = createRoot(sheetContainer);
-        root.render(<CustomerSheet customer={customer} />);
-        
-        const cleanup = () => {
-            root.unmount();
-            if (document.body.contains(sheetContainer)) {
-                document.body.removeChild(sheetContainer);
-            }
-            setIsGenerating(false);
-        };
-
-        try {
-            await document.fonts.ready;
-            await new Promise(resolve => requestAnimationFrame(resolve));
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure render completes
-            
-            const elementToCapture = sheetContainer.firstChild as HTMLElement;
-            if (!elementToCapture) {
-                throw new Error("O componente da ficha do cliente não renderizou para captura.");
-            }
-
-            const canvas = await html2canvas(elementToCapture, {
-                scale: 1.5,
-                useCORS: true,
-                backgroundColor: '#f1f5f9',
-                logging: false
-            });
-
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    showNotification('Falha ao gerar a imagem.', 'error');
-                    cleanup();
-                    return;
-                }
-                const file = new File([blob], `ficha_${customer.name.replace(/\s/g, '_')}.jpg`, { type: 'image/jpeg' });
-                setImageFile(file);
-                cleanup();
-            }, 'image/jpeg', 0.9);
-
-        } catch (error: any) {
-            console.error('Erro ao gerar imagem com html2canvas:', error);
-            showNotification(`Erro ao gerar imagem: ${error.message || 'Tente novamente'}`, 'error');
-            cleanup();
-        }
-    };
-
-    generateImage();
-  }, [isOpen, customer, showNotification, canShareFiles]);
-
-
+  
   const handleCopyJson = () => {
     const customerDataToShare = {
       name: customer.name,
@@ -119,45 +44,6 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     onClose();
   };
 
-  const handleShareAsImage = async () => {
-    if (!imageFile) {
-        showNotification('A imagem ainda está sendo gerada, por favor aguarde.', 'error');
-        return;
-    }
-    
-    const downloadFallback = () => {
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(imageFile);
-      link.href = url;
-      link.download = imageFile.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    };
-
-    try {
-        if (navigator.canShare && navigator.canShare({ files: [imageFile] })) {
-            await navigator.share({
-                title: `Ficha Cadastral - ${customer.name}`,
-                text: `Segue a ficha cadastral de ${customer.name}.`,
-                files: [imageFile],
-            });
-            onClose();
-        } else {
-            showNotification('Compartilhamento de arquivo não suportado. Baixando imagem...', 'success');
-            downloadFallback();
-        }
-    } catch (error) {
-        if ((error as DOMException).name !== 'AbortError') {
-            console.error('Share API error:', error);
-            showNotification('O compartilhamento falhou. Iniciando download...', 'success');
-            downloadFallback();
-        }
-    }
-  };
-
-
   if (!isOpen) return null;
 
   return (
@@ -180,7 +66,7 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                 <PrinterIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
                 <div>
                     <h3 className="font-bold text-white">Gerar Ficha (PDF/Impressão)</h3>
-                    <p className="text-sm text-slate-400">Abre a opção de impressão para salvar como PDF ou imprimir.</p>
+                    <p className="text-sm text-slate-400">Abre a opção de impressão para salvar como PDF ou imprimir em A4.</p>
                 </div>
             </button>
             <button
@@ -191,18 +77,6 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                 <div>
                     <h3 className="font-bold text-white">Copiar Dados (JSON)</h3>
                     <p className="text-sm text-slate-400">Copia os dados brutos. Útil para backups ou importação em texto.</p>
-                </div>
-            </button>
-            <button
-                onClick={handleShareAsImage}
-                disabled={isGenerating || !imageFile}
-                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-green-500 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                title={!canShareFiles ? "Seu navegador não suporta compartilhamento de arquivos" : "Compartilhar como imagem JPG"}
-            >
-                <ImageIcon className="w-8 h-8 text-green-400 flex-shrink-0" />
-                <div>
-                    <h3 className="font-bold text-white">{isGenerating || !imageFile ? 'Gerando Imagem...' : 'Compartilhar Imagem (JPG)'}</h3>
-                    <p className="text-sm text-slate-400">Gera uma imagem da ficha para enviar via WhatsApp ou outros apps.</p>
                 </div>
             </button>
         </div>

@@ -1,61 +1,7 @@
 // utils/receiptGenerator.ts
-import { Billing, DebtPayment, Equipment } from '../types';
-import * as escpos from './escpos';
+import { Billing, DebtPayment, Equipment, Customer } from '../types';
 
-const formatField = (id: string, value: string): string => {
-  const length = value.length.toString().padStart(2, '0');
-  return `${id}${length}${value}`;
-};
-
-const crc16ccitt = (data: string): string => {
-  let crc = 0xFFFF;
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data.charCodeAt(i) << 8;
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x8000) !== 0) {
-        crc = (crc << 1) ^ 0x1021;
-      } else {
-        crc <<= 1;
-      }
-    }
-  }
-  return ('0000' + (crc & 0xFFFF).toString(16).toUpperCase()).slice(-4);
-};
-
-export function generatePixPayload(): string {
-    const pixKey = "43999581993";
-    const recipientName = "BILHAR MONTANHA";
-    const recipientCity = "JAGUAPITA";
-    const staticTxId = '***';
-
-     const sanitize = (str: string, maxLength: number) => {
-        let sanitized = str
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-          .toUpperCase().replace(/[^A-Z0-9\s]/g, "");
-        return sanitized.substring(0, maxLength).trim();
-      };
-    
-    const cleanName = sanitize(recipientName, 25);
-    const cleanCity = sanitize(recipientCity, 15).replace(/\s/g, '');
-
-    const payload = [
-        formatField('00', '01'),
-        formatField('26', formatField('00', 'br.gov.bcb.pix') + formatField('01', pixKey)),
-        formatField('52', '0000'),
-        formatField('53', '986'),
-        formatField('58', 'BR'),
-        formatField('59', cleanName),
-        formatField('60', cleanCity),
-        formatField('62', formatField('05', staticTxId)),
-    ].join('');
-      
-    const payloadWithCrcPrefix = payload + '6304';
-    const crc = crc16ccitt(payloadWithCrcPrefix);
-    return payloadWithCrcPrefix + crc;
-}
-
-
-function generateBillingText(billing: Billing, isProvisional: boolean): string {
+export function generateBillingText(billing: Billing, isProvisional: boolean): string {
     const isMesa = billing.equipmentType === 'mesa';
     const isGrua = billing.equipmentType === 'grua';
     const pixKey = "43999581993";
@@ -153,7 +99,7 @@ ${provisionalFooter}
 }
 
 
-function generateDebtText(debtPayment: DebtPayment): string {
+export function generateDebtText(debtPayment: DebtPayment): string {
      const paymentMethodText = {
         pix: 'PIX',
         dinheiro: 'DINHEIRO',
@@ -169,93 +115,35 @@ Pagamento: ${paymentMethodText[debtPayment.paymentMethod]}
     `.trim();
 }
 
-export function generateEscPosFromReceipt(
-    data: Billing | DebtPayment,
-    isProvisional?: boolean,
-    pixPayload?: string
-): Uint8Array {
-    const isBilling = 'equipmentType' in data;
-    const receiptText = isBilling ? generateBillingText(data, isProvisional!) : generateDebtText(data);
-    
-    const commands: Uint8Array[] = [];
-    commands.push(escpos.INIT);
-    commands.push(escpos.ALIGN_CENTER);
-
-    const lines = receiptText.split('\n');
-    for (const line of lines) {
-        let processedLine = line.trim();
-        const isBold = processedLine.startsWith('*') && processedLine.endsWith('*');
-        
-        if (isBold) {
-            processedLine = processedLine.substring(1, processedLine.length - 1);
-            commands.push(escpos.BOLD_ON);
-        }
-
-        // Center-align headers and separators
-        if (
-            processedLine.includes('MONTANHA BILHAR') ||
-            processedLine.includes('COBRANCA') ||
-            processedLine.includes('ACERTO DE CONTAS') ||
-            processedLine.includes('PAGAMENTO DE DIVIDA') ||
-            processedLine.includes('---') ||
-            processedLine.includes('COMPROVANTE PARA CONFERENCIA') ||
-            processedLine.includes('SEM VALOR FISCAL') ||
-            processedLine.includes('Pague com PIX!')
-        ) {
-            commands.push(escpos.ALIGN_CENTER);
-        } else {
-            commands.push(escpos.ALIGN_LEFT);
-        }
-
-        commands.push(escpos.text(processedLine + '\n'));
-
-        if (isBold) {
-            commands.push(escpos.BOLD_OFF);
-        }
-    }
-    
-    if (pixPayload) {
-        commands.push(escpos.text('\n'));
-        commands.push(escpos.ALIGN_CENTER);
-        commands.push(escpos.qrCode(pixPayload));
-        commands.push(escpos.text('\n'));
-    }
-
-    commands.push(escpos.text('\n\n\n\n'));
-    commands.push(escpos.CUT_PAPER);
-
-    return escpos.combine(...commands);
-}
-
-export function generateEscPosFromLabel(equipment: Equipment): Uint8Array {
+export function generateEquipmentLabelText(equipment: Equipment): string {
   const equipmentTypeText = {
       'mesa': 'Mesa de Sinuca',
       'jukebox': 'Jukebox',
       'grua': 'Grua de Pelucia'
   };
+  const qrData = JSON.stringify({ type: 'equipment', id: equipment.id });
 
-  const qrData = JSON.stringify({
-      type: 'equipment',
-      id: equipment.id,
-  });
+  return `
+MONTANHA BILHAR & JUKEBOX
+--------------------------------
+EQUIPAMENTO
 
-  const commands = escpos.combine(
-      escpos.INIT,
-      escpos.ALIGN_CENTER,
-      escpos.BOLD_ON,
-      escpos.text('MONTANHA BILHAR & JUKEBOX\n'),
-      escpos.BOLD_OFF,
-      escpos.text('--------------------------------\n'),
-      escpos.text('EQUIPAMENTO\n\n'),
-      escpos.qrCode(qrData),
-      escpos.text('\n'),
-      escpos.BOLD_ON,
-      escpos.text(equipmentTypeText[equipment.type] + '\n'),
-      escpos.text(`Nº: ${equipment.numero}\n`),
-      escpos.BOLD_OFF,
-      escpos.text('\n\n\n'),
-      escpos.CUT_PAPER
-  );
-  
-  return commands;
+TIPO: ${equipmentTypeText[equipment.type]}
+Nº: ${equipment.numero}
+
+DADOS QR CODE (PARA ESCANEAR NO APP):
+${qrData}
+  `.trim();
+}
+
+export function generateCustomerLabelText(customer: Customer): string {
+  const qrData = customer.id;
+  return `
+${customer.name}
+--------------------------------
+ID DO CLIENTE
+
+DADOS QR CODE (PARA ESCANEAR NO APP):
+${qrData}
+  `.trim();
 }

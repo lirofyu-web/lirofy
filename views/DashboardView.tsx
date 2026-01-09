@@ -11,6 +11,8 @@ import { ChartBarIcon } from '../components/icons/ChartBarIcon';
 import { CreditCardIcon } from '../components/icons/CreditCardIcon';
 import WarningsReminders from '../components/WarningsReminders';
 import BackupReminder from '../components/BackupReminder';
+// FIX: Import CalculatorIcon to fix 'Cannot find name' error.
+import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 
 
 interface DashboardViewProps {
@@ -51,6 +53,143 @@ const DateFilter: React.FC<DateFilterProps> = React.memo(({ currentDate, onMonth
     );
 });
 
+type ChartView = 'total' | 'average';
+type CategoryData = {
+    label: string;
+    faturamento: number;
+    saldo: number;
+    despesas: number;
+    quantidade: number;
+    color: string;
+    icon: React.FC<{className?: string}>;
+};
+
+const FinancialPerformanceCard: React.FC<{ 
+    stats: any, // Using 'any' for brevity, but should be a specific stats type
+    chartView: ChartView, 
+    onChartViewChange: (view: ChartView) => void 
+}> = React.memo(({ stats, chartView, onChartViewChange }) => {
+    
+    const chartData: CategoryData[] = useMemo(() => [
+        { 
+            label: 'Mesas',
+            faturamento: chartView === 'total' ? stats.totalRevenueMesa : stats.averageRevenueMesa,
+            saldo: chartView === 'total' ? stats.balanceMesa : stats.averageProfitMesa,
+            despesas: chartView === 'total' ? stats.expensesMesa : (stats.mesaCount > 0 ? stats.expensesMesa / stats.mesaCount : 0),
+            quantidade: stats.mesaCount,
+            color: 'cyan', 
+            icon: BilliardIcon
+        },
+        { 
+            label: 'Jukeboxes',
+            faturamento: chartView === 'total' ? stats.totalRevenueJukebox : stats.averageRevenueJukebox,
+            saldo: chartView === 'total' ? stats.balanceJukebox : stats.averageProfitJukebox,
+            despesas: chartView === 'total' ? stats.expensesJukebox : (stats.jukeboxCount > 0 ? stats.expensesJukebox / stats.jukeboxCount : 0),
+            quantidade: stats.jukeboxCount,
+            color: 'fuchsia', 
+            icon: JukeboxIcon
+        },
+        { 
+            label: 'Gruas',
+            faturamento: chartView === 'total' ? stats.totalRevenueGrua : stats.averageRevenueGrua,
+            saldo: chartView === 'total' ? stats.balanceGrua : stats.averageProfitGrua,
+            despesas: chartView === 'total' ? stats.expensesGrua : (stats.gruaCount > 0 ? stats.expensesGrua / stats.gruaCount : 0),
+            quantidade: stats.gruaCount,
+            color: 'orange', 
+            icon: CraneIcon
+        },
+    ], [stats, chartView]);
+
+    const maxValue = useMemo(() => {
+        const values = chartData.map(d => d.faturamento);
+        const max = Math.max(...values);
+        return max > 0 ? max : 1;
+    }, [chartData]);
+    
+    const bestPerformerLabel = useMemo(() => {
+        if (chartData.every(d => d.saldo <= 0)) return null;
+        return chartData.reduce((best, current) => current.saldo > best.saldo ? current : best).label;
+    }, [chartData]);
+
+    const colorClasses = {
+        cyan: { revenue: 'bg-cyan-500/30', profit: 'bg-cyan-500', text: 'text-cyan-400', border: 'border-cyan-500' },
+        fuchsia: { revenue: 'bg-fuchsia-500/30', profit: 'bg-fuchsia-500', text: 'text-fuchsia-400', border: 'border-fuchsia-500' },
+        orange: { revenue: 'bg-orange-500/30', profit: 'bg-orange-500', text: 'text-orange-400', border: 'border-orange-500' },
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 lg:col-span-6 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <ChartBarIcon className="w-6 h-6 text-indigo-500" />
+                        Desempenho Financeiro por Categoria
+                    </h3>
+                     <p className="text-sm text-slate-500 dark:text-slate-400">Análise de Faturamento Bruto vs. Saldo Líquido (Lucro).</p>
+                </div>
+                 <div className="flex-shrink-0 bg-slate-100 dark:bg-slate-700/50 p-1 rounded-lg">
+                    <button onClick={() => onChartViewChange('total')} className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${chartView === 'total' ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow' : 'text-slate-500 dark:text-slate-400'}`}>Total</button>
+                    <button onClick={() => onChartViewChange('average')} className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${chartView === 'average' ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow' : 'text-slate-500 dark:text-slate-400'}`}>Média/Unid.</button>
+                </div>
+            </div>
+
+            {/* Chart Area */}
+            <div className="flex justify-around items-end h-48 pt-4">
+                {chartData.map(item => {
+                    const revenueHeight = `${(item.faturamento / maxValue) * 100}%`;
+                    const profitHeight = item.faturamento > 0 ? `${(item.saldo / item.faturamento) * 100}%` : '0%';
+                    const colors = colorClasses[item.color as keyof typeof colorClasses];
+                    
+                    return (
+                        <div key={item.label} className="flex flex-col items-center w-1/4 h-full text-center">
+                            <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                R$ {(chartView === 'total' ? item.saldo : item.saldo).toFixed(2)}
+                            </div>
+                            <div 
+                                className={`w-12 md:w-16 rounded-t-md ${colors.revenue} relative transition-all duration-700 ease-out`} 
+                                style={{ height: revenueHeight }}
+                                title={`Faturamento: R$ ${item.faturamento.toFixed(2)}`}
+                            >
+                                <div 
+                                    className={`absolute bottom-0 left-0 right-0 rounded-t-md ${colors.profit}`} 
+                                    style={{ height: profitHeight }}
+                                    title={`Saldo: R$ ${item.saldo.toFixed(2)}`}
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Details Area */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                {chartData.map(item => {
+                    const colors = colorClasses[item.color as keyof typeof colorClasses];
+                    const isBest = item.label === bestPerformerLabel;
+                    return (
+                        <div key={item.label} className={`p-4 rounded-lg transition-all duration-300 ${isBest ? 'bg-amber-50 dark:bg-amber-900/30 ring-2 ring-amber-400 shadow-lg shadow-amber-500/20' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
+                            <div className="flex justify-between items-start">
+                                <h4 className={`font-bold flex items-center gap-2 ${colors.text}`}>
+                                    <item.icon className="w-5 h-5" />
+                                    {item.label}
+                                </h4>
+                                {isBest && <span className="text-xs font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full">Destaque</span>}
+                            </div>
+                            <div className="mt-2 text-xs space-y-1 font-mono">
+                               <InfoRow label="Faturamento:" value={`R$ ${item.faturamento.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
+                               <InfoRow label="Despesas:" value={`- R$ ${item.despesas.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
+                               <InfoRow label="Saldo:" value={`R$ ${item.saldo.toFixed(2)}`} valueColor={item.saldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} />
+                               <InfoRow label="Quantidade:" value={`${item.quantidade} unid.`} valueColor="text-slate-500 dark:text-slate-400" />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+
+
 interface InfoCardProps {
     title: string;
     children: React.ReactNode;
@@ -87,6 +226,7 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
 
 const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [chartView, setChartView] = useState<ChartView>('total');
 
     const handleMonthChange = useCallback((month: number) => {
         setCurrentDate(prevDate => new Date(prevDate.getFullYear(), month, 1));
@@ -110,56 +250,64 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             return date.getFullYear() === year && date.getMonth() === month;
         });
 
-        const monthlyDebtPayments = debtPayments.filter(p => {
-            const date = new Date(p.paidAt);
-            return date.getFullYear() === year && date.getMonth() === month;
-        });
-        
         // Expenses by category
         const expensesMesa = monthlyExpenses.filter(e => e.category === 'mesa').reduce((sum, e) => sum + e.amount, 0);
         const expensesJukebox = monthlyExpenses.filter(e => e.category === 'jukebox').reduce((sum, e) => sum + e.amount, 0);
         const expensesGrua = monthlyExpenses.filter(e => e.category === 'grua').reduce((sum, e) => sum + e.amount, 0);
-        const expensesGeral = monthlyExpenses.filter(e => e.category === 'geral').reduce((sum, e) => sum + e.amount, 0);
-        const totalMonthlyExpenses = expensesMesa + expensesJukebox + expensesGrua + expensesGeral;
+        const totalExpenses = expensesMesa + expensesJukebox + expensesGrua + monthlyExpenses.filter(e => e.category === 'geral').reduce((sum, e) => sum + e.amount, 0);
 
-        // Revenue from Tables
-        const totalRevenueMesa = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + (b.valorPagoDinheiro || 0) + (b.valorPagoPix || 0), 0);
+        // Faturamento (accrual basis) from company's share for each category
+        const totalRevenueMesa = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + b.valorTotal, 0);
+        const balanceMesa = totalRevenueMesa - expensesMesa;
 
-        // Revenue from Jukeboxes
-        const totalRevenueJukebox = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + (b.valorPagoDinheiro || 0) + (b.valorPagoPix || 0), 0);
+        const totalRevenueJukebox = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + b.valorTotal, 0);
+        const balanceJukebox = totalRevenueJukebox - expensesJukebox;
 
-        // Revenue from Cranes (company's part)
-        const totalRevenueGrua = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.valorTotal || 0), 0);
-        
-        // Revenue from Debt Payments
-        const totalDebtPayments = monthlyDebtPayments.reduce((sum, p) => sum + p.amountPaid, 0);
-
-        // Total Revenue for the period
-        const totalRevenue = totalRevenueMesa + totalRevenueJukebox + totalRevenueGrua + totalDebtPayments;
-
-        // Net Income
-        const netIncome = totalRevenue - totalMonthlyExpenses;
+        const totalRevenueGrua = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + b.valorTotal, 0);
+        const balanceGrua = totalRevenueGrua - expensesGrua;
         
         // Total outstanding debt (from all customers, not period-specific)
         const totalOutstandingDebt = customers.reduce((sum, c) => sum + (c.debtAmount || 0), 0);
         
+        // Equipment counts
+        const allEquipment = customers.flatMap(c => c.equipment);
+        const mesaCount = allEquipment.filter(e => e.type === 'mesa').length;
+        const jukeboxCount = allEquipment.filter(e => e.type === 'jukebox').length;
+        const gruaCount = allEquipment.filter(e => e.type === 'grua').length;
+        
+        // Average profit per equipment
+        const averageProfitMesa = mesaCount > 0 ? balanceMesa / mesaCount : 0;
+        const averageProfitJukebox = jukeboxCount > 0 ? balanceJukebox / jukeboxCount : 0;
+        const averageProfitGrua = gruaCount > 0 ? balanceGrua / gruaCount : 0;
+        
+        // Average revenue per equipment
+        const averageRevenueMesa = mesaCount > 0 ? totalRevenueMesa / mesaCount : 0;
+        const averageRevenueJukebox = jukeboxCount > 0 ? totalRevenueJukebox / jukeboxCount : 0;
+        const averageRevenueGrua = gruaCount > 0 ? totalRevenueGrua / gruaCount : 0;
+
         return {
             totalRevenueMesa,
             expensesMesa,
-            balanceMesa: totalRevenueMesa - expensesMesa,
+            balanceMesa,
             totalRevenueJukebox,
             expensesJukebox,
-            balanceJukebox: totalRevenueJukebox - expensesJukebox,
+            balanceJukebox,
             totalRevenueGrua,
             expensesGrua,
-            balanceGrua: totalRevenueGrua - expensesGrua,
-            totalRevenue,
-            totalMonthlyExpenses,
-            netIncome,
+            balanceGrua,
             totalOutstandingDebt,
-            totalDebtPayments
+            mesaCount,
+            jukeboxCount,
+            gruaCount,
+            averageProfitMesa,
+            averageProfitJukebox,
+            averageProfitGrua,
+            averageRevenueMesa,
+            averageRevenueJukebox,
+            averageRevenueGrua,
+            totalExpenses,
         };
-    }, [billings, expenses, debtPayments, customers, currentDate]);
+    }, [billings, expenses, customers, currentDate]);
     
     return (
         <div className="space-y-8">
@@ -181,21 +329,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
-                 <InfoCard title="Resumo do Período" icon={<ChartBarIcon className="w-6 h-6 text-indigo-500" />} className="lg:col-span-4">
-                    <InfoRow label="Faturamento Total" value={`R$ ${stats.totalRevenue.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
-                    <InfoRow label="Dívidas Recebidas (Incluso)" value={`R$ ${stats.totalDebtPayments.toFixed(2)}`} valueColor="text-sm text-slate-500 dark:text-slate-400" />
-                    <InfoRow label="Despesas Totais" value={`R$ ${stats.totalMonthlyExpenses.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
-                    <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                        <InfoRow 
-                           label="SALDO LÍQUIDO" 
-                           value={`R$ ${stats.netIncome.toFixed(2)}`}
-                           valueColor={stats.netIncome >= 0 ? 'text-green-500 dark:text-green-400 text-lg' : 'text-red-500 dark:text-red-400 text-lg'}
-                           className="text-lg"
-                        />
-                    </div>
-                </InfoCard>
-
-                <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-2">
+                <FinancialPerformanceCard stats={stats} chartView={chartView} onChartViewChange={setChartView} />
+                
+                <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-3">
                     <InfoRow 
                         label="Total em Dívidas (Fiado)"
                         value={`R$ ${stats.totalOutstandingDebt.toFixed(2)}`} 
@@ -203,42 +339,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                         className="flex-col !items-start"
                     />
                 </InfoCard>
-
-                 <InfoCard title="Mesas" icon={<BilliardIcon className="w-6 h-6 text-cyan-500" />} className="lg:col-span-2">
-                    <InfoRow label="Faturamento" value={`R$ ${stats.totalRevenueMesa.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
-                    <InfoRow label="Despesas" value={`R$ ${stats.expensesMesa.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
-                    <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                        <InfoRow 
-                           label="Saldo" 
-                           value={`R$ ${stats.balanceMesa.toFixed(2)}`}
-                           valueColor={stats.balanceMesa >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}
-                        />
-                    </div>
+                 <InfoCard title="Despesas Totais" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />} className="lg:col-span-3">
+                    <InfoRow 
+                        label="Total de Despesas no Período"
+                        value={`R$ ${stats.totalExpenses.toFixed(2)}`} 
+                        valueColor="text-red-600 dark:text-red-400 text-2xl"
+                        className="flex-col !items-start"
+                    />
                 </InfoCard>
 
-                <InfoCard title="Jukebox" icon={<JukeboxIcon className="w-6 h-6 text-fuchsia-500" />} className="lg:col-span-2">
-                     <InfoRow label="Faturamento" value={`R$ ${stats.totalRevenueJukebox.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
-                    <InfoRow label="Despesas" value={`R$ ${stats.expensesJukebox.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
-                    <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                        <InfoRow 
-                           label="Saldo" 
-                           value={`R$ ${stats.balanceJukebox.toFixed(2)}`}
-                           valueColor={stats.balanceJukebox >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}
-                        />
-                    </div>
-                </InfoCard>
-                
-                 <InfoCard title="Gruas" icon={<CraneIcon className="w-6 h-6 text-orange-500" />} className="lg:col-span-2">
-                    <InfoRow label="Faturamento (Firma)" value={`R$ ${stats.totalRevenueGrua.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
-                    <InfoRow label="Despesas" value={`R$ ${stats.expensesGrua.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
-                    <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                        <InfoRow 
-                           label="Saldo" 
-                           value={`R$ ${stats.balanceGrua.toFixed(2)}`}
-                           valueColor={stats.balanceGrua >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}
-                        />
-                    </div>
-                </InfoCard>
             </div>
              <div className="mt-8">
                 <WarningsManager 

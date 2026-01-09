@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v49'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v50'; // Versão incrementada
 
 // Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
 const urlsToCache = [
@@ -12,6 +12,7 @@ const urlsToCache = [
   '/types.ts',
   '/App.tsx',
   '/utils.ts',
+  '/utils/receiptGenerator.ts',
 
   // Ícones PWA referenciados no manifesto.
   '/icon-192.svg',

@@ -4,7 +4,7 @@ const PRINTER_SERVICES = [
     "000018f0-0000-1000-8000-00805f9b34fb", // Printer Service
     "00001101-0000-1000-8000-00805f9b34fb"  // Serial Port Profile (SPP)
 ];
-const PRINTER_CHARACTERISTIC = "00002af1-0000-1000-8000-00805f9b34fb"; // Print Characteristic
+const PRINTER_CHARACTERISTIC = "00002af1-0000-1000-8000-00805f9b34fb";
 
 export class BluetoothPrinter {
     // FIX: Use 'any' for Web Bluetooth API types (BluetoothDevice, BluetoothRemoteGATTCharacteristic) as they are not available in the current TypeScript environment.
@@ -82,3 +82,6 @@ export class BluetoothPrinter {
         }
     }
 }
+
+// Export a single, shared instance for the entire application
+export const bluetoothPrinter = new BluetoothPrinter();
