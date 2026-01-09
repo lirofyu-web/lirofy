@@ -15,43 +15,16 @@ export const CUT_PAPER = new Uint8Array([GS, 0x56, 0x42, 0x00]);
 
 export function text(str: string): Uint8Array {
     // Replace special Brazilian characters with their closest ASCII equivalents
+    // This is important for many thermal printers that don't support full UTF-8
     const normalized = str
-        .replace(/[áàâã]/g, 'a')
-        .replace(/[ÁÀÂÃ]/g, 'A')
-        .replace(/[éê]/g, 'e')
-        .replace(/[ÉÊ]/g, 'E')
-        .replace(/[í]/g, 'i')
-        .replace(/[Í]/g, 'I')
-        .replace(/[óôõ]/g, 'o')
-        .replace(/[ÓÔÕ]/g, 'O')
-        .replace(/[úü]/g, 'u')
-        .replace(/[ÚÜ]/g, 'U')
-        .replace(/[ç]/g, 'c')
-        .replace(/[Ç]/g, 'C');
+        .replace(/[áàâã]/gi, 'a')
+        .replace(/[éê]/gi, 'e')
+        .replace(/[í]/gi, 'i')
+        .replace(/[óôõ]/gi, 'o')
+        .replace(/[úü]/gi, 'u')
+        .replace(/[ç]/gi, 'c');
     return encoder.encode(normalized);
 }
-
-export function qrCode(data: string): Uint8Array {
-    const dataBytes = text(data);
-    const dataLength = dataBytes.length + 3;
-    const pL = dataLength % 256;
-    const pH = Math.floor(dataLength / 256);
-
-    const commands = [
-        // Set QR model to Model 2
-        new Uint8Array([GS, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]),
-        // Set module size to 5
-        new Uint8Array([GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x05]),
-        // Set error correction level to M
-        new Uint8Array([GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]),
-        // Store data in symbol storage
-        new Uint8Array([GS, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30, ...dataBytes]),
-        // Print QR code
-        new Uint8Array([GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]),
-    ];
-    return combine(...commands);
-}
-
 
 export function combine(...arrays: Uint8Array[]): Uint8Array {
     const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);

@@ -78,7 +78,7 @@ export class BluetoothPrinter {
         
         for (let i = 0; i < data.length; i += maxChunkSize) {
             const chunk = data.slice(i, i + maxChunkSize);
-            await this.characteristic.writeValue(chunk);
+            await this.characteristic.writeValueWithoutResponse(chunk);
         }
     }
 }
