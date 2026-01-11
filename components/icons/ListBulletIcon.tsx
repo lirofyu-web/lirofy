@@ -1,4 +1,4 @@
-// Fix: Add ListBulletIcon component
+// components/icons/ListBulletIcon.tsx
 import React from 'react';
 
 export const ListBulletIcon = ({ className }: { className?: string }) => (

@@ -51,7 +51,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${
+            className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-medium transition-colors ${
                 disabled 
                 ? 'bg-slate-400 dark:bg-slate-700 text-slate-500 dark:text-slate-500 cursor-not-allowed' 
                 : isPrimary 
@@ -60,7 +60,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
             }`}
         >
             {icon}
-            <span className="mt-1">{label}</span>
+            <span className="mt-1.5">{label}</span>
         </button>
     );
 

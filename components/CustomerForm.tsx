@@ -64,11 +64,15 @@ const FormField: React.FC<{
 ));
 
 const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onSubmit, isSaving, showNotification, onCancel, submitButtonText, isEditMode = false }) => {
-  const [formData, setFormData] = useState(() => ({
+  // FIX: Explicitly type `equipment` as `Partial<Equipment>[]` to handle both full and partial equipment objects during form manipulation. This resolves the type error when updating the state.
+  const [formData, setFormData] = useState(() => {
+    const equipment: Partial<Equipment>[] = initialData?.equipment ? [...initialData.equipment] : [];
+    return {
       ...initialFormState,
       ...initialData,
-      equipment: initialData?.equipment ? [...initialData.equipment] : [],
-  }));
+      equipment,
+    };
+  });
   
   const [openEquipmentIndex, setOpenEquipmentIndex] = useState<number | null>(initialData?.equipment?.length ? 0 : null);
   const [isLocating, setIsLocating] = useState(false);
@@ -210,7 +214,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
         formNumbers.add(equip.numero);
     }
 
-    await onSubmit(formData);
+    await onSubmit(formData as any);
   };
   
   const SignatureCapture: React.FC<{ label: string, signature: string, onSign: () => void, onClear: () => void }> = ({ label, signature, onSign, onClear }) => (
@@ -234,13 +238,13 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
             <div className="lg:col-span-3">
                 <h3 className={`text-lg font-semibold ${isEditMode ? 'text-white' : 'text-slate-900 dark:text-white'} border-b ${isEditMode ? 'border-slate-700' : 'border-slate-200 dark:border-slate-700'} pb-2 mb-4`}>Informações do Cliente</h3>
             </div>
-            <FormField label="Nome Completo" name="name" required value={formData.name} onChange={handleBaseChange} isEditMode={isEditMode}/>
-            <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg} onChange={handleBaseChange} isEditMode={isEditMode}/>
-            <FormField label="Telefone" name="telefone" value={formData.telefone} onChange={handleBaseChange} type="tel" isEditMode={isEditMode}/>
+            <FormField label="Nome Completo" name="name" required value={formData.name || ''} onChange={handleBaseChange} isEditMode={isEditMode}/>
+            <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg || ''} onChange={handleBaseChange} isEditMode={isEditMode}/>
+            <FormField label="Telefone" name="telefone" value={formData.telefone || ''} onChange={handleBaseChange} type="tel" isEditMode={isEditMode}/>
             <div>
                 <label htmlFor={`${isEditMode ? 'edit-' : ''}endereco`} className={`block text-sm font-medium ${isEditMode ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'} mb-1`}>Endereço</label>
                 <div className="relative flex items-center">
-                    <input type="text" id={`${isEditMode ? 'edit-' : ''}endereco`} name="endereco" value={formData.endereco} onChange={handleBaseChange} className={`w-full border rounded-md py-2 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-lime-500 ${isEditMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white'}`} />
+                    <input type="text" id={`${isEditMode ? 'edit-' : ''}endereco`} name="endereco" value={formData.endereco || ''} onChange={handleBaseChange} className={`w-full border rounded-md py-2 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-lime-500 ${isEditMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white'}`} />
                     <button type="button" onClick={handleGeolocate} disabled={isLocating} className="absolute right-0 top-0 h-full px-3 text-slate-400 hover:text-lime-400 disabled:text-slate-600 disabled:cursor-wait flex items-center" title="Preencher endereço com localização atual">
                         {isLocating ? <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <LocationMarkerIcon className="w-5 h-5" />}
                     </button>
@@ -248,9 +252,9 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
             </div>
             <div>
                  <label htmlFor={`${isEditMode ? 'edit-' : ''}cidade`} className={`block text-sm font-medium ${isEditMode ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'} mb-1`}>Cidade</label>
-                 <CityAutocomplete id={`${isEditMode ? 'edit-' : ''}cidade`} value={formData.cidade} onChange={handleCityChange} required />
+                 <CityAutocomplete id={`${isEditMode ? 'edit-' : ''}cidade`} value={formData.cidade || ''} onChange={handleCityChange} required />
             </div>
-            <FormField label="Cobrador" name="linhaNumero" value={formData.linhaNumero} onChange={handleBaseChange} isEditMode={isEditMode}/>
+            <FormField label="Cobrador" name="linhaNumero" value={formData.linhaNumero || ''} onChange={handleBaseChange} isEditMode={isEditMode}/>
         </div>
         
         <div className={`pt-4 border-t ${isEditMode ? 'border-slate-700' : 'border-slate-200 dark:border-slate-700'}`}>
@@ -324,8 +328,8 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
         <div className={`pt-4 border-t ${isEditMode ? 'border-slate-700' : 'border-slate-200 dark:border-slate-700'}`}>
             <h3 className={`text-lg font-semibold ${isEditMode ? 'text-white' : 'text-slate-900 dark:text-white'} mb-4`}>Assinaturas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <SignatureCapture label="Assinatura do Cliente" signature={formData.assinaturaCliente} onSign={() => setSignatureModalFor('cliente')} onClear={() => setFormData(prev => ({...prev, assinaturaCliente: ''}))} />
-                <SignatureCapture label="Assinatura da Firma" signature={formData.assinaturaFirma} onSign={() => setSignatureModalFor('firma')} onClear={() => setFormData(prev => ({...prev, assinaturaFirma: ''}))} />
+                <SignatureCapture label="Assinatura do Cliente" signature={formData.assinaturaCliente || ''} onSign={() => setSignatureModalFor('cliente')} onClear={() => setFormData(prev => ({...prev, assinaturaCliente: ''}))} />
+                <SignatureCapture label="Assinatura da Firma" signature={formData.assinaturaFirma || ''} onSign={() => setSignatureModalFor('firma')} onClear={() => setFormData(prev => ({...prev, assinaturaFirma: ''}))} />
             </div>
         </div>
 

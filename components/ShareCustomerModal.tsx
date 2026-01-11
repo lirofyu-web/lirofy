@@ -4,7 +4,8 @@ import { Customer } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
-import { generateCustomerShareText } from '../utils/receiptGenerator';
+import { QrCodeIcon } from './icons/QrCodeIcon';
+import { generateCustomerShareText, generateCustomerLabelText } from '../utils/receiptGenerator';
 
 
 interface ShareCustomerModalProps {
@@ -48,26 +49,47 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
 
   const handleShareWhatsApp = async () => {
     const shareText = generateCustomerShareText(customer);
+    const shareData = {
+        title: `Dados do Cliente - ${customer.name}`,
+        text: shareText,
+    };
     
     try {
-        if (navigator.share) {
-            await navigator.share({
-                title: `Dados do Cliente - ${customer.name}`,
-                text: shareText,
-            });
+        if (navigator.share && navigator.canShare(shareData)) {
+            await navigator.share(shareData);
         } else {
-            // Fallback for browsers that don't support navigator.share
+            // Fallback for browsers that don't support navigator.share or can't share the data
             const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
             window.open(whatsappUrl, '_blank');
         }
     } catch (error) {
         if ((error as DOMException).name !== 'AbortError') {
             console.error('Share API error:', error);
-            showNotification('O compartilhamento falhou.', 'error');
+            showNotification(`Falha ao compartilhar: ${(error as Error).message}`, 'error');
         }
     } finally {
         onClose();
     }
+  };
+  
+  const handleShareThermalLabel = async () => {
+      const textToShare = generateCustomerLabelText(customer);
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: `Etiqueta Cliente - ${customer.name}`,
+            text: textToShare,
+          });
+        } else {
+          await navigator.clipboard.writeText(textToShare);
+          showNotification('Etiqueta copiada! O compartilhamento não é suportado.', 'success');
+        }
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          showNotification(`Erro ao compartilhar: ${error.message}`, 'error');
+        }
+      }
+      onClose();
   };
 
   if (!isOpen) return null;
@@ -93,6 +115,16 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                 <div>
                     <h3 className="font-bold text-white">Gerar Ficha (PDF/Impressão)</h3>
                     <p className="text-sm text-slate-400">Abre a opção de impressão para salvar como PDF ou imprimir em A4.</p>
+                </div>
+            </button>
+            <button
+                onClick={handleShareThermalLabel}
+                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-blue-500 transition-colors"
+            >
+                <QrCodeIcon className="w-8 h-8 text-blue-400 flex-shrink-0" />
+                <div>
+                    <h3 className="font-bold text-white">Etiqueta (Impressora Térmica)</h3>
+                    <p className="text-sm text-slate-400">Gera um texto com ID para ser impresso como etiqueta/QR Code.</p>
                 </div>
             </button>
             <button

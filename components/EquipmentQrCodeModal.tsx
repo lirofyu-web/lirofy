@@ -15,24 +15,27 @@ interface EquipmentQrCodeModalProps {
 const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onClose, equipment, showNotification }) => {
   const [isSharing, setIsSharing] = useState(false);
 
-  const handleShareTxt = async () => {
+  const handleShare = async () => {
     setIsSharing(true);
     try {
-      const textContent = generateEquipmentLabelText(equipment);
-      const file = new File([textContent], `etiqueta_${equipment.numero}.txt`, { type: 'text/plain' });
+      // Gera o texto formatado para a etiqueta
+      const text = generateEquipmentLabelText(equipment);
 
-      if (navigator.share && navigator.canShare({ files: [file] })) {
+      // Usa a API de Compartilhamento da Web para texto
+      if (navigator.share) {
         await navigator.share({
           title: `Etiqueta Equipamento ${equipment.numero}`,
-          files: [file],
+          text: text,
         });
-        showNotification('Etiqueta compartilhada.', 'success');
-        onClose();
+        onClose(); // Fecha a modal após o compartilhamento ser iniciado
       } else {
-        throw new Error('Seu navegador não suporta o compartilhamento de arquivos.');
+        // Fallback para navegadores sem a API de compartilhamento (copia para a área de transferência)
+        await navigator.clipboard.writeText(text);
+        showNotification('Etiqueta copiada! O compartilhamento não é suportado.', 'success');
+        onClose();
       }
     } catch (error: any) {
-       if (error.name !== 'AbortError') {
+       if (error.name !== 'AbortError') { // Ignora o erro se o usuário cancelar o compartilhamento
         showNotification(`Erro ao compartilhar: ${error.message}`, 'error');
         console.error("Share error:", error);
       }
@@ -62,12 +65,12 @@ const EquipmentQrCodeModal: React.FC<EquipmentQrCodeModalProps> = ({ isOpen, onC
         <div className="p-4 bg-slate-800/50 rounded-b-lg flex justify-between items-center gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Fechar</button>
           <button 
-            onClick={handleShareTxt} 
+            onClick={handleShare} 
             disabled={isSharing} 
             className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 disabled:bg-slate-500 disabled:cursor-wait"
           >
             <ShareIcon className="w-5 h-5"/> 
-            <span>{isSharing ? 'Gerando...' : 'Compartilhar'}</span>
+            <span>{isSharing ? 'Aguardando...' : 'Compartilhar'}</span>
           </button>
         </div>
       </div>

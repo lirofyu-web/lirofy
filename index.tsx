@@ -5,7 +5,9 @@ import App from './App';
 // Registra o Service Worker para funcionalidade offline
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    // Construct an absolute URL to the service worker to be robust in sandboxed environments.
+    const swUrl = `${window.location.origin}/sw.js`;
+    navigator.serviceWorker.register(swUrl, { scope: '/' })
       .then(registration => {
         console.log('ServiceWorker registration successful with scope: ', registration.scope);
       })

@@ -217,15 +217,15 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
     }, []);
 
     const handlePrintDebtors = useCallback(() => {
-        // Optimization: Create a map of debt origins once, instead of filtering for every customer.
+        const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
+        
         const debtOrigins = new Map<string, Set<string>>();
         billings.forEach(b => {
             if (b.valorPagoFiado && b.valorPagoFiado > 0) {
                 if (!debtOrigins.has(b.customerId)) {
                     debtOrigins.set(b.customerId, new Set());
                 }
-                const itemLabel = b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox';
-                debtOrigins.get(b.customerId)?.add(itemLabel);
+                debtOrigins.get(b.customerId)?.add(typeMap[b.equipmentType] || b.equipmentType);
             }
         });
 
@@ -558,9 +558,10 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 <div className="md:hidden">
                     <div className="p-4 space-y-3">
                         {debtorCustomers.length > 0 ? debtorCustomers.map(customer => {
+                            const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
                             const debtItems = billings
                                 .filter(b => b.customerId === customer.id && b.valorPagoFiado && b.valorPagoFiado > 0)
-                                .map(b => b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox');
+                                .map(b => typeMap[b.equipmentType] || b.equipmentType);
                             const uniqueItems = [...new Set(debtItems)].join(', ');
 
                             return (
@@ -604,9 +605,10 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         </thead>
                         <tbody>
                             {debtorCustomers.length > 0 ? debtorCustomers.map(customer => {
+                                const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
                                 const debtItems = billings
                                     .filter(b => b.customerId === customer.id && b.valorPagoFiado && b.valorPagoFiado > 0)
-                                    .map(b => b.equipmentType === 'mesa' ? 'M. Sinuca' : 'Jukebox');
+                                    .map(b => typeMap[b.equipmentType] || b.equipmentType);
                                 const uniqueItems = [...new Set(debtItems)].join(', ');
 
                                 return (

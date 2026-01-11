@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v56'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'montanha-bilhar-cache-v57'; // Versão incrementada para forçar atualização
 
 // Lista de ativos para armazenar em cache.
 const urlsToCache = [
@@ -131,7 +131,6 @@ const urlsToCache = [
   'https://aistudiocdn.com/html5-qrcode@2.3.8',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'

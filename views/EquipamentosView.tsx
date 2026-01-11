@@ -8,15 +8,17 @@ import { CraneIcon } from '../components/icons/CraneIcon';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 import EquipmentQrCodeModal from '../components/EquipmentQrCodeModal';
+import { PrinterIcon } from '../components/icons/PrinterIcon';
 
 
 interface EquipamentosViewProps {
   customers: Customer[];
   billings: Billing[];
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  onOpenLabelGenerator: () => void;
 }
 
-type EquipmentWithCustomer = Equipment & {
+export type EquipmentWithCustomer = Equipment & {
   customerName: string;
   customerId: string;
 };
@@ -130,7 +132,7 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
 };
 
 
-const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification }) => {
+const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification, onOpenLabelGenerator }) => {
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithCustomer | null>(null);
 
   const allEquipment = useMemo(() => {
@@ -159,6 +161,16 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
         title="Inventário e Desempenho"
         subtitle="Visualize seus equipamentos, clientes associados e histórico de arrecadação."
       />
+
+       <div className="mb-8">
+        <button
+          onClick={onOpenLabelGenerator}
+          className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-colors shadow-lg"
+        >
+          <PrinterIcon className="w-5 h-5" />
+          <span>Gerar Etiquetas (PDF)</span>
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <EquipmentCard

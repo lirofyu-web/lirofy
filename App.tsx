@@ -21,6 +21,8 @@ import { PrinterIcon } from './components/icons/PrinterIcon';
 import { generateBillingText, generateDebtText } from './utils/receiptGenerator';
 import { applyThemeColors, defaultColors, AppThemeColors } from './utils/theme';
 import FullScreenCustomerView from './components/FullScreenCustomerView';
+import { generateBillingReceiptPdf, generateDebtReceiptPdf } from './utils/pdfGenerator';
+
 
 // Modals
 import BillingModal from './components/BillingModal';
@@ -35,6 +37,8 @@ import ShareCustomerModal from './components/ShareCustomerModal';
 import ReceiptModal from './components/ReceiptModal';
 import DebtReceiptModal from './components/DebtReceiptModal';
 import PrintableReceiptModal from './components/PrintableReceiptModal';
+import LabelGenerationModal from './components/LabelGenerationModal';
+import PdfPreviewModal from './components/PdfPreviewModal';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 export type Theme = 'light' | 'dark';
@@ -91,7 +95,7 @@ const App: React.FC = () => {
     // Theme and PWA states
     const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(false);
+    const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(true); // Default to true
 
     // Modal States
     const [billingModalState, setBillingModalState] = useState<{ customer: Customer; equipment: Equipment } | null>(null);
@@ -108,6 +112,9 @@ const App: React.FC = () => {
     const [equipmentSelectionCustomer, setEquipmentSelectionCustomer] = useState<Customer | null>(null);
     const [focusedCustomer, setFocusedCustomer] = useState<Customer | null>(null);
     const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
+    const [isLabelGenerationModalOpen, setIsLabelGenerationModalOpen] = useState(false);
+    const [pdfPreview, setPdfPreview] = useState<{ dataUri: string; fileName: string } | null>(null);
+
     
     // Handlers
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -169,7 +176,6 @@ const App: React.FC = () => {
         const handler = (e: Event) => {
             e.preventDefault();
             setDeferredPrompt(e);
-            setIsInstallBannerVisible(true);
         };
         window.addEventListener('beforeinstallprompt', handler);
         return () => window.removeEventListener('beforeinstallprompt', handler);
@@ -189,19 +195,17 @@ const App: React.FC = () => {
         if (isSharing) return;
         setIsSharing(true);
         try {
-            if (navigator.share) {
-                await navigator.share({
-                    title: title,
-                    text: text,
-                });
+            const shareData = { title, text };
+            if (navigator.share && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
             } else {
                 await navigator.clipboard.writeText(text);
-                showNotification('Recibo copiado! Cole no app desejado.', 'success');
+                showNotification('Recibo copiado! O compartilhamento não é suportado.', 'success');
             }
         } catch (error) {
             if ((error as DOMException).name !== 'AbortError') {
                 console.error('Share API error:', error);
-                showNotification('O compartilhamento falhou.', 'error');
+                showNotification(`Falha ao compartilhar: ${(error as Error).message}`, 'error');
             }
         } finally {
             setIsSharing(false);
@@ -212,11 +216,9 @@ const App: React.FC = () => {
         if (isSharing) return;
         setIsSharing(true);
         try {
-            if (navigator.share) {
-                await navigator.share({
-                    title: 'Imprimir Recibo via RawBT',
-                    text: text,
-                });
+            const shareData = { title: 'Imprimir Recibo via RawBT', text };
+            if (navigator.share && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
                 showNotification('Pronto para imprimir no RawBT!', 'success');
             } else {
                 showNotification('Seu navegador não suporta compartilhamento para impressão.', 'error');
@@ -224,8 +226,44 @@ const App: React.FC = () => {
         } catch (error) {
             if ((error as DOMException).name !== 'AbortError') {
                 console.error('Share API error for RawBT:', error);
-                showNotification('O compartilhamento para impressão falhou.', 'error');
+                showNotification(`Falha ao compartilhar para impressão: ${(error as Error).message}`, 'error');
             }
+        } finally {
+            setIsSharing(false);
+        }
+    };
+    
+    const handleViewReceiptAsPdf = async (billing: Billing, isProvisional: boolean) => {
+        if (isSharing) return;
+        setIsSharing(true); // Re-use isSharing as a loading state
+        showNotification("Gerando PDF...", "success");
+        setReceiptActionsModalState(null); // Close the actions modal immediately
+
+        try {
+            const dataUri = await generateBillingReceiptPdf(billing, isProvisional);
+            const fileName = `recibo-${billing.customerName.replace(/\s/g, '_')}-${billing.id.substring(0, 4)}.pdf`;
+            setPdfPreview({ dataUri, fileName });
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            showNotification("Falha ao gerar o PDF.", "error");
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
+    const handleViewDebtReceiptAsPdf = async (debtPayment: DebtPayment) => {
+        if (isSharing) return;
+        setIsSharing(true);
+        showNotification("Gerando PDF...", "success");
+        setDebtReceiptActionsModalState(null);
+
+        try {
+            const dataUri = await generateDebtReceiptPdf(debtPayment);
+            const fileName = `pagamento-${debtPayment.customerName.replace(/\s/g, '_')}-${debtPayment.id.substring(0, 4)}.pdf`;
+            setPdfPreview({ dataUri, fileName });
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            showNotification("Falha ao gerar o PDF.", "error");
         } finally {
             setIsSharing(false);
         }
@@ -417,12 +455,17 @@ const App: React.FC = () => {
         <div className={`flex h-full font-sans antialiased ${theme}`}>
             <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
             <main className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
-                <MobileHeader title={viewTitles[currentView]} onMenuClick={() => setIsSidebarOpen(true)} />
+                <MobileHeader
+                    title={viewTitles[currentView]}
+                    onMenuClick={() => setIsSidebarOpen(true)}
+                    deferredPrompt={deferredPrompt}
+                    onInstallPrompt={handleInstallPrompt}
+                />
                 <div className="flex-grow">
                     {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
                     {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} />}
                     {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onDeleteBilling={handleDeleteBilling} />}
-                    {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} />}
+                    {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setIsLabelGenerationModalOpen(true)} />}
                     {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                     {currentView === 'ROTAS' && <RotasView customers={customers} />}
                     {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />}
@@ -442,13 +485,15 @@ const App: React.FC = () => {
             {historyCustomer && <HistoryModal isOpen={!!historyCustomer} onClose={() => setHistoryCustomer(null)} customer={historyCustomer} billings={billings} debtPayments={debtPayments} />}
             {sharingCustomer && <ShareCustomerModal isOpen={!!sharingCustomer} onClose={() => setSharingCustomer(null)} customer={sharingCustomer} showNotification={showNotification} onPrintCustomer={setPrintingCustomer} />}
             {deleteCustomer && <ActionModal isOpen={!!deleteCustomer} onClose={() => setDeleteCustomer(null)} onConfirm={handleConfirmDeleteCustomer} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir o cliente <strong>{deleteCustomer.name}</strong>? Todos os seus dados, incluindo histórico de cobranças e dívidas, serão permanentemente removidos. Esta ação não pode ser desfeita.</p></ActionModal>}
-            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; await handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => { setReceiptModalState({ billing: receiptActionsModalState.billing, isProvisional: receiptActionsModalState.isProvisional }); setReceiptActionsModalState(null); }} onPrintRawBt={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); await handlePrintRawBt(text); setReceiptActionsModalState(null); }} />}
-            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; await handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => { setDebtReceiptModalState(debtReceiptActionsModalState.debtPayment); setDebtReceiptActionsModalState(null); }} onPrintRawBt={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); await handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} />}
+            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; await handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => handleViewReceiptAsPdf(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintRawBt={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); await handlePrintRawBt(text); setReceiptActionsModalState(null); }} />}
+            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; await handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => handleViewDebtReceiptAsPdf(debtReceiptActionsModalState.debtPayment)} onPrintRawBt={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); await handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} />}
             {receiptModalState && <ReceiptModal isOpen={!!receiptModalState} onClose={() => setReceiptModalState(null)} billing={receiptModalState.billing} isProvisional={receiptModalState.isProvisional} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'billing', data: receiptModalState.billing, isProvisional: receiptModalState.isProvisional }); setReceiptModalState(null); }} />}
             {debtReceiptModalState && <DebtReceiptModal isOpen={!!debtReceiptModalState} onClose={() => setDebtReceiptModalState(null)} debtPayment={debtReceiptModalState} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'debt', data: debtReceiptModalState }); setDebtReceiptModalState(null); }} />}
             {screenshotReceipt && <PrintableReceiptModal receipt={screenshotReceipt} onClose={() => setScreenshotReceipt(null)} />}
             {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleSelectEquipmentForBilling} onEdit={setEditCustomer} onDelete={setDeleteCustomer} onPayDebt={setPayingDebtCustomer} onHistory={setHistoryCustomer} onShare={setSharingCustomer} billings={billings} debtPayments={debtPayments} />}
             {printingCustomer && <PrintPreviewOverlay customer={printingCustomer} onCancel={() => setPrintingCustomer(null)} />}
+            {isLabelGenerationModalOpen && <LabelGenerationModal isOpen={isLabelGenerationModalOpen} onClose={() => setIsLabelGenerationModalOpen(false)} customers={customers} showNotification={showNotification} />}
+            {pdfPreview && <PdfPreviewModal pdfDataUri={pdfPreview.dataUri} fileName={pdfPreview.fileName} onClose={() => setPdfPreview(null)} showNotification={showNotification} />}
         </div>
     );
 };
