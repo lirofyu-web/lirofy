@@ -57,7 +57,7 @@ const FormField: React.FC<{
             inputMode={type === 'number' ? 'decimal' : 'text'}
             readOnly={readOnly}
             autoFocus={autoFocus}
-            onChange={(e) => !readOnly && onChange(name, e.target.value.replace(/[^0-9,.]/g, ''))}
+            onChange={(e) => !readOnly && onChange(name, e.target.value)}
             className={`w-full bg-slate-700 border rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 ${isReadingInvalid && name === 'relogioAtual' ? 'border-red-500 ring-red-500' : 'border-slate-600 focus:ring-lime-500'} ${readOnly ? 'bg-slate-600 cursor-not-allowed' : ''}`}
         />
     </div>
@@ -77,7 +77,7 @@ const PaymentField: React.FC<{
             value={value}
             placeholder="0,00"
             inputMode="decimal"
-            onChange={(e) => onChange(name, e.target.value.replace(/[^0-9,.]/g, ''))}
+            onChange={(e) => onChange(name, e.target.value)}
             className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
         />
     </div>
@@ -230,22 +230,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             const saldoBruto = (relogioAtualNum >= relogioAnteriorNum) ? relogioAtualNum - relogioAnteriorNum : 0;
             newState.saldo = String(saldoBruto);
 
-            let aluguelValorNum = safeParseFloat(newState.aluguelValor);
             if (equipment.aluguelPercentual != null) {
-                aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
+                const aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
                 newState.aluguelValor = String(aluguelValorNum.toFixed(2).replace('.', ','));
-            }
-            
-            const totalParaFirma = saldoBruto - aluguelValorNum;
-
-            if (field === 'recebimentoEspecie') {
-                const recebidoEspecieNum = safeParseFloat(newState.recebimentoEspecie);
-                const recebidoPix = totalParaFirma - recebidoEspecieNum;
-                newState.recebimentoPix = recebidoPix >= 0 ? recebidoPix.toFixed(2).replace('.', ',') : '0,00';
-            } else if (field === 'recebimentoPix') {
-                const recebidoPixNum = safeParseFloat(newState.recebimentoPix);
-                const recebidoEspecie = totalParaFirma - recebidoPixNum;
-                newState.recebimentoEspecie = recebidoEspecie >= 0 ? recebidoEspecie.toFixed(2).replace('.', ',') : '0,00';
             }
         }
         
@@ -413,7 +400,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             value={formState.totalArrecadadoJukebox} 
             type="text" 
             equipmentId={equipment.id} 
-            onChange={handleFormChange} 
+            onChange={(field, val) => handleFormChange(field, val)} 
             autoFocus 
         />
         {formState.totalArrecadadoJukebox && (
@@ -448,7 +435,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   type="number" 
                   equipmentId={equipment.id}
                   isReadingInvalid={isReadingInvalid && !!formState.relogioAtual}
-                  onChange={handleFormChange}
+                  onChange={(field, val) => handleFormChange(field, val)}
               />
               <p className="text-xs text-slate-400 mt-1">Este valor é apenas para registro e não afeta o cálculo financeiro.</p>
           </div>
@@ -473,11 +460,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const renderGruaStep1 = () => (
     <div className="space-y-4">
       <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-      <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
-      <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" equipmentId={equipment.id} onChange={handleFormChange} readOnly />
+      <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
+      <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
       {equipment.aluguelPercentual != null
-          ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" equipmentId={equipment.id} onChange={handleFormChange} readOnly/>
-          : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
+          ? <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly/>
+          : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
       }
     </div>
   );
@@ -504,12 +491,12 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const renderGruaStep3 = () => (
       <div className="space-y-4">
           <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
-          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
-          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" equipmentId={equipment.id} onChange={handleFormChange} />
+          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
-          <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} />
-          <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} />
-          <FormField label="Reposição (Automático)" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="number" equipmentId={equipment.id} onChange={handleFormChange} readOnly />
+          <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Reposição (Automático)" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="number" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
       </div>
   );
 
@@ -539,8 +526,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
              mesaStep === 1 ? (
                 <div className="space-y-4">
                   <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={handleFormChange} autoFocus/>
-                  {equipment.type === 'mesa' && !isMonthlyFee && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" equipmentId={equipment.id} onChange={handleFormChange} />}
+                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
+                  {equipment.type === 'mesa' && !isMonthlyFee && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />}
                   
                   {equipment.type === 'mesa' && !isMonthlyFee && !isReadingInvalid && formState.relogioAtual && (
                     <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">

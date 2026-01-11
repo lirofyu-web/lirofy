@@ -1,5 +1,5 @@
 // components/CustomerCard.tsx
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { Customer, Equipment } from '../types';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
@@ -17,32 +17,26 @@ import { RedBilliardBallIcon } from './icons/RedBilliardBallIcon';
 import { GreenBilliardBallIcon } from './icons/GreenBilliardBallIcon';
 import { YellowBilliardBallIcon } from './icons/YellowBilliardBallIcon';
 import { PurpleBilliardBallIcon } from './icons/PurpleBilliardBallIcon';
-import { QrCodeIcon } from './icons/QrCodeIcon';
-import CustomerQrCodeModal from './CustomerQrCodeModal';
 
 interface CustomerCardProps {
   customer: Customer;
   onBill: (customer: Customer) => void;
   onEdit: (customer: Customer) => void;
-  onDelete: (customerId: string) => void;
+  onDelete: (customer: Customer) => void;
   onPayDebt: (customer: Customer) => void;
   onHistory: (customer: Customer) => void;
   onShare: (customer: Customer) => void;
   hasActiveWarning: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  onFocusCustomer: (customer: Customer) => void;
 }
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, hasActiveWarning, showNotification }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, hasActiveWarning, showNotification, onFocusCustomer }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
     const hasDebt = customer.debtAmount > 0;
     const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
     const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
-
-    const handleGenerateQrCode = useCallback(() => {
-        setIsQrModalOpen(true);
-    }, []);
 
     const EquipmentIcon: React.FC<{type: Equipment['type']}> = ({ type }) => {
         switch(type) {
@@ -74,9 +68,12 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
         <>
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
                 <div className="p-3">
-                    <div className="flex justify-between items-start">
+                    <div
+                        className="flex justify-between items-start cursor-pointer group"
+                        onClick={() => onFocusCustomer(customer)}
+                    >
                         <div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 break-words">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 break-words group-hover:text-lime-600 dark:group-hover:text-lime-400 transition-colors">
                                 {customer.name}
                                 {hasActiveWarning && (
                                     <div title="Aviso pendente">
@@ -108,10 +105,9 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     <div className="mt-4 flex flex-wrap gap-2">
                         <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="" isPrimary />
                         <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" />
-                        <ActionButton onClick={handleGenerateQrCode} icon={<QrCodeIcon className="w-5 h-5" />} label="QR Code" colorClass="bg-slate-600" />
                         <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Fiado" colorClass="bg-amber-600" disabled={!hasDebt} />
                         <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" colorClass="bg-indigo-600" />
-                        <ActionButton onClick={() => onDelete(customer.id)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" />
+                        <ActionButton onClick={() => onDelete(customer)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" />
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2 text-white">
@@ -159,14 +155,6 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     </div>
                 )}
             </div>
-            {isQrModalOpen && (
-                <CustomerQrCodeModal
-                    isOpen={isQrModalOpen}
-                    onClose={() => setIsQrModalOpen(false)}
-                    customer={customer}
-                    showNotification={showNotification}
-                />
-            )}
         </>
     );
 };

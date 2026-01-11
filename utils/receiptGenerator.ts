@@ -149,6 +149,31 @@ ${qrData}
   `.trim();
 }
 
+export function generateCustomerShareText(customer: Customer): string {
+  let text = `*Dados do Cliente - Montanha Bilhar & Jukebox*\n\n`;
+  text += `*Nome:* ${customer.name}\n`;
+  text += `*Cidade:* ${customer.cidade}\n`;
+  if (customer.endereco) text += `*Endereço:* ${customer.endereco}\n`;
+  if (customer.telefone) text += `*Telefone:* ${customer.telefone}\n`;
+  if (customer.cpfRg) text += `*CPF/RG:* ${customer.cpfRg}\n`;
+  if (customer.linhaNumero) text += `*Cobrador:* ${customer.linhaNumero}\n`;
+  if (customer.createdAt) text += `*Data do Contrato:* ${new Date(customer.createdAt).toLocaleDateString('pt-BR')}\n`;
+  
+  if (customer.equipment && customer.equipment.length > 0) {
+    text += `\n*Equipamentos Instalados (${customer.equipment.length}):*\n`;
+    customer.equipment.forEach(eq => {
+      const type = eq.type.charAt(0).toUpperCase() + eq.type.slice(1);
+      text += `- ${type} Nº ${eq.numero} (Leitura: ${eq.relogioAnterior})\n`;
+    });
+  }
+
+  text += `\n--------------------------------\n`;
+  text += `*TERMOS DE LOCAÇÃO:*\n`;
+  text += `O LOCATÁRIO RECEBE NESTA DATA O EQUIPAMENTO ACIMA IDENTIFICADO COM TODOS OS EQUIPAMENTOS INTERNOS E EXTERNOS EM PERFEITO ESTADO DE USO E CONSERVAÇÃO. O VALOR DA LOCAÇÃO SERÁ APURADO MEDIANTE O USO DO RESPECTIVO EQUIPAMENTO, SENDO QUE O PAGAMENTO OCORRERÁ NO PRAZO E NOS PERCENTUAIS ACIMA MENCIONADOS.`;
+
+  return text.trim();
+}
+
 // --- ESC/POS Generation Functions ---
 
 export function generateBillingEscpos(billing: Billing, isProvisional: boolean): Uint8Array {

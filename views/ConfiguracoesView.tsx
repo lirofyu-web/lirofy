@@ -6,6 +6,7 @@ import ActionModal from '../components/ActionModal';
 import { Theme } from '../App';
 import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
+import { InstallIcon } from '../components/icons/InstallIcon';
 import { applyThemeColors, defaultColors, AppThemeColors } from '../utils/theme';
 
 interface ConfiguracoesViewProps {
@@ -15,6 +16,8 @@ interface ConfiguracoesViewProps {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  deferredPrompt: any;
+  onInstallPrompt: () => void;
 }
 
 const ColorPicker: React.FC<{ label: string, color: string, onChange: (color: string) => void }> = ({ label, color, onChange }) => (
@@ -40,6 +43,8 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   theme,
   setTheme,
   showNotification,
+  deferredPrompt,
+  onInstallPrompt,
 }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [customerText, setCustomerText] = useState('');
@@ -98,6 +103,22 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   const handleThemeChange = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
+
+  const handleManualSwRegister = () => {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                showNotification('Service Worker registrado com sucesso!', 'success');
+                console.log('Service Worker registered successfully from manual trigger:', registration.scope);
+            })
+            .catch(error => {
+                showNotification('Falha ao registrar o Service Worker.', 'error');
+                console.error('Service Worker registration failed from manual trigger:', error);
+            });
+    } else {
+        showNotification('Service Workers não são suportados neste navegador.', 'error');
+    }
+  };
   
   return (
     <>
@@ -107,6 +128,26 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       />
 
       <div className="space-y-12">
+        {/* Install App Section */}
+        {deferredPrompt && (
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Instalação do Aplicativo</h2>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Instalar na Área de Trabalho</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Instale este aplicativo em seu computador ou celular para um acesso mais rápido e para habilitar funcionalidades offline, como um aplicativo nativo.
+              </p>
+              <button
+                onClick={onInstallPrompt}
+                className="inline-flex items-center gap-2 bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 transition-colors"
+              >
+                <InstallIcon className="w-5 h-5" />
+                <span>Instalar Aplicativo</span>
+              </button>
+            </div>
+          </section>
+        )}
+        
         {/* Appearance Section */}
         <section>
           <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Aparência</h2>
@@ -149,80 +190,105 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Cores do Tema</h3>
             <p className="text-slate-500 dark:text-slate-400 mb-4">Personalize as cores primária e de destaque do aplicativo.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <ColorPicker label="Cor Primária" color={themeColors.primary} onChange={(c) => handleColorChange('primary', c)} />
-                <ColorPicker label="Cor de Destaque" color={themeColors.accent} onChange={(c) => handleColorChange('accent', c)} />
+                 <ColorPicker label="Cor Primária" color={themeColors.primary} onChange={(c) => handleColorChange('primary', c)} />
+                 <ColorPicker label="Cor de Destaque" color={themeColors.accent} onChange={(c) => handleColorChange('accent', c)} />
             </div>
-            <div className="mt-6 flex flex-wrap gap-4">
-                <button onClick={saveThemeColors} className="bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-4 rounded-md hover:bg-[var(--color-primary-hover)]">Salvar Cores</button>
+             <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
                 <button onClick={restoreDefaultColors} className="bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400">Restaurar Padrão</button>
-            </div>
+                <button onClick={saveThemeColors} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600">Salvar Cores</button>
+             </div>
           </div>
         </section>
 
         {/* Data Management Section */}
         <section>
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Backup de Dados</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Export Card */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Exportar (Backup)</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-4 flex-grow">Salve todos os seus dados (clientes, cobranças, etc.) em um arquivo JSON. Guarde-o em um local seguro.</p>
-              <button
-                onClick={onExportData}
-                className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors self-start"
-              >
-                <CloudUploadIcon className="w-5 h-5 transform rotate-180" />
-                <span>Exportar Dados</span>
-              </button>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Gerenciamento de Dados</h2>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Backup e Restauração</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Exporte todos os seus dados para um arquivo de backup ou importe um arquivo existente para mesclar com os dados atuais.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  onClick={onExportData}
+                  className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors"
+                >
+                  <CloudUploadIcon className="w-5 h-5 transform rotate-180" />
+                  <span>Exportar Dados (Backup)</span>
+                </button>
+                <button
+                  onClick={handleImportClick}
+                  className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
+                >
+                  <CloudUploadIcon className="w-5 h-5" />
+                  <span>Importar e Mesclar Dados</span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept=".json"
+                />
+              </div>
             </div>
-            {/* Import Card */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar e Mesclar</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-4 flex-grow">Importe dados de um arquivo de backup. As informações serão mescladas com os dados existentes, adicionando novos registros e atualizando os existentes.</p>
-              <button
-                onClick={handleImportClick}
-                className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors self-start"
-              >
-                <CloudUploadIcon className="w-5 h-5" />
-                <span>Importar Arquivo</span>
-              </button>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar Cliente por Texto (JSON)</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Cole os dados de um cliente no formato JSON (copiado de outro dispositivo) para adicioná-lo rapidamente.
+              </p>
+              <textarea
+                value={customerText}
+                onChange={(e) => setCustomerText(e.target.value)}
+                placeholder='Cole o JSON do cliente aqui...'
+                rows={5}
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
+              />
+              <div className="text-right mt-4">
+                <button
+                  onClick={handleTextImport}
+                  className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
+                >
+                  <CloudUploadIcon className="w-5 h-5" />
+                  <span>Adicionar Cliente</span>
+                </button>
+              </div>
             </div>
-          </div>
         </section>
-        
-        {/* Import from Text Section */}
+
+         {/* Advanced Section */}
         <section>
-           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
-             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar Cliente via Texto</h3>
-             <p className="text-slate-500 dark:text-slate-400 mb-4">Cole os dados de um cliente (copiados da função "Compartilhar") para adicioná-lo rapidamente.</p>
-             <textarea
-              value={customerText}
-              onChange={(e) => setCustomerText(e.target.value)}
-              placeholder="Cole os dados do cliente aqui..."
-              rows={8}
-              className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-             />
-             <button
-              onClick={handleTextImport}
-              disabled={!customerText.trim()}
-              className="mt-4 inline-flex items-center gap-2 bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-4 rounded-md hover:bg-[var(--color-primary-hover)] transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed"
-             >
-                Importar Cliente
-             </button>
-           </div>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Avançado</h2>
+             <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Service Worker</h3>
+                 <p className="text-slate-500 dark:text-slate-400 mb-4">
+                    O Service Worker é responsável pela funcionalidade offline. Se o aplicativo não estiver funcionando sem internet, tente registrá-lo novamente.
+                 </p>
+                 <button
+                    onClick={handleManualSwRegister}
+                    className="bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500"
+                >
+                    Forçar Registro do Service Worker
+                </button>
+             </div>
         </section>
+
       </div>
-      
-      {/* Modals */}
-       <ActionModal
+
+      <ActionModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onConfirm={confirmImport}
-        title="Importar e Mesclar Dados?"
-        confirmText="Sim, Continuar"
+        title="Importar e Mesclar Dados"
+        confirmText="Sim, continuar"
       >
-        <p><strong>Atenção:</strong> A importação irá adicionar novos dados e atualizar registros existentes (como clientes) com base no arquivo. Dados que só existem no seu dispositivo não serão apagados. Deseja continuar?</p>
+        <p>
+          Tem certeza de que deseja importar um arquivo de backup? Os dados do arquivo serão mesclados com os dados existentes no aplicativo.
+        </p>
+        <p className="mt-2 font-semibold text-amber-600 dark:text-amber-400">
+          Recomenda-se exportar um backup dos seus dados atuais antes de prosseguir.
+        </p>
       </ActionModal>
     </>
   );

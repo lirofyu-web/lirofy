@@ -1,6 +1,6 @@
 // views/RelatoriosView.tsx
-import React, { useState, useMemo, useCallback } from 'react';
-import { Billing, Customer, DebtPayment, Expense } from '../types';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Billing, Customer, DebtPayment, Expense, Equipment } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import CraneReportModal from '../components/CraneReportModal';
@@ -9,6 +9,9 @@ import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
+import PrintableSlipsModal from '../components/PrintableSlipsModal';
+import { DocumentDuplicateIcon } from '../components/icons/DocumentDuplicateIcon';
+import CustomerSelectionForSlipsModal from '../components/CustomerSelectionForSlipsModal';
 
 interface RelatoriosViewProps {
   customers: Customer[];
@@ -18,6 +21,148 @@ interface RelatoriosViewProps {
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
+
+const JukeboxReportModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (deposit: number) => void;
+}> = ({ isOpen, onClose, onConfirm }) => {
+  const [deposit, setDeposit] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setDeposit('');
+    }
+  }, [isOpen]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const depositNum = parseFloat(deposit.replace(',', '.')) || 0;
+    onConfirm(depositNum);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
+        <div className="p-6 border-b border-slate-700">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <PrinterIcon className="w-6 h-6 text-fuchsia-400" />
+            Configurar Relatório de Jukebox
+          </h2>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Valor em Depósito (R$)</label>
+            <input 
+              type="text" 
+              inputMode="decimal"
+              placeholder="0,00"
+              value={deposit}
+              onChange={(e) => setDeposit(e.target.value.replace(/[^0-9,.]/g, ''))}
+              className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:ring-emerald-500 focus:outline-none"
+            />
+             <p className="text-xs text-slate-400 mt-1">Este valor é apenas informativo e não afeta o cálculo do lucro.</p>
+          </div>
+
+          <div className="pt-4 flex justify-end gap-4">
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              className="bg-fuchsia-600 text-white font-bold py-2 px-4 rounded-md hover:bg-fuchsia-500 flex items-center gap-2"
+            >
+              <PrinterIcon className="w-5 h-5" />
+              Gerar Relatório
+            </button>
+          </div>
+        </form>
+      </div>
+      <style>{`
+        @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
+      `}</style>
+    </div>
+  );
+};
+
+const MesaReportModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (deposit: number) => void;
+}> = ({ isOpen, onClose, onConfirm }) => {
+  const [deposit, setDeposit] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setDeposit('');
+    }
+  }, [isOpen]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const depositNum = parseFloat(deposit.replace(',', '.')) || 0;
+    onConfirm(depositNum);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up">
+        <div className="p-6 border-b border-slate-700">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <PrinterIcon className="w-6 h-6 text-cyan-400" />
+            Configurar Relatório de Mesas
+          </h2>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Valor em Depósito (R$)</label>
+            <input 
+              type="text" 
+              inputMode="decimal"
+              placeholder="0,00"
+              value={deposit}
+              onChange={(e) => setDeposit(e.target.value.replace(/[^0-9,.]/g, ''))}
+              className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:ring-emerald-500 focus:outline-none"
+            />
+             <p className="text-xs text-slate-400 mt-1">Este valor é apenas informativo e não afeta o cálculo do lucro.</p>
+          </div>
+
+          <div className="pt-4 flex justify-end gap-4">
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              className="bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500 flex items-center gap-2"
+            >
+              <PrinterIcon className="w-5 h-5" />
+              Gerar Relatório
+            </button>
+          </div>
+        </form>
+      </div>
+      <style>{`
+        @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
+      `}</style>
+    </div>
+  );
+};
 
 interface InfoCardProps {
     title: string;
@@ -65,6 +210,10 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
 
   const [dateRange, setDateRange] = useState(getInitialDateRange);
   const [isCraneReportModalOpen, setIsCraneReportModalOpen] = useState(false);
+  const [isMesaReportModalOpen, setIsMesaReportModalOpen] = useState(false);
+  const [isJukeboxReportModalOpen, setIsJukeboxReportModalOpen] = useState(false);
+  const [isCustomerSelectionOpen, setIsCustomerSelectionOpen] = useState(false);
+  const [slipsToPrint, setSlipsToPrint] = useState<{ customer: Customer; equipment: Equipment; lastBillingAmount: number | null; }[] | null>(null);
 
   const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -189,9 +338,11 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     }
   }, [dateRange]);
 
-  const handlePrintMesaReport = useCallback(() => {
+  const handlePrintMesaReport = useCallback((deposito: number) => {
     const data = stats.periodMesaBillings;
-    const total = stats.revenueMesaTotal;
+    const totalDinheiro = stats.revenueMesaDinheiro;
+    const totalPix = stats.revenueMesaPix;
+    const totalCaixa = stats.revenueMesaTotal;
     const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
 
     const content = `
@@ -199,8 +350,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 10pt; color: #333; }
         @page { size: A4 landscape; margin: 15mm; }
         .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 18pt; margin-bottom: 5px; color: #0891b2; }
-        .header h2 { font-size: 14pt; margin: 0; color: #64748b; }
+        h3 { text-align: left; font-size: 14pt; color: #333; margin-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin: 0 auto 20px auto; font-size: 10pt; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: center; }
         th { background-color: #ecfeff; color: #0e7490; font-weight: bold; text-transform: uppercase; }
@@ -208,10 +358,25 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         .currency { text-align: right; font-family: 'Courier New', monospace; }
         .text-left { text-align: left; }
         .no-records { padding: 20px; text-align: center; color: #777; font-style: italic; }
-        tfoot td { font-weight: bold; border-top: 3px solid #0891b2; background-color: #ecfeff; }
-        .total-row strong { color: #047857; }
-        .expense-row strong { color: #be123c; }
-        .profit-row { background-color: #dcfce7 !important; font-size: 11pt; }
+        
+        .summary-section { margin-top: 30px; text-align: left; page-break-inside: avoid; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .summary-card { padding: 12px; border-radius: 8px; border: 1px solid #ddd; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .summary-card .label { display: block; font-size: 9pt; color: #555; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
+        .summary-card .value { display: block; font-size: 15pt; font-weight: bold; font-family: 'Courier New', monospace; }
+
+        .summary-card--dinheiro { background-color: #e0f2fe !important; border-color: #7dd3fc !important; }
+        .summary-card--dinheiro .value { color: #0369a1 !important; }
+        .summary-card--pix { background-color: #ecfdf5 !important; border-color: #6ee7b7 !important; }
+        .summary-card--pix .value { color: #047857 !important; }
+        .summary-card--total { background-color: #f0fdf4 !important; border-color: #86efac !important; }
+        .summary-card--total .value { color: #166534 !important; }
+        .summary-card--despesa { background-color: #fee2e2 !important; border-color: #fca5a5 !important; }
+        .summary-card--despesa .value { color: #b91c1c !important; }
+        .summary-card--lucro { background-color: #dcfce7 !important; border-color: #4ade80 !important; grid-column: span 2; }
+        .summary-card--lucro .value { color: #15803d !important; font-size: 18pt; }
+        .summary-card--info { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; grid-column: span 3; }
+        .summary-card--info .value { color: #475569 !important; }
       </style>
       <h3>Receitas - Mesas de Sinuca</h3>
       <table>
@@ -224,50 +389,80 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <th class="currency">Rel. Atual</th>
             <th class="currency">Jogadas</th>
             <th>Recebido</th>
-            <th class="currency">Valor (Firma)</th>
+            <th class="currency">Valor</th>
           </tr>
         </thead>
         <tbody>
-          ${data.length > 0 ? data.map(b => {
-            const customer = customerMap.get(b.customerId);
-            const cidade = customer ? customer.cidade : 'N/A';
-            const paymentMethodDisplay = {pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod];
-            const valorLiquido = b.valorTotal - (b.valorPagoFiado || 0);
-            return `
-              <tr>
-                <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
-                <td class="text-left">${b.customerName}</td>
-                <td class="text-left">${cidade}</td>
-                <td class="currency">${b.relogioAnterior}</td>
-                <td class="currency">${b.relogioAtual}</td>
-                <td class="currency">${b.partidasJogadas}</td>
-                <td>${paymentMethodDisplay}</td>
-                <td class="currency">R$ ${valorLiquido.toFixed(2).replace('.', ',')}</td>
-              </tr>
-            `}).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
+          ${data.length > 0 ? data.flatMap(b => {
+                const customer = customerMap.get(b.customerId);
+                const cidade = customer ? customer.cidade : 'N/A';
+                const baseRowParts = `
+                    <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
+                    <td class="text-left">${b.customerName}</td>
+                    <td class="text-left">${cidade}</td>
+                    <td class="currency">${b.relogioAnterior}</td>
+                    <td class="currency">${b.relogioAtual}</td>
+                    <td class="currency">${b.partidasJogadas}</td>
+                `;
+
+                const rows = [];
+                
+                if (b.valorPagoDinheiro && b.valorPagoDinheiro > 0) {
+                    rows.push(`<tr>${baseRowParts}<td>Dinheiro</td><td class="currency">R$ ${b.valorPagoDinheiro.toFixed(2).replace('.', ',')}</td></tr>`);
+                }
+                if (b.valorPagoPix && b.valorPagoPix > 0) {
+                    rows.push(`<tr>${baseRowParts}<td>PIX</td><td class="currency">R$ ${b.valorPagoPix.toFixed(2).replace('.', ',')}</td></tr>`);
+                }
+                
+                if (rows.length === 0 && b.valorTotal === 0 && b.paymentMethod !== 'fiado') {
+                    const paymentMethodDisplay = {pix: 'PIX', dinheiro: 'Dinheiro', misto: 'N/A'}[b.paymentMethod] || 'N/A';
+                    rows.push(`<tr>${baseRowParts}<td>${paymentMethodDisplay}</td><td class="currency">R$ 0,00</td></tr>`);
+                }
+
+                return rows;
+            }).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
         </tbody>
-        <tfoot>
-          <tr class="total-row">
-            <td colspan="7" class="text-left"><strong>Total Recebido (Caixa)</strong></td>
-            <td class="currency"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-          <tr class="expense-row">
-            <td colspan="7" class="text-left"><strong>Total Despesas (Mesas)</strong></td>
-            <td class="currency"><strong>- R$ ${stats.periodExpensesMesa.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-          <tr class="profit-row">
-            <td colspan="7" class="text-left"><strong>Lucro Líquido</strong></td>
-            <td class="currency"><strong>R$ ${(total - stats.periodExpensesMesa).toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-        </tfoot>
       </table>
+
+      <div class="summary-section">
+        <h3>Fechamento Financeiro</h3>
+        <div class="summary-grid">
+            <div class="summary-card summary-card--dinheiro">
+                <span class="label">Total Recebido (Dinheiro)</span>
+                <span class="value">R$ ${totalDinheiro.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--pix">
+                <span class="label">Total Recebido (PIX)</span>
+                <span class="value">R$ ${totalPix.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--total">
+                <span class="label">Total Geral (Caixa)</span>
+                <span class="value">R$ ${totalCaixa.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--despesa">
+                <span class="label">(-) Total Despesas (Mesas)</span>
+                <span class="value">- R$ ${stats.periodExpensesMesa.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--lucro">
+                <span class="label">(=) Lucro Líquido</span>
+                <span class="value">R$ ${(totalCaixa - stats.periodExpensesMesa).toFixed(2).replace('.', ',')}</span>
+            </div>
+             <div class="summary-card summary-card--info">
+                <span class="label">Depósito (Informativo)</span>
+                <span class="value">R$ ${deposito.toFixed(2).replace('.', ',')}</span>
+            </div>
+        </div>
+      </div>
     `;
     printReport('Relatório de Mesas de Sinuca', content);
+    setIsMesaReportModalOpen(false);
   }, [stats, printReport, customers]);
 
-  const handlePrintJukeboxReport = useCallback(() => {
+  const handlePrintJukeboxReport = useCallback((deposito: number) => {
     const data = stats.periodJukeboxBillings;
-    const total = stats.revenueJukeboxTotal;
+    const totalDinheiro = stats.revenueJukeboxDinheiro;
+    const totalPix = stats.revenueJukeboxPix;
+    const totalCaixa = stats.revenueJukeboxTotal;
     const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
 
     const content = `
@@ -275,8 +470,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 10pt; color: #333; }
         @page { size: A4 landscape; margin: 15mm; }
         .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 18pt; margin-bottom: 5px; color: #a21caf; }
-        .header h2 { font-size: 14pt; margin: 0; color: #64748b; }
+        h3 { text-align: left; font-size: 14pt; color: #333; margin-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin: 0 auto 20px auto; font-size: 10pt; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: center; }
         th { background-color: #fdf2f8; color: #a21caf; font-weight: bold; text-transform: uppercase; }
@@ -284,10 +478,25 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         .currency { text-align: right; font-family: 'Courier New', monospace; }
         .text-left { text-align: left; }
         .no-records { padding: 20px; text-align: center; color: #777; font-style: italic; }
-        tfoot td { font-weight: bold; border-top: 3px solid #a21caf; background-color: #fdf2f8; }
-        .total-row strong, .profit-row strong { color: #047857; }
-        .expense-row strong { color: #be123c; }
-        .profit-row { background-color: #dcfce7 !important; font-size: 11pt; }
+        
+        .summary-section { margin-top: 30px; text-align: left; page-break-inside: avoid; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .summary-card { padding: 12px; border-radius: 8px; border: 1px solid #ddd; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .summary-card .label { display: block; font-size: 9pt; color: #555; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
+        .summary-card .value { display: block; font-size: 15pt; font-weight: bold; font-family: 'Courier New', monospace; }
+
+        .summary-card--dinheiro { background-color: #e0f2fe !important; border-color: #7dd3fc !important; }
+        .summary-card--dinheiro .value { color: #0369a1 !important; }
+        .summary-card--pix { background-color: #ecfdf5 !important; border-color: #6ee7b7 !important; }
+        .summary-card--pix .value { color: #047857 !important; }
+        .summary-card--total { background-color: #f0fdf4 !important; border-color: #86efac !important; }
+        .summary-card--total .value { color: #166534 !important; }
+        .summary-card--despesa { background-color: #fee2e2 !important; border-color: #fca5a5 !important; }
+        .summary-card--despesa .value { color: #b91c1c !important; }
+        .summary-card--lucro { background-color: #dcfce7 !important; border-color: #4ade80 !important; grid-column: span 2; }
+        .summary-card--lucro .value { color: #15803d !important; font-size: 18pt; }
+        .summary-card--info { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; grid-column: span 3; }
+        .summary-card--info .value { color: #475569 !important; }
       </style>
       <h3>Receitas - Jukebox</h3>
       <table>
@@ -298,47 +507,73 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <th class="text-left">Cidade</th>
             <th class="currency">Rel. Ant.</th>
             <th class="currency">Rel. Atual</th>
-            <th class="currency">Jogadas</th>
-            <th>Pgto</th>
-            <th class="currency">Valor (Firma)</th>
+            <th>Recebido</th>
+            <th class="currency">Valor</th>
           </tr>
         </thead>
         <tbody>
-          ${data.length > 0 ? data.map(b => {
+          ${data.length > 0 ? data.flatMap(b => {
             const customer = customerMap.get(b.customerId);
             const cidade = customer ? customer.cidade : 'N/A';
-            const paymentMethodDisplay = {pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod];
-            const valorLiquido = b.valorTotal - (b.valorPagoFiado || 0);
-            return `
-              <tr>
+            const baseRowParts = `
                 <td>${new Date(b.settledAt).toLocaleDateString('pt-BR')}</td>
                 <td class="text-left">${b.customerName}</td>
                 <td class="text-left">${cidade}</td>
                 <td class="currency">${b.relogioAnterior}</td>
                 <td class="currency">${b.relogioAtual}</td>
-                <td class="currency">${b.partidasJogadas}</td>
-                <td>${paymentMethodDisplay}</td>
-                <td class="currency">R$ ${valorLiquido.toFixed(2).replace('.', ',')}</td>
-              </tr>
-            `}).join('') : '<tr><td colspan="8" class="no-records">Nenhuma cobrança no período.</td></tr>'}
+            `;
+
+            const rows = [];
+            
+            if (b.valorPagoDinheiro && b.valorPagoDinheiro > 0) {
+                rows.push(`<tr>${baseRowParts}<td>Dinheiro</td><td class="currency">R$ ${b.valorPagoDinheiro.toFixed(2).replace('.', ',')}</td></tr>`);
+            }
+            if (b.valorPagoPix && b.valorPagoPix > 0) {
+                rows.push(`<tr>${baseRowParts}<td>PIX</td><td class="currency">R$ ${b.valorPagoPix.toFixed(2).replace('.', ',')}</td></tr>`);
+            }
+            
+            if (rows.length === 0 && b.valorTotal === 0 && b.paymentMethod !== 'fiado') {
+                const paymentMethodDisplay = {pix: 'PIX', dinheiro: 'Dinheiro', misto: 'N/A'}[b.paymentMethod] || 'N/A';
+                rows.push(`<tr>${baseRowParts}<td>${paymentMethodDisplay}</td><td class="currency">R$ 0,00</td></tr>`);
+            }
+
+            return rows;
+          }).join('') : '<tr><td colspan="7" class="no-records">Nenhuma cobrança no período.</td></tr>'}
         </tbody>
-        <tfoot>
-          <tr class="total-row">
-            <td colspan="7" class="text-left"><strong>Total Recebido (Caixa)</strong></td>
-            <td class="currency"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-           <tr class="expense-row">
-            <td colspan="7" class="text-left"><strong>Total Despesas (Jukebox)</strong></td>
-            <td class="currency"><strong>- R$ ${stats.periodExpensesJukebox.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-          <tr class="profit-row">
-            <td colspan="7" class="text-left"><strong>Lucro Líquido</strong></td>
-            <td class="currency"><strong>R$ ${(total - stats.periodExpensesJukebox).toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-        </tfoot>
       </table>
+      
+      <div class="summary-section">
+        <h3>Fechamento Financeiro</h3>
+        <div class="summary-grid">
+            <div class="summary-card summary-card--dinheiro">
+                <span class="label">Total Recebido (Dinheiro)</span>
+                <span class="value">R$ ${totalDinheiro.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--pix">
+                <span class="label">Total Recebido (PIX)</span>
+                <span class="value">R$ ${totalPix.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--total">
+                <span class="label">Total Geral (Caixa)</span>
+                <span class="value">R$ ${totalCaixa.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--despesa">
+                <span class="label">(-) Total Despesas (Jukebox)</span>
+                <span class="value">- R$ ${stats.periodExpensesJukebox.toFixed(2).replace('.', ',')}</span>
+            </div>
+            <div class="summary-card summary-card--lucro">
+                <span class="label">(=) Lucro Líquido</span>
+                <span class="value">R$ ${(totalCaixa - stats.periodExpensesJukebox).toFixed(2).replace('.', ',')}</span>
+            </div>
+             <div class="summary-card summary-card--info">
+                <span class="label">Depósito (Informativo)</span>
+                <span class="value">R$ ${deposito.toFixed(2).replace('.', ',')}</span>
+            </div>
+        </div>
+      </div>
     `;
     printReport('Relatório de Jukebox', content);
+    setIsJukeboxReportModalOpen(false);
   }, [stats, printReport, customers]);
   
   const handleGenerateCraneReport = useCallback((startDate: string, endDate: string, moneyDeposit: number) => {
@@ -413,7 +648,12 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
         <tfoot>
           <tr>
             <td colspan="6" class="text-left"><strong>TOTAIS</strong></td>
-            <td class="currency"><strong>R$ ${totalSaldoBruto.toFixed(2).replace('.', ',')}</strong></td> <td class="currency"><strong>R$ ${totalAluguelCliente.toFixed(2).replace('.', ',')}</strong></td> <td class="currency"><strong>R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</strong></td> <td class="currency"><strong>${totalReposicao}</strong></td> <td class="currency"><strong>R$ ${totalEspecie.toFixed(2).replace('.', ',')}</strong></td> <td class="currency"><strong>R$ ${totalPix.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong style="color: #0d47a1;">R$ ${totalSaldoBruto.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong style="color: #b71c1c;">R$ ${totalAluguelCliente.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong style="color: #1b5e20;">R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong>${totalReposicao}</strong></td>
+            <td class="currency"><strong style="color: #0369a1;">R$ ${totalEspecie.toFixed(2).replace('.', ',')}</strong></td>
+            <td class="currency"><strong style="color: #7b1fa2;">R$ ${totalPix.toFixed(2).replace('.', ',')}</strong></td>
           </tr>
         </tfoot>
       </table>
@@ -483,6 +723,41 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
     `;
     printReport('Relatório de Despesas', content);
   }, [stats, printReport]);
+  
+  const handleGenerateSlips = (selectedCustomers: Customer[]) => {
+      // 1. Sort customers by city, then by name for a consistent, grouped order.
+      const sortedCustomers = [...selectedCustomers].sort((a, b) => {
+          const cityComparison = a.cidade.localeCompare(b.cidade);
+          if (cityComparison !== 0) {
+              return cityComparison;
+          }
+          return a.name.localeCompare(b.name);
+      });
+
+      const slips: { customer: Customer; equipment: Equipment; lastBillingAmount: number | null; }[] = [];
+      
+      // 2. Iterate through the sorted customers to generate slips.
+      sortedCustomers.forEach(customer => {
+          // Filter for relevant equipment and sort by number for consistency
+          const relevantEquipment = customer.equipment
+              .filter(equipment => equipment.type === 'mesa' || equipment.type === 'jukebox')
+              .sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
+
+          relevantEquipment.forEach(equipment => {
+              const lastBilling = billings
+                  .filter(b => b.customerId === customer.id && b.equipmentId === equipment.id)
+                  .sort((a, b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime())
+                  [0];
+              
+              const lastBillingAmount = lastBilling ? (lastBilling.valorTotal - (lastBilling.valorPagoFiado || 0)) : null;
+
+              slips.push({ customer, equipment, lastBillingAmount });
+          });
+      });
+      
+      setSlipsToPrint(slips);
+      setIsCustomerSelectionOpen(false);
+  };
 
   const PrintButton = ({ onClick, label, colorClass }: { onClick: () => void, label: string, colorClass: string }) => (
      <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
@@ -519,7 +794,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                 <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueMesaTotal - stats.periodExpensesMesa).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
-            <PrintButton onClick={handlePrintMesaReport} label="Imprimir Relatório de Mesas" colorClass="bg-cyan-600 hover:bg-cyan-500" />
+            <PrintButton onClick={() => setIsMesaReportModalOpen(true)} label="Imprimir Relatório de Mesas" colorClass="bg-cyan-600 hover:bg-cyan-500" />
         </InfoCard>
 
         <InfoCard title="Desempenho: Jukebox" icon={<JukeboxIcon className="w-6 h-6 text-fuchsia-500" />}>
@@ -530,7 +805,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
                 <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueJukeboxTotal - stats.periodExpensesJukebox).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
             </div>
-            <PrintButton onClick={handlePrintJukeboxReport} label="Imprimir Relatório de Jukebox" colorClass="bg-fuchsia-600 hover:bg-fuchsia-500" />
+            <PrintButton onClick={() => setIsJukeboxReportModalOpen(true)} label="Imprimir Relatório de Jukebox" colorClass="bg-fuchsia-600 hover:bg-fuchsia-500" />
         </InfoCard>
 
          <InfoCard title="Desempenho: Gruas" icon={<CraneIcon className="w-6 h-6 text-orange-500" />}>
@@ -554,13 +829,44 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
             <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" colorClass="bg-red-600 hover:bg-red-500" />
         </InfoCard>
+
+        <InfoCard title="Ferramentas de Impressão" icon={<DocumentDuplicateIcon className="w-6 h-6 text-slate-500" />}>
+            <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2 mb-4">Gere documentos úteis para o trabalho em campo.</p>
+            <PrintButton 
+                onClick={() => setIsCustomerSelectionOpen(true)}
+                label="Imprimir Talões de Cobrança"
+                colorClass="bg-gray-600 hover:bg-gray-500"
+            />
+        </InfoCard>
       </div>
 
+      <MesaReportModal
+        isOpen={isMesaReportModalOpen}
+        onClose={() => setIsMesaReportModalOpen(false)}
+        onConfirm={handlePrintMesaReport}
+      />
+      <JukeboxReportModal
+        isOpen={isJukeboxReportModalOpen}
+        onClose={() => setIsJukeboxReportModalOpen(false)}
+        onConfirm={handlePrintJukeboxReport}
+      />
       <CraneReportModal 
         isOpen={isCraneReportModalOpen}
         onClose={() => setIsCraneReportModalOpen(false)}
         onConfirm={handleGenerateCraneReport}
       />
+      <CustomerSelectionForSlipsModal
+        isOpen={isCustomerSelectionOpen}
+        onClose={() => setIsCustomerSelectionOpen(false)}
+        customers={customers}
+        onConfirm={handleGenerateSlips}
+      />
+      {slipsToPrint && (
+          <PrintableSlipsModal
+              slips={slipsToPrint}
+              onClose={() => setSlipsToPrint(null)}
+          />
+      )}
     </div>
   );
 };

@@ -161,7 +161,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         });
     });
 
-    const itemsPerPage = 30;
+    const itemsPerPage = 35; // Adjusted for smaller font size
     const pages: typeof allItems[] = [];
     for (let i = 0; i < allItems.length; i += itemsPerPage) {
         pages.push(allItems.slice(i, i + itemsPerPage));
@@ -172,19 +172,30 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         let tableRows = '';
         pageItems.forEach(item => {
             if (item.type === 'city') {
-                tableRows += `<tr><td colspan="4" class="city-header">${item.name}</td></tr>`;
+                tableRows += `<tr><td colspan="6" class="city-header">${item.name}</td></tr>`;
             } else {
                 const customer = item.data;
                 const equipamentos = [];
                 if (customer.equipment?.some(e => e.type === 'mesa')) equipamentos.push('Mesa');
                 if (customer.equipment?.some(e => e.type === 'jukebox')) equipamentos.push('Jukebox');
                 if (customer.equipment?.some(e => e.type === 'grua')) equipamentos.push('Grua');
+
+                const lastVisitDate = customer.lastVisitedAt ? new Date(customer.lastVisitedAt).toLocaleDateString('pt-BR') : '---';
+                const clockReadings = customer.equipment
+                    .filter(e => e.type === 'mesa' || e.type === 'jukebox' || e.type === 'grua')
+                    .map(e => {
+                        const typePrefix = e.type === 'mesa' ? 'M' : e.type === 'jukebox' ? 'J' : 'G';
+                        return `${typePrefix}${e.numero}: ${e.relogioAnterior}`;
+                    })
+                    .join(', ');
                 
                 tableRows += `
                     <tr>
                         <td class="checkbox-cell"><div class="checkbox"></div></td>
                         <td>${customer.name}</td>
                         <td>${equipamentos.join(', ')}</td>
+                        <td class="date-cell">${lastVisitDate}</td>
+                        <td class="clocks-cell">${clockReadings || 'N/A'}</td>
                         <td class="${customer.debtAmount > 0 ? 'fiado-cell' : 'no-fiado-cell'}">
                             ${customer.debtAmount > 0 ? `R$ ${customer.debtAmount.toFixed(2)}` : '-'}
                         </td>
@@ -204,8 +215,10 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                         <tr>
                             <th class="checkbox-cell">Vis.</th>
                             <th>Cliente</th>
-                            <th>Equipamentos</th>
-                            <th>Dívida (Fiado)</th>
+                            <th>Equip.</th>
+                            <th class="date-cell">Últ. Visita</th>
+                            <th class="clocks-cell">Relógios</th>
+                            <th>Dívida</th>
                         </tr>
                     </thead>
                     <tbody>${tableRows}</tbody>
@@ -217,18 +230,20 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     
     const fullHtml = `
       <html><head><title>Rota de Cobrança</title><style>
-        body { font-family: Arial, sans-serif; font-size: 10pt; color: #333; }
-        @page { size: A4; margin: 15mm; }
-        .page-container { position: relative; min-height: 257mm; page-break-after: always; }
+        body { font-family: Arial, sans-serif; font-size: 8pt; color: #333; }
+        @page { size: A4; margin: 10mm; }
+        .page-container { position: relative; min-height: 277mm; page-break-after: always; }
         .page-container:last-child { page-break-after: auto; }
-        .header { text-align: center; } .header h1 { font-size: 16pt; margin-bottom: 2mm; } .header p { font-size: 10pt; margin: 0; color: #555; }
-        .customers-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8mm; }
-        .customers-table th, .customers-table td { border: 1px solid #ccc; padding: 2mm; text-align: left; vertical-align: middle; }
+        .header { text-align: center; } .header h1 { font-size: 14pt; margin-bottom: 2mm; } .header p { font-size: 9pt; margin: 0; color: #555; }
+        .customers-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-top: 6mm; }
+        .customers-table th, .customers-table td { border: 1px solid #ccc; padding: 1.5mm; text-align: left; vertical-align: middle; word-break: break-word; }
         .customers-table th { background-color: #f2f2f2; font-weight: bold; }
-        .city-header { background-color: #e0e0e0; font-weight: bold; font-size: 11pt; padding: 2mm; }
-        .checkbox-cell { width: 20px; text-align: center; } .checkbox { width: 14px; height: 14px; border: 1px solid #333; }
-        .fiado-cell { width: 80px; text-align: right; color: #D32F2F; font-weight: bold; font-family: monospace; }
-        .no-fiado-cell { width: 80px; text-align: right; font-family: monospace; }
+        .city-header { background-color: #e0e0e0; font-weight: bold; font-size: 10pt; padding: 2mm; }
+        .checkbox-cell { width: 15px; text-align: center; } .checkbox { width: 10px; height: 10px; border: 1px solid #333; }
+        .fiado-cell { width: 60px; text-align: right; color: #D32F2F; font-weight: bold; font-family: monospace; }
+        .no-fiado-cell { width: 60px; text-align: right; font-family: monospace; }
+        .date-cell { width: 55px; }
+        .clocks-cell { min-width: 100px; }
         .footer { position: absolute; bottom: 0; width: 100%; text-align: center; font-size: 8pt; color: #888; }
       </style></head><body>${pagesHtml}</body></html>`;
       

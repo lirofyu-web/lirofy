@@ -14,7 +14,7 @@ import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 interface CobrancasViewProps {
     billings: Billing[];
     customers: Customer[];
-    onShowReceipt: (billing: Billing) => void;
+    onShowActions: (billing: Billing) => void;
     onDeleteBilling: (billingId: string) => void;
 }
 
@@ -43,7 +43,7 @@ const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'm
     );
 });
 
-const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onShowReceipt, onDeleteBilling }) => {
+const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onShowActions, onDeleteBilling }) => {
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,13 +65,13 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 }
                 const billingDate = new Date(billing.settledAt);
                 if (startDate) {
-                    const filterStartDate = new Date(startDate);
-                    filterStartDate.setHours(0, 0, 0, 0);
+                    // Fix: Add T00:00:00 to correctly interpret date in local timezone
+                    const filterStartDate = new Date(startDate + 'T00:00:00');
                     if (billingDate < filterStartDate) return false;
                 }
                 if (endDate) {
-                    const filterEndDate = new Date(endDate);
-                    filterEndDate.setHours(23, 59, 59, 999);
+                    // Fix: Add T23:59:59 to include the entire end day
+                    const filterEndDate = new Date(endDate + 'T23:59:59');
                     if (billingDate > filterEndDate) return false;
                 }
                 return true;
@@ -354,7 +354,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                 </span>
                             </span>
                             <div className="flex gap-4">
-                                <button onClick={() => onShowReceipt(billing)} className="text-sm font-semibold text-lime-600 dark:text-lime-400 hover:underline">Ver</button>
+                                <button onClick={() => onShowActions(billing)} className="text-sm font-semibold text-lime-600 dark:text-lime-400 hover:underline">Ver</button>
                                 <button onClick={() => setDeletingBilling(billing)} className="text-red-500 dark:text-red-400" title="Excluir Cobrança">
                                     <TrashIcon className="w-5 h-5" />
                                 </button>
@@ -407,7 +407,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                     </td>
                                     <td className="px-6 py-4 text-right font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
                                     <td className="px-6 py-4 text-center">
-                                         <button onClick={() => onShowReceipt(billing)} className="text-slate-500 dark:text-slate-400 hover:text-lime-500 dark:hover:text-lime-400">Ver</button>
+                                         <button onClick={() => onShowActions(billing)} className="text-slate-500 dark:text-slate-400 hover:text-lime-500 dark:hover:text-lime-400">Ver</button>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <button onClick={() => setDeletingBilling(billing)} className="text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Excluir Cobrança">

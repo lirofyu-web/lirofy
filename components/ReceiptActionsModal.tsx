@@ -1,13 +1,16 @@
 // components/ReceiptActionsModal.tsx
 import React from 'react';
-import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { ShareIcon } from './icons/ShareIcon';
 import { Billing } from '../types';
+import { PrinterIcon } from './icons/PrinterIcon';
+import { RawBtIcon } from './icons/RawBtIcon';
 
 interface ReceiptActionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onWhatsApp: () => void;
-  customerHasPhone: boolean;
+  onShare: () => void;
+  onViewReceipt: () => void;
+  onPrintRawBt: () => void;
   billing: Billing;
   isProvisional: boolean;
   showNotification: (message: string, type: 'success' | 'error') => void;
@@ -16,8 +19,9 @@ interface ReceiptActionsModalProps {
 const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
   isOpen,
   onClose,
-  onWhatsApp,
-  customerHasPhone,
+  onShare,
+  onViewReceipt,
+  onPrintRawBt,
 }) => {
   if (!isOpen) return null;
 
@@ -33,21 +37,35 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
           <h2 id="receipt-actions-modal-title" className="text-2xl font-bold text-white">Comprovante Gerado</h2>
           <p className="text-slate-400 mt-4">O que você deseja fazer?</p>
         </div>
-        <div className="p-6 bg-slate-800/50 rounded-b-lg flex flex-col sm:flex-row justify-end gap-4">
+        <div className="p-6 bg-slate-800/50 rounded-b-lg flex flex-col gap-3">
           <button
-            onClick={onClose}
-            className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors"
+            onClick={onViewReceipt}
+            className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors"
           >
-            Fechar
+            <PrinterIcon className="w-5 h-5" />
+            <span>Ver/Imprimir</span>
           </button>
           <button
-            onClick={onWhatsApp}
-            disabled={!customerHasPhone}
-            className="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-2 px-6 rounded-md hover:bg-green-500 transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed"
-            title={!customerHasPhone ? 'Cliente sem telefone cadastrado' : 'Enviar texto via WhatsApp'}
+            onClick={onPrintRawBt}
+            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 transition-colors"
+            title="Imprimir em impressora térmica via RawBT"
           >
-            <WhatsAppIcon className="w-5 h-5" />
-            <span>WhatsApp</span>
+            <RawBtIcon className="w-5 h-5" />
+            <span>Imprimir (RawBT)</span>
+          </button>
+          <button
+            onClick={onShare}
+            className="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-500 transition-colors"
+            title="Compartilhar comprovante como texto"
+          >
+            <ShareIcon className="w-5 h-5" />
+            <span>Compartilhar (Texto)</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full mt-2 bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors"
+          >
+            Fechar
           </button>
         </div>
       </div>

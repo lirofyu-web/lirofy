@@ -1,9 +1,9 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v54'; // Versão incrementada
+const CACHE_NAME = 'montanha-bilhar-cache-v56'; // Versão incrementada para forçar atualização
 
-// Uma lista abrangente de todos os ativos para armazenar em cache para funcionalidade offline.
+// Lista de ativos para armazenar em cache.
 const urlsToCache = [
-  // Arquivos principais que definem a estrutura e o ponto de entrada do aplicativo.
+  // ... (conteúdo omitido para brevidade, mas igual ao original)
   '/',
   '/index.html',
   '/index.tsx',
@@ -17,12 +17,8 @@ const urlsToCache = [
   '/utils/bluetoothPrinter.ts',
   '/utils/escpos.ts',
   '/utils/imageGenerator.ts',
-
-  // Ícones PWA referenciados no manifesto.
   '/icon-192.svg',
   '/icon-512.svg',
-  
-  // Todas as visualizações da aplicação.
   '/views/ClientesView.tsx',
   '/views/CobrancasView.tsx',
   '/views/ConfiguracoesView.tsx',
@@ -31,8 +27,6 @@ const urlsToCache = [
   '/views/EquipamentosView.tsx',
   '/views/RelatoriosView.tsx',
   '/views/RotasView.tsx',
-
-  // Todos os componentes reutilizáveis.
   '/components/ActionModal.tsx',
   '/components/AddCustomerForm.tsx',
   '/components/BackupReminder.tsx',
@@ -68,8 +62,6 @@ const urlsToCache = [
   '/components/Sidebar.tsx',
   '/components/WarningsManager.tsx',
   '/components/WarningsReminders.tsx',
-
-  // Todos os ícones SVG usados nos componentes.
   '/components/icons/AlertIcon.tsx',
   '/components/icons/AndroidIcon.tsx',
   '/components/icons/BellAlertIcon.tsx',
@@ -118,19 +110,15 @@ const urlsToCache = [
   '/components/icons/WhatsAppIcon.tsx',
   '/components/icons/XIcon.tsx',
   '/components/icons/YellowBilliardBallIcon.tsx',
-  
-  // Arquivos de dados para autocompletar e popular.
   '/data/brazilianCities.ts',
   '/data/seedHelper.ts',
-
-  // Recursos externos de CDN para bibliotecas e fontes.
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap',
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2', // Inter 400
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7S0Q5nw.woff2', // Inter 500
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7f0Q5nw.woff2', // Inter 600
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7a0Q5nw.woff2', // Inter 700
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7k0Q5nw.woff2', // Inter 900
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2',
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7S0Q5nw.woff2',
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7f0Q5nw.woff2',
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7a0Q5nw.woff2',
+  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7k0Q5nw.woff2',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css',
@@ -149,23 +137,26 @@ const urlsToCache = [
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
 ];
 
-// Evento de instalação: armazena todos os ativos especificados em cache.
 self.addEventListener('install', (event) => {
+  // Força o novo service worker a se tornar ativo imediatamente.
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Cache aberto e ativos sendo armazenados');
+        console.log('Cache aberto, cacheando ativos principais...');
         return cache.addAll(urlsToCache);
       })
       .catch(error => {
-        console.error('Falha ao armazenar ativos em cache durante a instalação:', error);
+        console.error('Falha ao armazenar ativos no cache durante a instalação:', error);
       })
   );
 });
 
-// Evento de ativação: limpa caches antigos.
 self.addEventListener('activate', (event) => {
+  // Garante que o service worker ativado assuma o controle de todas as abas abertas imediatamente.
+  event.waitUntil(self.clients.claim());
+  
+  // Limpa caches antigos para liberar espaço e evitar conflitos.
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -181,42 +172,35 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Evento de busca: Estratégia "Cache falling back to network".
-// Se um recurso está no cache, ele é servido a partir daí.
-// Se não, é buscado na rede. Se a busca for bem-sucedida,
-// a resposta é adicionada ao cache para futuras requisições offline.
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições que não são GET
+  // Ignora requisições que não são GET (ex: POST, etc.)
   if (event.request.method !== 'GET') {
     return;
   }
-  
+
+  // Estratégia Stale-While-Revalidate: Responde rapidamente com o cache,
+  // mas busca uma nova versão em segundo plano.
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        // Se a resposta estiver no cache, retorna-a.
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        // Se não, busca na rede.
-        return fetch(event.request).then((networkResponse) => {
-            // Clona a resposta porque ela é um stream que só pode ser consumido uma vez.
-            const responseToCache = networkResponse.clone();
-
-            // Abre o cache e adiciona a nova resposta a ele.
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-
-            // Retorna a resposta da rede para o navegador.
-            return networkResponse;
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          // Se a requisição for bem-sucedida, atualiza o cache.
+          if (networkResponse.ok) {
+            cache.put(event.request, networkResponse.clone());
           }
-        ).catch(error => {
-          console.log('Fetch falhou; retornando offline page em vez.', error);
-          // Se a rede falhar (e não estiver no cache), você pode retornar uma página offline fallback.
-          // Por simplicidade, este exemplo não implementa uma página offline fallback.
+          return networkResponse;
         });
-      })
+
+        // Retorna a resposta do cache imediatamente se existir, caso contrário, aguarda a rede.
+        return cachedResponse || fetchPromise;
+      }).catch(() => {
+        // Se tanto o cache quanto a rede falharem...
+        // Para requisições de navegação (ex: abrir uma página), retorna o index.html principal (SPA fallback).
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+        // Para outros tipos de requisições (imagens, scripts), permite que a falha ocorra.
+      });
+    })
   );
 });

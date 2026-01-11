@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning } from './types';
 
@@ -12,8 +12,6 @@ import EquipamentosView from './views/EquipamentosView';
 import RotasView from './views/RotasView';
 import RelatoriosView from './views/RelatoriosView';
 import ConfiguracoesView from './views/ConfiguracoesView';
-import ReceiptActionsModal from './components/ReceiptActionsModal';
-import DebtReceiptActionsModal from './components/DebtReceiptActionsModal';
 import Notification from './components/Notification';
 import BottomNavBar from './components/BottomNavBar';
 import MobileHeader from './components/MobileHeader';
@@ -21,10 +19,21 @@ import InstallPwaBanner from './components/InstallPwaBanner';
 import CustomerSheet from './components/CustomerSheet';
 import { PrinterIcon } from './components/icons/PrinterIcon';
 import { generateBillingText, generateDebtText } from './utils/receiptGenerator';
-import { applyThemeColors, defaultColors } from './utils/theme';
+import { applyThemeColors, defaultColors, AppThemeColors } from './utils/theme';
+import FullScreenCustomerView from './components/FullScreenCustomerView';
 
-// Declara html2canvas para TypeScript, já que é carregado via tag de script global.
-declare const html2canvas: any;
+// Modals
+import BillingModal from './components/BillingModal';
+import EditCustomerModal from './components/EditCustomerModal';
+import DebtPaymentModal from './components/DebtPaymentModal';
+import HistoryModal from './components/HistoryModal';
+import ActionModal from './components/ActionModal';
+import EquipmentSelectionModal from './components/EquipmentSelectionModal';
+import ReceiptActionsModal from './components/ReceiptActionsModal';
+import DebtReceiptActionsModal from './components/DebtReceiptActionsModal';
+import ShareCustomerModal from './components/ShareCustomerModal';
+import ReceiptModal from './components/ReceiptModal';
+import DebtReceiptModal from './components/DebtReceiptModal';
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 export type Theme = 'light' | 'dark';
@@ -46,40 +55,18 @@ const viewTitles: Record<View, string> = {
 };
 
 const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }> = ({ customer, onCancel }) => {
-  const handlePrint = () => {
-    window.print();
-  };
-
+  const handlePrint = () => window.print();
   useEffect(() => {
-    const handleAfterPrint = () => {
-      onCancel();
-    };
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => {
-      window.removeEventListener('afterprint', handleAfterPrint);
-    };
+    window.addEventListener('afterprint', onCancel);
+    return () => window.removeEventListener('afterprint', onCancel);
   }, [onCancel]);
-
   return (
     <div className="print-overlay fixed inset-0 bg-slate-200 dark:bg-slate-900 z-[100] flex flex-col">
       <header className="print-controls no-print sticky top-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 shadow-md flex justify-center gap-4 flex-shrink-0">
-        <button 
-          onClick={onCancel} 
-          className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400"
-        >
-          Cancelar
-        </button>
-        <button 
-          onClick={handlePrint}
-          className="bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-6 rounded-md hover:bg-[var(--color-primary-hover)] flex items-center gap-2"
-        >
-          <PrinterIcon className="w-5 h-5" />
-          Salvar PDF / Imprimir
-        </button>
+        <button onClick={onCancel} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">Cancelar</button>
+        <button onClick={handlePrint} className="bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-6 rounded-md hover:bg-[var(--color-primary-hover)] flex items-center gap-2"><PrinterIcon className="w-5 h-5" />Salvar PDF / Imprimir</button>
       </header>
-      <div className="print-content overflow-y-auto flex-grow">
-        <CustomerSheet customer={customer} />
-      </div>
+      <div className="print-content overflow-y-auto flex-grow"><CustomerSheet customer={customer} /></div>
     </div>
   );
 };
@@ -92,608 +79,363 @@ const App: React.FC = () => {
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
     const [warnings, setWarnings] = useState<Warning[]>([]);
     
-    // Initialize currentView from localStorage or default to DASHBOARD
-    const [currentView, setCurrentView] = useState<View>(() => {
-        const savedView = localStorage.getItem('lastActiveView');
-        const validViews: View[] = ['DASHBOARD', 'CLIENTES', 'COBRANCAS', 'EQUIPAMENTOS', 'DESPESAS', 'ROTAS', 'RELATORIOS', 'CONFIGURACOES'];
-        return (savedView && validViews.includes(savedView as View)) ? (savedView as View) : 'DASHBOARD';
-    });
-
+    const [currentView, setCurrentView] = useState<View>(() => (localStorage.getItem('lastActiveView') as View) || 'DASHBOARD');
+    
     const [isSaving, setIsSaving] = useState(false);
-    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
     const [notification, setNotification] = useState<NotificationState>(null);
     const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
-    
-    // Modal & Print States
-    const [provisionalReceiptBilling, setProvisionalReceiptBilling] = useState<Billing | null>(null);
-    const [provisionalReceiptCallback, setProvisionalReceiptCallback] = useState<(() => void) | null>(null);
-    const [finalizedBilling, setFinalizedBilling] = useState<Billing | null>(null);
-    const [finalizedDebtPayment, setFinalizedDebtPayment] = useState<DebtPayment | null>(null);
+
+    // Theme and PWA states
+    const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(false);
+
+    // Modal States
+    const [billingModalState, setBillingModalState] = useState<{ customer: Customer; equipment: Equipment } | null>(null);
+    const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
+    const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
+    const [payingDebtCustomer, setPayingDebtCustomer] = useState<Customer | null>(null);
+    const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
+    const [sharingCustomer, setSharingCustomer] = useState<Customer | null>(null);
+    const [receiptActionsModalState, setReceiptActionsModalState] = useState<{ billing: Billing; isProvisional: boolean } | null>(null);
+    const [debtReceiptActionsModalState, setDebtReceiptActionsModalState] = useState<{ debtPayment: DebtPayment, customer: Customer } | null>(null);
+    const [receiptModalState, setReceiptModalState] = useState<{ billing: Billing, isProvisional: boolean } | null>(null);
+    const [debtReceiptModalState, setDebtReceiptModalState] = useState<DebtPayment | null>(null);
+    const [equipmentSelectionCustomer, setEquipmentSelectionCustomer] = useState<Customer | null>(null);
+    const [focusedCustomer, setFocusedCustomer] = useState<Customer | null>(null);
     const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
-
-    // PWA Install Prompt State
-    const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-
-    // Effect for Service Worker registration
-    useEffect(() => {
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          const swUrl = `${window.location.origin}/sw.js`;
-          navigator.serviceWorker.register(swUrl)
-            .then(registration => {
-              console.log('Service Worker registered successfully:', registration.scope);
-            })
-            .catch(error => {
-              console.error('Service Worker registration failed:', error);
-            });
-        });
-      }
-    }, []);
-
-    // Effect to save currentView whenever it changes
-    useEffect(() => {
-        localStorage.setItem('lastActiveView', currentView);
-    }, [currentView]);
-
-    useEffect(() => {
-        const root = window.document.documentElement;
-        root.classList.remove(theme === 'dark' ? 'light' : 'dark');
-        root.classList.add(theme);
-        localStorage.setItem('theme', theme);
-    }, [theme]);
-
-    useEffect(() => {
-        // Apply theme colors on initial load
-        const savedColors = localStorage.getItem('appThemeColors');
-        if (savedColors) {
-            try {
-                applyThemeColors(JSON.parse(savedColors));
-            } catch (e) {
-                console.error('Failed to parse theme colors from localStorage', e);
-                applyThemeColors(defaultColors);
-            }
-        } else {
-            // If no saved colors, apply defaults (which are already in index.html, but this is a good fallback)
-            applyThemeColors(defaultColors);
-        }
-    }, []);
-
-    useEffect(() => {
-        const handleBeforeInstallPrompt = (e: Event) => {
-            e.preventDefault();
-            console.log('beforeinstallprompt event fired');
-            setDeferredInstallPrompt(e);
-        };
-
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        };
-    }, []);
-
+    
+    // Handlers
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setNotification({ message, type });
     }, []);
 
-
-   useEffect(() => {
-    try {
-        const parseWithDates = (jsonString: string | null, dateFields: string[]): any[] => {
-            if (!jsonString) return [];
-            const items = JSON.parse(jsonString);
-            if (!Array.isArray(items)) return [];
-            return items.map(item => {
-                for (const field of dateFields) {
-                    if (item[field]) {
-                        item[field] = new Date(item[field]);
-                    }
-                }
-                return item;
-            });
-        };
-
-        const storedCustomers = localStorage.getItem('customers');
-        if (storedCustomers) {
-            setCustomers(parseWithDates(storedCustomers, ['createdAt', 'lastVisitedAt']));
-        }
-        
-        setBillings(parseWithDates(localStorage.getItem('billings'), ['settledAt']));
-        setExpenses(parseWithDates(localStorage.getItem('expenses'), ['date']));
-        setDebtPayments(parseWithDates(localStorage.getItem('debtPayments'), ['paidAt']));
-        setWarnings(parseWithDates(localStorage.getItem('warnings'), ['createdAt']));
-        
-        const storedBackupDate = localStorage.getItem('lastBackupDate');
-        setLastBackupDate(storedBackupDate);
-
-    } catch (error) {
-        console.error("Failed to load data from localStorage", error);
-        showNotification("Erro ao carregar os dados.", "error");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []); // Run only once on initial mount
-
-    useEffect(() => {
+    const saveData = useCallback(() => {
         try {
-            // Save only if there's data to prevent creating empty keys
-            if (customers.length > 0) localStorage.setItem('customers', JSON.stringify(customers));
-            else localStorage.removeItem('customers');
-
-            if (billings.length > 0) localStorage.setItem('billings', JSON.stringify(billings));
-            else localStorage.removeItem('billings');
-
-            if (expenses.length > 0) localStorage.setItem('expenses', JSON.stringify(expenses));
-            else localStorage.removeItem('expenses');
-
-            if (debtPayments.length > 0) localStorage.setItem('debtPayments', JSON.stringify(debtPayments));
-            else localStorage.removeItem('debtPayments');
-
-            if (warnings.length > 0) localStorage.setItem('warnings', JSON.stringify(warnings));
-            else localStorage.removeItem('warnings');
-
+            localStorage.setItem('customers', JSON.stringify(customers));
+            localStorage.setItem('billings', JSON.stringify(billings));
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            localStorage.setItem('debtPayments', JSON.stringify(debtPayments));
+            localStorage.setItem('warnings', JSON.stringify(warnings));
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
-            showNotification("Erro ao salvar os dados.", "error");
+            showNotification("Erro ao salvar dados. O armazenamento pode estar cheio.", "error");
         }
     }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
 
-    const handleShareReceipt = useCallback(async (billing: Billing, isProvisional: boolean = false) => {
-        const customer = customers.find(c => c.id === billing.customerId);
-        if (!customer) return;
-
-        const receiptText = generateBillingText(billing, isProvisional);
-
-        const cleanup = () => {
-            if (isProvisional) {
-                if (provisionalReceiptCallback) provisionalReceiptCallback();
-                setProvisionalReceiptBilling(null);
-                setProvisionalReceiptCallback(null);
-            } else {
-                setFinalizedBilling(null);
-            }
-        };
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Comprovante - ${customer.name}`,
-                    text: receiptText,
+    // Data loading and saving effects
+    useEffect(() => {
+      try {
+        const parseWithDates = (key: string, dateFields: string[]) => {
+            const data = localStorage.getItem(key);
+            if (!data) return [];
+            return JSON.parse(data).map((item: any) => {
+                dateFields.forEach(field => {
+                    if (item[field]) item[field] = new Date(item[field]);
                 });
-            } catch (error) {
-                if ((error as DOMException).name !== 'AbortError') {
-                    console.error('Share API error:', error);
-                    showNotification('O compartilhamento falhou.', 'error');
-                }
-            } finally {
-                cleanup();
-            }
-        } else {
-            const phone = customer.telefone?.replace(/\D/g, '');
-            if (phone) {
-                const url = `https://wa.me/55${phone}?text=${encodeURIComponent(receiptText)}`;
-                window.open(url, '_blank');
-            } else {
-                showNotification('Cliente sem telefone cadastrado.', 'error');
-            }
-            cleanup();
-        }
-    }, [customers, showNotification, provisionalReceiptCallback]);
-
-    const handleShareDebtReceipt = useCallback(async (debtPayment: DebtPayment) => {
-        const customer = customers.find(c => c.id === debtPayment.customerId);
-        if (!customer) return;
-
-        const receiptText = generateDebtText(debtPayment);
+                return item;
+            });
+        };
+        setCustomers(parseWithDates('customers', ['createdAt', 'lastVisitedAt']));
+        setBillings(parseWithDates('billings', ['settledAt']));
+        setExpenses(parseWithDates('expenses', ['date']));
+        setDebtPayments(parseWithDates('debtPayments', ['paidAt']));
+        setWarnings(parseWithDates('warnings', ['createdAt']));
+        setLastBackupDate(localStorage.getItem('lastBackupDate'));
         
-        const cleanup = () => {
-            setFinalizedDebtPayment(null);
+        const savedColors = localStorage.getItem('appThemeColors');
+        applyThemeColors(savedColors ? JSON.parse(savedColors) : defaultColors);
+      } catch (e) {
+        console.error("Failed to load data from localStorage", e);
+        showNotification("Erro ao carregar dados salvos.", "error");
+      }
+    }, []);
+    
+    useEffect(() => {
+      const timeoutId = setTimeout(saveData, 500);
+      return () => clearTimeout(timeoutId);
+    }, [saveData]);
+    
+    useEffect(() => {
+        localStorage.setItem('lastActiveView', currentView);
+        document.title = `${viewTitles[currentView]} - Montanha Bilhar`;
+    }, [currentView]);
+
+    useEffect(() => {
+        const handler = (e: Event) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+            setIsInstallBannerVisible(true);
         };
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Comprovante de Pagamento - ${customer.name}`,
-                    text: receiptText,
-                });
-            } catch (error) {
-                if ((error as DOMException).name !== 'AbortError') {
-                    console.error('Share API error:', error);
-                    showNotification('O compartilhamento falhou.', 'error');
-                }
-            } finally {
-                cleanup();
-            }
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+    
+    const setTheme = useCallback((newTheme: Theme) => {
+        setThemeState(newTheme);
+        localStorage.setItem('theme', newTheme);
+        if (newTheme === 'dark') {
+            document.documentElement.classList.add('dark');
         } else {
-            const phone = customer.telefone?.replace(/\D/g, '');
-            if (phone) {
-                const url = `https://wa.me/55${phone}?text=${encodeURIComponent(receiptText)}`;
-                window.open(url, '_blank');
-            } else {
-                showNotification('Cliente sem telefone cadastrado.', 'error');
-            }
-            cleanup();
+            document.documentElement.classList.remove('dark');
         }
-    }, [customers, showNotification]);
+    }, []);
 
-    const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
+    const handleShareText = async (text: string, title: string) => {
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: title,
+                    text: text,
+                });
+            } else {
+                await navigator.clipboard.writeText(text);
+                showNotification('Recibo copiado! Cole no app desejado.', 'success');
+            }
+        } catch (error) {
+            if ((error as DOMException).name !== 'AbortError') {
+                console.error('Share API error:', error);
+                showNotification('O compartilhamento falhou.', 'error');
+            }
+        }
+    };
+
+    const handlePrintRawBt = async (text: string) => {
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: 'Imprimir Recibo via RawBT',
+                    text: text,
+                });
+                showNotification('Pronto para imprimir no RawBT!', 'success');
+            } else {
+                showNotification('Seu navegador não suporta compartilhamento para impressão.', 'error');
+            }
+        } catch (error) {
+            if ((error as DOMException).name !== 'AbortError') {
+                console.error('Share API error for RawBT:', error);
+                showNotification('O compartilhamento para impressão falhou.', 'error');
+            }
+        }
+    };
+
+    // Customer Handlers
+    const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
         setIsSaving(true);
         const newCustomer: Customer = {
             ...customerData,
             id: uuidv4(),
             createdAt: new Date(),
             debtAmount: 0,
-            lastVisitedAt: null,
+            lastVisitedAt: null
         };
         setCustomers(prev => [...prev, newCustomer]);
+        showNotification(`Cliente "${newCustomer.name}" adicionado com sucesso!`);
         setIsSaving(false);
-        showNotification("Cliente adicionado com sucesso!", "success");
-    };
+    }, [showNotification]);
 
-    const handleUpdateCustomer = async (updatedCustomer: Customer) => {
+    const handleUpdateCustomer = useCallback(async (updatedCustomer: Customer) => {
         setIsSaving(true);
         setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+        setEditCustomer(null);
+        showNotification(`Cliente "${updatedCustomer.name}" atualizado!`);
         setIsSaving(false);
-        showNotification("Cliente atualizado com sucesso!", "success");
-    };
+    }, [showNotification]);
 
-    const handleDeleteCustomer = (customerId: string) => {
-        setCustomers(prev => prev.filter(c => c.id !== customerId));
-        setBillings(prev => prev.filter(b => b.customerId !== customerId));
-        setDebtPayments(prev => prev.filter(dp => dp.customerId !== customerId));
-        setWarnings(prev => prev.filter(w => w.customerId !== customerId));
-        showNotification("Cliente excluído com sucesso!", "success");
-    };
+    const handleConfirmDeleteCustomer = useCallback(() => {
+        if (!deleteCustomer) return;
+        setCustomers(prev => prev.filter(c => c.id !== deleteCustomer.id));
+        setBillings(prev => prev.filter(b => b.customerId !== deleteCustomer.id));
+        setDebtPayments(prev => prev.filter(p => p.customerId !== deleteCustomer.id));
+        setWarnings(prev => prev.filter(w => w.customerId !== deleteCustomer.id));
+        showNotification(`Cliente "${deleteCustomer.name}" e todos os seus dados foram excluídos.`);
+        setDeleteCustomer(null);
+    }, [deleteCustomer, showNotification]);
 
-    const handleAddBilling = (billing: Billing) => {
-        setBillings(prev => [...prev, billing]);
-
-        setCustomers(prevCustomers => {
-            return prevCustomers.map(customer => {
-                if (customer.id === billing.customerId) {
-                    const updatedEquipment = customer.equipment.map(equip => {
-                        if (equip.id === billing.equipmentId) {
-                            return { ...equip, relogioAnterior: billing.relogioAtual };
-                        }
-                        return equip;
-                    });
-    
-                    const existingDebt = Number(customer.debtAmount) || 0;
-                    const newFiado = Number(billing.valorPagoFiado) || 0;
-                    let finalDebt = existingDebt;
-
-                    if (newFiado > 0 && billing.equipmentType !== 'grua') {
-                        finalDebt = existingDebt + newFiado;
-                    }
-    
-                    return { 
-                        ...customer, 
-                        equipment: updatedEquipment, 
-                        debtAmount: finalDebt, 
-                        lastVisitedAt: new Date() 
-                    };
-                }
-                return customer;
-            });
-        });
-        
-        if (billing.equipmentType !== 'grua') {
-            setFinalizedBilling(billing);
+    // Billing Handlers
+    const handleSelectEquipmentForBilling = useCallback((customer: Customer) => {
+        if (customer.equipment.length === 1) {
+            setBillingModalState({ customer, equipment: customer.equipment[0] });
         } else {
-            showNotification("Cobrança de grua finalizada!", "success");
+            setEquipmentSelectionCustomer(customer);
         }
-    };
-    
-    const handleDeleteBilling = (billingId: string) => {
-        const billingToDelete = billings.find(b => b.id === billingId);
-        if (!billingToDelete) {
-            showNotification("Cobrança não encontrada.", "error");
-            return;
-        }
-    
-        setCustomers(prevCustomers => prevCustomers.map(customer => {
-            if (customer.id === billingToDelete.customerId) {
-                const updatedEquipment = customer.equipment.map(equip => {
-                    if (equip.id === billingToDelete.equipmentId) {
-                        return { ...equip, relogioAnterior: billingToDelete.relogioAnterior };
-                    }
-                    return equip;
-                });
-    
-                const existingDebt = Number(customer.debtAmount) || 0;
-                const fiadoToReverse = Number(billingToDelete.valorPagoFiado) || 0;
-                let finalDebt = existingDebt;
+    }, []);
 
-                if (fiadoToReverse > 0 && billingToDelete.equipmentType !== 'grua') {
-                    finalDebt = existingDebt - fiadoToReverse;
-                }
-                
-                return { 
-                    ...customer, 
-                    equipment: updatedEquipment, 
-                    debtAmount: Math.max(0, finalDebt) 
-                };
+    const handleAddBilling = useCallback((billing: Billing) => {
+        setBillings(prev => [...prev, billing]);
+        setCustomers(prev => prev.map(c => {
+            if (c.id === billing.customerId) {
+                const updatedEquipment = c.equipment.map(e => e.id === billing.equipmentId ? { ...e, relogioAnterior: billing.relogioAtual } : e);
+                return { ...c, debtAmount: c.debtAmount + (billing.valorPagoFiado || 0), lastVisitedAt: new Date(), equipment: updatedEquipment };
             }
-            return customer;
+            return c;
         }));
+        setBillingModalState(null);
+        setReceiptActionsModalState({ billing, isProvisional: false });
+    }, []);
     
-        setBillings(prevBillings => prevBillings.filter(b => b.id !== billingId));
-        showNotification("Cobrança excluída com sucesso!", "success");
-    };
+    const handleDeleteBilling = useCallback((billingId: string) => {
+        const billingToDelete = billings.find(b => b.id === billingId);
+        if (!billingToDelete) return;
 
-    const handleAddExpense = (description: string, amount: number, category: Expense['category']) => {
-        const newExpense: Expense = {
-            id: uuidv4(),
-            description,
-            amount,
-            date: new Date(),
-            category,
-        };
-        setExpenses(prev => [...prev, newExpense]);
-        showNotification("Despesa adicionada com sucesso!", "success");
-    };
+        setBillings(prev => prev.filter(b => b.id !== billingId));
+        setCustomers(prev => prev.map(c => {
+            if (c.id === billingToDelete.customerId) {
+                const updatedEquipment = c.equipment.map(e => e.id === billingToDelete.equipmentId ? { ...e, relogioAnterior: billingToDelete.relogioAnterior } : e);
+                return { ...c, debtAmount: Math.max(0, c.debtAmount - (billingToDelete.valorPagoFiado || 0)), equipment: updatedEquipment };
+            }
+            return c;
+        }));
+        showNotification("Cobrança excluída e dados revertidos.");
+    }, [billings, showNotification]);
 
-    const handleDeleteExpense = (expenseId: string) => {
-        setExpenses(prev => prev.filter(e => e.id !== expenseId));
-        showNotification("Despesa excluída com sucesso!", "success");
-    };
-    
-    const handlePayDebt = (customerId: string, amountPaid: number, paymentMethod: 'pix' | 'dinheiro') => {
-        const customer = customers.find(c => c.id === customerId);
-        if (!customer) return;
+    const handleTriggerProvisionalReceipt = useCallback((billing: Billing, onComplete: () => void) => {
+        setReceiptActionsModalState({ billing, isProvisional: true });
+        onComplete();
+    }, []);
 
-        const newPayment: DebtPayment = {
-            id: uuidv4(),
-            customerId,
-            customerName: customer.name,
-            amountPaid,
-            paidAt: new Date(),
-            paymentMethod,
-        };
+    // Debt & Expense Handlers
+    const handleAddDebtPayment = useCallback((amount: number, paymentMethod: 'pix' | 'dinheiro') => {
+        if (!payingDebtCustomer) return;
+        const newPayment: DebtPayment = { id: uuidv4(), customerId: payingDebtCustomer.id, customerName: payingDebtCustomer.name, amountPaid: amount, paidAt: new Date(), paymentMethod };
         setDebtPayments(prev => [...prev, newPayment]);
-        setCustomers(prev => prev.map(c => 
-            c.id === customerId ? { ...c, debtAmount: (Number(c.debtAmount) || 0) - amountPaid } : c
-        ));
-        setFinalizedDebtPayment(newPayment);
-    };
+        setCustomers(prev => prev.map(c => c.id === payingDebtCustomer.id ? { ...c, debtAmount: Math.max(0, c.debtAmount - amount) } : c));
+        setPayingDebtCustomer(null);
+        setDebtReceiptActionsModalState({ debtPayment: newPayment, customer: payingDebtCustomer });
+    }, [payingDebtCustomer]);
 
-    const handleAddWarning = (customerId: string, message: string) => {
+    const handleAddExpense = useCallback((description: string, amount: number, category: Expense['category']) => {
+        const newExpense: Expense = { id: uuidv4(), description, amount, date: new Date(), category };
+        setExpenses(prev => [...prev, newExpense]);
+        showNotification("Despesa adicionada.");
+    }, [showNotification]);
+    
+    const handleDeleteExpense = useCallback((expenseId: string) => {
+        setExpenses(prev => prev.filter(e => e.id !== expenseId));
+        showNotification("Despesa excluída.");
+    }, [showNotification]);
+    
+    // Warning Handlers
+    const handleAddWarning = useCallback((customerId: string, message: string) => {
         const customer = customers.find(c => c.id === customerId);
         if (!customer) return;
-        const newWarning: Warning = {
-            id: uuidv4(),
-            customerId,
-            customerName: customer.name,
-            message,
-            createdAt: new Date(),
-            isResolved: false,
-        };
+        const newWarning: Warning = { id: uuidv4(), customerId, customerName: customer.name, message, createdAt: new Date(), isResolved: false };
         setWarnings(prev => [...prev, newWarning]);
-        showNotification("Aviso adicionado com sucesso!", "success");
-    };
+        showNotification(`Aviso adicionado para ${customer.name}.`);
+    }, [customers, showNotification]);
 
-    const handleResolveWarning = (warningId: string) => {
+    const handleResolveWarning = useCallback((warningId: string) => {
         setWarnings(prev => prev.map(w => w.id === warningId ? { ...w, isResolved: true } : w));
-        showNotification("Aviso marcado como resolvido.", "success");
-    };
-
-    const handleDeleteWarning = (warningId: string) => {
-        setWarnings(prev => prev.filter(w => w.id !== warningId));
-        showNotification("Aviso excluído.", "success");
-    };
+        showNotification("Aviso marcado como resolvido.");
+    }, [showNotification]);
     
-    const handleExportData = () => {
-        const data = {
-            customers,
-            billings,
-            expenses,
-            debtPayments,
-            warnings,
-        };
-        const dataStr = JSON.stringify(data, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = `montanha_bilhar_backup_${new Date().toISOString().split('T')[0]}.json`;
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
+    const handleDeleteWarning = useCallback((warningId: string) => {
+        setWarnings(prev => prev.filter(w => w.id !== warningId));
+        showNotification("Aviso excluído.");
+    }, [showNotification]);
 
-        const backupDate = new Date().toISOString();
-        localStorage.setItem('lastBackupDate', backupDate);
-        setLastBackupDate(backupDate);
+    // Data Management Handlers
+    const handleExportData = useCallback(() => {
+        const data = { customers, billings, expenses, debtPayments, warnings, version: 1 };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `backup-montanha-bilhar-${date}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setLastBackupDate(new Date().toISOString());
+        localStorage.setItem('lastBackupDate', new Date().toISOString());
+        showNotification("Backup exportado com sucesso!");
+    }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
 
-        showNotification("Dados exportados!", "success");
-    };
-
-    const handleMergeData = (file: File) => {
+    const handleMergeData = useCallback((file: File) => {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = (e) => {
             try {
-                const data = JSON.parse(event.target?.result as string);
-                
-                const mergeById = (existing: any[], incoming: any[]) => {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("File content is not text.");
+                const importedData = JSON.parse(text);
+
+                // Simple merge: Use a Map to update existing items or add new ones.
+                const merge = (existing: any[], incoming: any[]) => {
                     const map = new Map(existing.map(item => [item.id, item]));
                     incoming.forEach(item => map.set(item.id, item));
                     return Array.from(map.values());
                 };
 
-                if (data.customers) setCustomers(prev => mergeById(prev, data.customers));
-                if (data.billings) setBillings(prev => mergeById(prev, data.billings));
-                if (data.expenses) setExpenses(prev => mergeById(prev, data.expenses));
-                if (data.debtPayments) setDebtPayments(prev => mergeById(prev, data.debtPayments));
-                if (data.warnings) setWarnings(prev => mergeById(prev, data.warnings));
-
-                showNotification("Dados importados e mesclados com sucesso!", "success");
-            } catch (e) {
-                console.error("Error parsing JSON file", e);
-                showNotification("Erro ao ler o arquivo. Verifique se é um JSON válido.", "error");
+                setCustomers(prev => merge(prev, importedData.customers || []));
+                setBillings(prev => merge(prev, importedData.billings || []));
+                setExpenses(prev => merge(prev, importedData.expenses || []));
+                setDebtPayments(prev => merge(prev, importedData.debtPayments || []));
+                setWarnings(prev => merge(prev, importedData.warnings || []));
+                
+                showNotification("Dados importados e mesclados com sucesso!");
+            } catch (error) {
+                console.error("Error importing data:", error);
+                showNotification("Erro ao importar arquivo. Verifique o formato.", "error");
             }
         };
         reader.readAsText(file);
-    };
+    }, [showNotification]);
 
-    const handleAddCustomerFromText = (text: string) => {
+    const handleAddCustomerFromText = useCallback((text: string) => {
         try {
-            const parsed = JSON.parse(text);
-            // Basic validation
-            if (parsed.name && parsed.cidade && Array.isArray(parsed.equipment)) {
-                const customerData = {
-                    name: parsed.name || '',
-                    cpfRg: parsed.cpfRg || '',
-                    cidade: parsed.cidade || '',
-                    endereco: parsed.endereco || '',
-                    telefone: parsed.telefone || '',
-                    linhaNumero: parsed.linhaNumero || '',
-                    assinaturaFirma: '',
-                    assinaturaCliente: '',
-                    equipment: parsed.equipment.map((eq: any) => ({ ...eq, id: uuidv4() })),
-                    latitude: parsed.latitude || null,
-                    longitude: parsed.longitude || null,
-                };
-                handleAddCustomer(customerData);
-            } else {
-                throw new Error("Dados do cliente incompletos ou mal formatados.");
+            const parsedData = JSON.parse(text);
+            handleAddCustomer(parsedData); // Re-uses the add customer logic
+        } catch (e) {
+            showNotification("Texto inválido. Verifique o formato JSON.", "error");
+        }
+    }, [handleAddCustomer, showNotification]);
+
+    const handleInstallPrompt = () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+            if (choiceResult.outcome === 'accepted') {
+                showNotification('App instalado com sucesso!');
             }
-        } catch (error) {
-            console.error(error);
-            showNotification("Texto inválido. Verifique o formato dos dados.", "error");
-        }
+            setDeferredPrompt(null);
+            setIsInstallBannerVisible(false);
+        });
     };
-    
-    const handleTriggerProvisionalReceiptAction = useCallback((billing: Billing, onComplete: () => void) => {
-        setProvisionalReceiptBilling(billing);
-        setProvisionalReceiptCallback(() => onComplete);
-    }, []);
-
-    const handlePrintCustomer = useCallback((customer: Customer) => {
-        setPrintingCustomer(customer);
-    }, []);
-
-    const handleInstallClick = () => {
-        if (deferredInstallPrompt) {
-            deferredInstallPrompt.prompt();
-            deferredInstallPrompt.userChoice.then((choiceResult: any) => {
-                if (choiceResult.outcome === 'accepted') {
-                    showNotification('Aplicativo instalado com sucesso!');
-                }
-                setDeferredInstallPrompt(null);
-            });
-        }
-    };
-
-    const handleDismissInstall = () => {
-        setDeferredInstallPrompt(null);
-    };
-
-    const renderView = () => {
-        switch (currentView) {
-            case 'DASHBOARD':
-                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />;
-            case 'CLIENTES':
-                return <ClientesView customers={customers} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onAddBilling={handleAddBilling} onPayDebt={handlePayDebt} billings={billings} debtPayments={debtPayments} warnings={warnings} isSaving={isSaving} showNotification={showNotification} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} onPrintCustomer={handlePrintCustomer} />;
-            case 'COBRANCAS':
-                return <CobrancasView billings={billings} customers={customers} onShowReceipt={setFinalizedBilling} onDeleteBilling={handleDeleteBilling}/>;
-            case 'EQUIPAMENTOS':
-                return <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} />;
-            case 'DESPESAS':
-                return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
-            case 'ROTAS':
-                return <RotasView customers={customers} />;
-            case 'RELATORIOS':
-                return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />;
-            case 'CONFIGURACOES':
-                return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} showNotification={showNotification} />;
-            default:
-                return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />;
-        }
-    };
-    
-    const customerForFinalizedBilling = useMemo(() => {
-        return customers.find(c => c.id === finalizedBilling?.customerId);
-    }, [finalizedBilling, customers]);
-
-    const customerForProvisionalBilling = useMemo(() => {
-        return customers.find(c => c.id === provisionalReceiptBilling?.customerId);
-    }, [provisionalReceiptBilling, customers]);
-
-    const customerForFinalizedDebtPayment = useMemo(() => {
-        return customers.find(c => c.id === finalizedDebtPayment?.customerId);
-    }, [finalizedDebtPayment, customers]);
 
     return (
-        <div className="text-slate-800 dark:text-slate-100 min-h-screen">
-            <div className="flex">
-                <Sidebar 
-                    currentView={currentView} 
-                    setView={setCurrentView} 
-                    isOpen={isSidebarOpen} 
-                    setIsOpen={setIsSidebarOpen}
-                />
-                <main className="flex-1 p-4 sm:p-8 transition-all duration-300 md:ml-64 mb-16 md:mb-0">
-                    <MobileHeader 
-                        title={viewTitles[currentView]}
-                        onMenuClick={() => setIsSidebarOpen(true)}
-                    />
-                    {renderView()}
-                </main>
-            </div>
-            <BottomNavBar currentView={currentView} setView={setCurrentView} />
-
+        <div className={`flex h-full font-sans antialiased ${theme}`}>
+            <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+            <main className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
+                <MobileHeader title={viewTitles[currentView]} onMenuClick={() => setIsSidebarOpen(true)} />
+                <div className="flex-grow">
+                    {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
+                    {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} />}
+                    {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onDeleteBilling={handleDeleteBilling} />}
+                    {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} />}
+                    {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
+                    {currentView === 'ROTAS' && <RotasView customers={customers} />}
+                    {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />}
+                    {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />}
+                </div>
+            </main>
+            
             <Notification notification={notification} onClose={() => setNotification(null)} />
+            <BottomNavBar currentView={currentView} setView={setCurrentView} />
+            {deferredPrompt && isInstallBannerVisible && <InstallPwaBanner onInstall={handleInstallPrompt} onDismiss={() => setIsInstallBannerVisible(false)} />}
             
-            {(provisionalReceiptBilling && provisionalReceiptCallback) && (
-                 <ReceiptActionsModal
-                    isOpen={true}
-                    billing={provisionalReceiptBilling}
-                    isProvisional={true}
-                    onClose={() => {
-                        provisionalReceiptCallback();
-                        setProvisionalReceiptBilling(null);
-                        setProvisionalReceiptCallback(null);
-                    }}
-                    onWhatsApp={() => handleShareReceipt(provisionalReceiptBilling, true)}
-                    customerHasPhone={!!customerForProvisionalBilling?.telefone}
-                    showNotification={showNotification}
-                />
-            )}
-            
-            {finalizedBilling && (
-                <ReceiptActionsModal
-                    isOpen={!!finalizedBilling}
-                    billing={finalizedBilling}
-                    isProvisional={false}
-                    onClose={() => setFinalizedBilling(null)}
-                    onWhatsApp={() => handleShareReceipt(finalizedBilling)}
-                    customerHasPhone={!!customerForFinalizedBilling?.telefone}
-                    showNotification={showNotification}
-                />
-            )}
-
-            {finalizedDebtPayment && (
-                 <DebtReceiptActionsModal
-                    isOpen={!!finalizedDebtPayment}
-                    onClose={() => setFinalizedDebtPayment(null)}
-                    debtPayment={finalizedDebtPayment}
-                    onWhatsApp={() => handleShareDebtReceipt(finalizedDebtPayment)}
-                    customerHasPhone={!!customerForFinalizedDebtPayment?.telefone}
-                    showNotification={showNotification}
-                />
-            )}
-
-            {deferredInstallPrompt && (
-                <InstallPwaBanner
-                    onInstall={handleInstallClick}
-                    onDismiss={handleDismissInstall}
-                />
-            )}
-
-            {printingCustomer && (
-              <PrintPreviewOverlay 
-                customer={printingCustomer} 
-                onCancel={() => setPrintingCustomer(null)} 
-              />
-            )}
+            {/* --- Modals --- */}
+            {equipmentSelectionCustomer && <EquipmentSelectionModal isOpen={!!equipmentSelectionCustomer} onClose={() => setEquipmentSelectionCustomer(null)} customer={equipmentSelectionCustomer} onSelect={(equip) => { setBillingModalState({ customer: equipmentSelectionCustomer, equipment: equip }); setEquipmentSelectionCustomer(null); }} />}
+            {billingModalState && <BillingModal isOpen={!!billingModalState} onClose={() => setBillingModalState(null)} onConfirm={handleAddBilling} customer={billingModalState.customer} equipment={billingModalState.equipment} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceipt} />}
+            {editCustomer && <EditCustomerModal isOpen={!!editCustomer} onClose={() => setEditCustomer(null)} onConfirm={handleUpdateCustomer} customer={editCustomer} customers={customers} isSaving={isSaving} showNotification={showNotification} />}
+            {payingDebtCustomer && <DebtPaymentModal isOpen={!!payingDebtCustomer} onClose={() => setPayingDebtCustomer(null)} onConfirm={handleAddDebtPayment} customer={payingDebtCustomer} />}
+            {historyCustomer && <HistoryModal isOpen={!!historyCustomer} onClose={() => setHistoryCustomer(null)} customer={historyCustomer} billings={billings} debtPayments={debtPayments} />}
+            {sharingCustomer && <ShareCustomerModal isOpen={!!sharingCustomer} onClose={() => setSharingCustomer(null)} customer={sharingCustomer} showNotification={showNotification} onPrintCustomer={setPrintingCustomer} />}
+            {deleteCustomer && <ActionModal isOpen={!!deleteCustomer} onClose={() => setDeleteCustomer(null)} onConfirm={handleConfirmDeleteCustomer} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir o cliente <strong>{deleteCustomer.name}</strong>? Todos os seus dados, incluindo histórico de cobranças e dívidas, serão permanentemente removidos. Esta ação não pode ser desfeita.</p></ActionModal>}
+            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={() => { const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => { setReceiptModalState({ billing: receiptActionsModalState.billing, isProvisional: receiptActionsModalState.isProvisional }); setReceiptActionsModalState(null); }} onPrintRawBt={() => { const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); handlePrintRawBt(text); setReceiptActionsModalState(null); }} />}
+            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={() => { const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => { setDebtReceiptModalState(debtReceiptActionsModalState.debtPayment); setDebtReceiptActionsModalState(null); }} onPrintRawBt={() => { const text = generateDebtText(debtReceiptActionsModalState.debtPayment); handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} />}
+            {receiptModalState && <ReceiptModal isOpen={!!receiptModalState} onClose={() => setReceiptModalState(null)} billing={receiptModalState.billing} isProvisional={receiptModalState.isProvisional} showNotification={showNotification} />}
+            {debtReceiptModalState && <DebtReceiptModal isOpen={!!debtReceiptModalState} onClose={() => setDebtReceiptModalState(null)} debtPayment={debtReceiptModalState} showNotification={showNotification} />}
+            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleSelectEquipmentForBilling} onEdit={setEditCustomer} onDelete={setDeleteCustomer} onPayDebt={setPayingDebtCustomer} onHistory={setHistoryCustomer} onShare={setSharingCustomer} billings={billings} debtPayments={debtPayments} />}
+            {printingCustomer && <PrintPreviewOverlay customer={printingCustomer} onCancel={() => setPrintingCustomer(null)} />}
         </div>
     );
 };

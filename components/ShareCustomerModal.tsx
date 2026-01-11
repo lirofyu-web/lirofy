@@ -3,6 +3,8 @@ import React from 'react';
 import { Customer } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { DocumentDuplicateIcon } from './icons/DocumentDuplicateIcon';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { generateCustomerShareText } from '../utils/receiptGenerator';
 
 
 interface ShareCustomerModalProps {
@@ -44,6 +46,30 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
     onClose();
   };
 
+  const handleShareWhatsApp = async () => {
+    const shareText = generateCustomerShareText(customer);
+    
+    try {
+        if (navigator.share) {
+            await navigator.share({
+                title: `Dados do Cliente - ${customer.name}`,
+                text: shareText,
+            });
+        } else {
+            // Fallback for browsers that don't support navigator.share
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+    } catch (error) {
+        if ((error as DOMException).name !== 'AbortError') {
+            console.error('Share API error:', error);
+            showNotification('O compartilhamento falhou.', 'error');
+        }
+    } finally {
+        onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -77,6 +103,16 @@ const ShareCustomerModal: React.FC<ShareCustomerModalProps> = ({ isOpen, onClose
                 <div>
                     <h3 className="font-bold text-white">Copiar Dados (JSON)</h3>
                     <p className="text-sm text-slate-400">Copia os dados brutos. Útil para backups ou importação em texto.</p>
+                </div>
+            </button>
+            <button
+                onClick={handleShareWhatsApp}
+                className="w-full flex items-center gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-left hover:bg-slate-700/50 hover:border-green-500 transition-colors"
+            >
+                <WhatsAppIcon className="w-8 h-8 text-green-400 flex-shrink-0" />
+                <div>
+                    <h3 className="font-bold text-white">WhatsApp (Texto)</h3>
+                    <p className="text-sm text-slate-400">Compartilha um resumo em texto simples via WhatsApp ou outro app.</p>
                 </div>
             </button>
         </div>

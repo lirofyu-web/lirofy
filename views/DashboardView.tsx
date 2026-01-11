@@ -11,7 +11,6 @@ import { ChartBarIcon } from '../components/icons/ChartBarIcon';
 import { CreditCardIcon } from '../components/icons/CreditCardIcon';
 import WarningsReminders from '../components/WarningsReminders';
 import BackupReminder from '../components/BackupReminder';
-// FIX: Import CalculatorIcon to fix 'Cannot find name' error.
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 
 
