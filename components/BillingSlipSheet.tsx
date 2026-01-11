@@ -64,21 +64,31 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
                 <FilledField label="Telefone" value={customer.telefone} icon={<PhoneIcon className="w-3.5 h-3.5"/>} />
                 
                 {/* Equipment Info */}
-                 <FilledField label="Equip." value={`${equipment.type === 'mesa' ? 'Mesa' : 'Jukebox'} Nº ${equipment.numero}`} className="col-span-2 mt-1 pt-1 border-t border-gray-200" />
+                <FilledField label="Equip." value={`${equipment.type === 'mesa' ? 'Mesa' : 'Jukebox'} Nº ${equipment.numero}`} className="col-span-2 mt-1 pt-1 border-t border-gray-200" />
+                
+                {equipment.type === 'mesa' && equipment.billingType === 'monthly' && (
+                    <FilledField 
+                        label="Mensalidade Fixa" 
+                        value={`R$ ${(equipment.monthlyFeeValue ?? 0).toFixed(2)}`}
+                        className="col-span-2"
+                        valueClassName="text-base"
+                    />
+                )}
+
                 {equipment.type === 'mesa' && equipment.billingType !== 'monthly' && (
-                    <FilledField label="Vlr Ficha" value={`R$ ${(equipment.valorFicha ?? 0).toFixed(2)}`} />
+                    <>
+                        <FilledField label="Vlr Ficha" value={`R$ ${(equipment.valorFicha ?? 0).toFixed(2)}`} />
+                        <div />
+                        <FilledField label="Firma" value={`${equipment.parteFirma ?? 0}%`} />
+                        <FilledField label="Cliente" value={`${equipment.parteCliente ?? 0}%`} />
+                    </>
                 )}
-                {equipment.type === 'mesa' && equipment.billingType !== 'monthly' && (
-                     <FilledField label="Firma" value={`${equipment.parteFirma ?? 0}%`} />
-                )}
-                 {equipment.type === 'jukebox' && (
-                     <FilledField label="Firma" value={`${equipment.porcentagemJukeboxFirma ?? 0}%`} />
-                )}
-                 {equipment.type === 'mesa' && equipment.billingType !== 'monthly' && (
-                     <FilledField label="Cliente" value={`${equipment.parteCliente ?? 0}%`} />
-                )}
-                 {equipment.type === 'jukebox' && (
-                     <FilledField label="Cliente" value={`${equipment.porcentagemJukeboxCliente ?? 0}%`} />
+
+                {equipment.type === 'jukebox' && (
+                    <>
+                        <FilledField label="Firma" value={`${equipment.porcentagemJukeboxFirma ?? 0}%`} />
+                        <FilledField label="Cliente" value={`${equipment.porcentagemJukeboxCliente ?? 0}%`} />
+                    </>
                 )}
             </section>
             
@@ -92,7 +102,14 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
                  <DottedField label="Partidas Jogadas" />
                  
                  <div className="mt-3 pt-3 border-t border-dashed border-gray-400">
-                    <DottedField label="R$ TOTAL A PAGAR" className="text-lg font-bold" />
+                    {equipment.type === 'mesa' && equipment.billingType === 'monthly' ? (
+                        <div className="flex justify-between items-baseline text-lg font-bold text-sm">
+                            <label className="text-gray-500 whitespace-nowrap font-semibold">R$ TOTAL A PAGAR:</label>
+                            <p className="font-bold text-black text-lg">{`R$ ${(equipment.monthlyFeeValue ?? 0).toFixed(2)}`}</p>
+                        </div>
+                    ) : (
+                        <DottedField label="R$ TOTAL A PAGAR" className="text-lg font-bold" />
+                    )}
                  </div>
             </section>
             

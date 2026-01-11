@@ -8,10 +8,11 @@ import { RawBtIcon } from './icons/RawBtIcon';
 interface DebtReceiptActionsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onShare: () => void;
+  onShare: () => Promise<void>;
   onViewReceipt: () => void;
-  onPrintRawBt: () => void;
+  onPrintRawBt: () => Promise<void>;
   debtPayment: DebtPayment;
+  isSharing: boolean;
   showNotification: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -21,6 +22,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
   onShare,
   onViewReceipt,
   onPrintRawBt,
+  isSharing,
 }) => {
   if (!isOpen) return null;
 
@@ -39,30 +41,34 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
         <div className="p-6 bg-slate-800/50 rounded-b-lg flex flex-col gap-3">
           <button
             onClick={onViewReceipt}
-            className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors"
+            disabled={isSharing}
+            className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-slate-500"
           >
             <PrinterIcon className="w-5 h-5" />
             <span>Ver/Imprimir</span>
           </button>
           <button
             onClick={onPrintRawBt}
-            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 transition-colors"
+            disabled={isSharing}
+            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 transition-colors disabled:bg-slate-500"
             title="Imprimir em impressora térmica via RawBT"
           >
             <RawBtIcon className="w-5 h-5" />
-            <span>Imprimir (RawBT)</span>
+            <span>{isSharing ? 'Aguarde...' : 'Imprimir (RawBT)'}</span>
           </button>
           <button
             onClick={onShare}
-            className="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-500 transition-colors"
+            disabled={isSharing}
+            className="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-500 transition-colors disabled:bg-slate-500"
             title="Compartilhar comprovante como texto"
           >
             <ShareIcon className="w-5 h-5" />
-            <span>Compartilhar (Texto)</span>
+            <span>{isSharing ? 'Aguarde...' : 'Compartilhar (Texto)'}</span>
           </button>
            <button
             onClick={onClose}
-            className="w-full mt-2 bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors"
+            disabled={isSharing}
+            className="w-full mt-2 bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors disabled:bg-slate-500"
           >
             Fechar
           </button>

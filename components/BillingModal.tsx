@@ -350,8 +350,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const handleFinalize = () => {
     if (equipment.type === 'jukebox') {
         if (!validateJukeboxStep1()) return;
-        if (!formState.relogioAtual) {
+        const relogioAtual = parseInt(formState.relogioAtual, 10);
+        if (isNaN(relogioAtual) || formState.relogioAtual.trim() === '') {
             setError("Por favor, insira a Leitura Atual para confirmação.");
+            return;
+        }
+        if (relogioAtual < equipment.relogioAnterior) {
+            setError(`Leitura atual (${relogioAtual}) não pode ser menor que a anterior (${equipment.relogioAnterior}).`);
             return;
         }
     } else {

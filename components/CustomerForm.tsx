@@ -11,6 +11,7 @@ import { CraneIcon } from './icons/CraneIcon';
 import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 import SignatureModal from './SignatureModal';
 import { ImageIcon } from './icons/ImageIcon';
+import { safeParseFloat } from '../utils';
 
 interface CustomerFormProps {
   customers: Customer[];
@@ -104,13 +105,13 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
           delete currentItem.monthlyFeeValue;
         }
 
-        const numericValue = parseInt(value, 10);
+        const numericValue = safeParseFloat(value);
         if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100) {
             const remaining = 100 - numericValue;
-            if (name === 'parteFirma') currentItem.parteCliente = remaining;
-            else if (name === 'parteCliente') currentItem.parteFirma = remaining;
-            else if (name === 'porcentagemJukeboxFirma') currentItem.porcentagemJukeboxCliente = remaining;
-            else if (name === 'porcentagemJukeboxCliente') currentItem.porcentagemJukeboxFirma = remaining;
+            if (name === 'parteFirma') currentItem.parteCliente = parseFloat(remaining.toFixed(2));
+            else if (name === 'parteCliente') currentItem.parteFirma = parseFloat(remaining.toFixed(2));
+            else if (name === 'porcentagemJukeboxFirma') currentItem.porcentagemJukeboxCliente = parseFloat(remaining.toFixed(2));
+            else if (name === 'porcentagemJukeboxCliente') currentItem.porcentagemJukeboxFirma = parseFloat(remaining.toFixed(2));
         }
 
         newEquipment[index] = currentItem;
