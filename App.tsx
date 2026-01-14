@@ -39,6 +39,8 @@ import DebtReceiptModal from './components/DebtReceiptModal';
 import PrintableReceiptModal from './components/PrintableReceiptModal';
 import LabelGenerationModal from './components/LabelGenerationModal';
 import PdfPreviewModal from './components/PdfPreviewModal';
+import EditBillingModal from './components/EditBillingModal';
+
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
 export type Theme = 'light' | 'dark';
@@ -114,7 +116,7 @@ const App: React.FC = () => {
     const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
     const [isLabelGenerationModalOpen, setIsLabelGenerationModalOpen] = useState(false);
     const [pdfPreview, setPdfPreview] = useState<{ dataUri: string; fileName: string } | null>(null);
-
+    const [editingBilling, setEditingBilling] = useState<Billing | null>(null);
     
     // Handlers
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -323,6 +325,25 @@ const App: React.FC = () => {
         setBillingModalState(null);
         setReceiptActionsModalState({ billing, isProvisional: false });
     }, []);
+
+    const handleUpdateBilling = useCallback((updatedBilling: Billing) => {
+        const originalBilling = billings.find(b => b.id === updatedBilling.id);
+        if (!originalBilling) return;
+
+        const debtDifference = (updatedBilling.valorDebitoNegativo || 0) - (originalBilling.valorDebitoNegativo || 0);
+
+        setBillings(prev => prev.map(b => b.id === updatedBilling.id ? updatedBilling : b));
+
+        if (debtDifference !== 0) {
+            setCustomers(prev => prev.map(c => 
+                c.id === updatedBilling.customerId 
+                ? { ...c, debtAmount: Math.max(0, c.debtAmount + debtDifference) }
+                : c
+            ));
+        }
+        setEditingBilling(null);
+        showNotification("Cobrança atualizada com sucesso!");
+    }, [billings, showNotification]);
     
     const handleDeleteBilling = useCallback((billingId: string) => {
         const billingToDelete = billings.find(b => b.id === billingId);
@@ -464,7 +485,7 @@ const App: React.FC = () => {
                 <div className="flex-grow">
                     {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
                     {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} />}
-                    {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onDeleteBilling={handleDeleteBilling} />}
+                    {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onEditBilling={setEditingBilling} onDeleteBilling={handleDeleteBilling} />}
                     {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setIsLabelGenerationModalOpen(true)} />}
                     {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                     {currentView === 'ROTAS' && <RotasView customers={customers} />}
@@ -494,6 +515,7 @@ const App: React.FC = () => {
             {printingCustomer && <PrintPreviewOverlay customer={printingCustomer} onCancel={() => setPrintingCustomer(null)} />}
             {isLabelGenerationModalOpen && <LabelGenerationModal isOpen={isLabelGenerationModalOpen} onClose={() => setIsLabelGenerationModalOpen(false)} customers={customers} showNotification={showNotification} />}
             {pdfPreview && <PdfPreviewModal pdfDataUri={pdfPreview.dataUri} fileName={pdfPreview.fileName} onClose={() => setPdfPreview(null)} showNotification={showNotification} />}
+            {editingBilling && <EditBillingModal isOpen={!!editingBilling} onClose={() => setEditingBilling(null)} onConfirm={handleUpdateBilling} billing={editingBilling} />}
         </div>
     );
 };
