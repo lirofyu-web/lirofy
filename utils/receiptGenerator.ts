@@ -9,7 +9,7 @@ export function generateBillingText(billing: Billing, isProvisional: boolean): s
     const paymentMethodText = {
         pix: 'PIX',
         dinheiro: 'DINHEIRO',
-        fiado: 'FIADO (ANOTADO)',
+        debito_negativo: 'NEGATIVO',
         misto: 'MISTO',
     };
 
@@ -71,7 +71,7 @@ Parte Cliente: R$ ${(billing.parteCliente ?? 0).toFixed(2)}
             let parts = [];
             if (billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0) parts.push(`- Dinheiro: R$ ${billing.valorPagoDinheiro.toFixed(2)}`);
             if (billing.valorPagoPix && billing.valorPagoPix > 0) parts.push(`- PIX: R$ ${billing.valorPagoPix.toFixed(2)}`);
-            if (billing.valorPagoFiado && billing.valorPagoFiado > 0) parts.push(`- Fiado: R$ ${billing.valorPagoFiado.toFixed(2)}`);
+            if (billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0) parts.push(`- Negativo: R$ ${billing.valorDebitoNegativo.toFixed(2)}`);
             paymentDetails = `\nPAGAMENTO:\n${parts.join('\n')}`;
         } else {
             paymentDetails = `\nPagamento: ${paymentMethodText[billing.paymentMethod]}`;

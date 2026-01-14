@@ -1,5 +1,5 @@
 // views/ClientesView.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Customer, Warning } from '../types';
 import AddCustomerForm from '../components/AddCustomerForm';
 import CustomerCard from '../components/CustomerCard';
@@ -7,6 +7,10 @@ import PageHeader from '../components/PageHeader';
 import { SearchIcon } from '../components/icons/SearchIcon';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
 import QrScannerModal from '../components/QrScannerModal';
+import { LocationMarkerIcon } from '../components/icons/LocationMarkerIcon';
+import CityCustomersModal from '../components/CityCustomersModal';
+import { GreenBilliardBallIcon } from '../components/icons/GreenBilliardBallIcon';
+import { RedBilliardBallIcon } from '../components/icons/RedBilliardBallIcon';
 
 interface ClientesViewProps {
   customers: Customer[];
@@ -43,6 +47,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [viewingCity, setViewingCity] = useState<string | null>(null);
+  const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const filteredCustomers = useMemo(() => {
     return customers
@@ -79,6 +85,27 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   }, [filteredCustomers]);
 
   const sortedCities = useMemo(() => Object.keys(customersByCity).sort((a, b) => a.localeCompare(b)), [customersByCity]);
+  
+  const cityStats = useMemo(() => {
+    const stats: Record<string, { visited: number; notVisited: number }> = {};
+    const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
+
+    for (const city of sortedCities) {
+        const cityCustomers = customersByCity[city];
+        let visited = 0;
+        let notVisited = 0;
+        cityCustomers.forEach(customer => {
+            const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
+            if (visitIsPending) {
+                notVisited++;
+            } else {
+                visited++;
+            }
+        });
+        stats[city] = { visited, notVisited };
+    }
+    return stats;
+  }, [sortedCities, customersByCity]);
 
   const handleScanSuccess = useCallback((decodedText: string) => {
       setIsScannerOpen(false);
@@ -104,6 +131,10 @@ const ClientesView: React.FC<ClientesViewProps> = ({
           }
       }
   }, [customers, showNotification, onBillCustomer]);
+
+  const handleCityCardClick = useCallback((city: string) => {
+    setViewingCity(city);
+  }, []);
 
   return (
     <>
@@ -142,10 +173,50 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             <button onClick={() => setEquipmentFilter('grua')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Gruas</button>
         </div>
       </div>
+
+      {sortedCities.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Navegar por Cidade</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {sortedCities.map((city, index) => (
+                  <button
+                      key={city}
+                      onClick={() => handleCityCardClick(city)}
+                      className={`${
+                        index % 2 === 0 
+                          ? 'bg-gradient-to-br from-blue-800 to-blue-950' 
+                          : 'bg-gradient-to-br from-indigo-800 to-indigo-950'
+                      } text-white p-4 rounded-lg shadow-lg hover:shadow-sky-500/40 text-left hover:scale-105 transition-all duration-200`}
+                  >
+                      <div className="flex items-center gap-3 mb-2">
+                          <LocationMarkerIcon className={`w-5 h-5 ${
+                            index % 2 === 0 ? 'text-blue-200' : 'text-indigo-200'
+                          } flex-shrink-0`} />
+                          <h3 className="font-bold truncate">{city}</h3>
+                      </div>
+                      <p className="text-sm text-white/80 mb-2">{customersByCity[city].length} cliente(s)</p>
+                      <div className="flex justify-between items-center text-xs font-semibold border-t border-white/30 pt-2">
+                          <div className="flex items-center gap-1.5 text-white">
+                              <GreenBilliardBallIcon className="w-3 h-3"/>
+                              <span>{cityStats[city]?.visited || 0} Visitados</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-white">
+                              <RedBilliardBallIcon className="w-3 h-3"/>
+                              <span>{cityStats[city]?.notVisited || 0} Pendentes</span>
+                          </div>
+                      </div>
+                  </button>
+              ))}
+          </div>
+        </div>
+      )}
       
       <div className="space-y-8">
         {sortedCities.length > 0 ? sortedCities.map(city => (
-            <section key={city}>
+            <section 
+                key={city}
+                ref={(el) => { citySectionRefs.current[city] = el; }}
+            >
                 <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-2 capitalize">{city}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {customersByCity[city].map(customer => {
@@ -175,13 +246,29 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         )}
       </div>
       
-      {/* Scanner Modal is local to this view */}
       {isScannerOpen && (
         <QrScannerModal
           isOpen={isScannerOpen}
           onClose={() => setIsScannerOpen(false)}
           onScanSuccess={handleScanSuccess}
           showNotification={showNotification}
+        />
+      )}
+
+      {viewingCity && (
+        <CityCustomersModal
+            city={viewingCity}
+            customers={customersByCity[viewingCity] || []}
+            warnings={warnings}
+            onClose={() => setViewingCity(null)}
+            onBillCustomer={onBillCustomer}
+            onEditCustomer={onEditCustomer}
+            onDeleteCustomer={onDeleteCustomer}
+            onPayDebtCustomer={onPayDebtCustomer}
+            onHistoryCustomer={onHistoryCustomer}
+            onShareCustomer={onShareCustomer}
+            showNotification={showNotification}
+            onFocusCustomer={onFocusCustomer}
         />
       )}
     </>

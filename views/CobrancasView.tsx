@@ -22,23 +22,24 @@ type SortKey = 'settledAt' | 'customerName' | 'valorTotal';
 type SortDirection = 'asc' | 'desc';
 type Filter = 'all' | 'mesa' | 'jukebox' | 'grua';
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
-    const styles = {
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' }> = React.memo(({ method }) => {
+    const displayMethod = method === 'debito_negativo' ? 'negativo' : method;
+    const styles: Record<'pix' | 'dinheiro' | 'negativo' | 'misto', string> = {
         pix: 'bg-lime-100 dark:bg-lime-900/50 text-lime-800 dark:text-lime-300 border-lime-300 dark:border-lime-600',
         dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
-        fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
+        negativo: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
         misto: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-600',
     };
-    const text = {
+    const text: Record<'pix' | 'dinheiro' | 'negativo' | 'misto', string> = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
-        fiado: 'Fiado',
+        negativo: 'Negativo',
         misto: 'Misto',
     };
 
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
-            {text[method]}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[displayMethod]}`}>
+            {text[displayMethod]}
         </span>
     );
 });
@@ -65,12 +66,10 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                 }
                 const billingDate = new Date(billing.settledAt);
                 if (startDate) {
-                    // Fix: Add T00:00:00 to correctly interpret date in local timezone
                     const filterStartDate = new Date(startDate + 'T00:00:00');
                     if (billingDate < filterStartDate) return false;
                 }
                 if (endDate) {
-                    // Fix: Add T23:59:59 to include the entire end day
                     const filterEndDate = new Date(endDate + 'T23:59:59');
                     if (billingDate > filterEndDate) return false;
                 }
@@ -111,7 +110,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         return sortDirection === 'asc' ? '▲' : '▼';
     };
 
-    const totalBilled = useMemo(() => sortedBillings.reduce((sum, b) => sum + (b.valorTotal - (b.valorPagoFiado || 0)), 0), [sortedBillings]);
+    const totalBilled = useMemo(() => sortedBillings.reduce((sum, b) => sum + (b.valorTotal - (b.valorDebitoNegativo || 0)), 0), [sortedBillings]);
     
     const { debtorCustomers, totalDebt } = useMemo(() => {
         const debtors = customers.filter(c => c.debtAmount > 0).sort((a,b) => b.debtAmount - a.debtAmount);
@@ -147,7 +146,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
         const today = new Date();
 
-        const totalBilled = customerBillings.reduce((sum, b) => sum + (b.valorTotal - (b.valorPagoFiado || 0)), 0);
+        const totalBilled = customerBillings.reduce((sum, b) => sum + (b.valorTotal - (b.valorDebitoNegativo || 0)), 0);
 
         const reportHtml = `
           <html>
@@ -191,8 +190,8 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                       <td class="currency">${b.equipmentType === 'mesa' ? b.relogioAnterior : '-'}</td>
                       <td class="currency">${b.equipmentType === 'mesa' ? b.relogioAtual : '-'}</td>
                       <td class="currency">${b.equipmentType === 'mesa' ? b.partidasJogadas : '-'}</td>
-                      <td>${{pix: 'PIX', dinheiro: 'Dinheiro', fiado: 'Fiado', misto: 'Misto'}[b.paymentMethod]}</td>
-                      <td class="currency">R$ ${(b.valorTotal - (b.valorPagoFiado || 0)).toFixed(2)}</td>
+                      <td>${{pix: 'PIX', dinheiro: 'Dinheiro', debito_negativo: 'Negativo', misto: 'Misto'}[b.paymentMethod]}</td>
+                      <td class="currency">R$ ${(b.valorTotal - (b.valorDebitoNegativo || 0)).toFixed(2)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -212,7 +211,6 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
             printWindow.document.close();
             printWindow.focus();
             printWindow.print();
-            printWindow.close();
         }
     }, []);
 
@@ -221,7 +219,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
         
         const debtOrigins = new Map<string, Set<string>>();
         billings.forEach(b => {
-            if (b.valorPagoFiado && b.valorPagoFiado > 0) {
+            if (b.valorDebitoNegativo && b.valorDebitoNegativo > 0) {
                 if (!debtOrigins.has(b.customerId)) {
                     debtOrigins.set(b.customerId, new Set());
                 }
@@ -245,7 +243,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
               </style>
             </head>
             <body>
-              <h1>Lista de Clientes Devedores (Fiado)</h1>
+              <h1>Lista de Clientes Devedores (Negativo)</h1>
               <table>
                 <thead>
                   <tr>
@@ -283,7 +281,6 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
             printWindow.document.close();
             printWindow.focus();
             printWindow.print();
-            printWindow.close();
         }
       }, [debtorCustomers, totalDebt, billings]);
 
@@ -338,7 +335,12 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                 <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
                             </div>
                             <div className="text-right">
-                                <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</p>
+                                <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorDebitoNegativo || 0)).toFixed(2).replace('.', ',')}</p>
+                                {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
+                                    <p className="font-mono text-sm text-red-500 dark:text-red-400">
+                                        (- R$ {billing.valorDebitoNegativo.toFixed(2).replace('.', ',')})
+                                    </p>
+                                )}
                                 <PaymentMethodDisplay method={billing.paymentMethod} />
                             </div>
                         </div>
@@ -405,7 +407,14 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                     <td className="px-6 py-4">
                                         <PaymentMethodDisplay method={billing.paymentMethod} />
                                     </td>
-                                    <td className="px-6 py-4 text-right font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-right font-mono font-bold">
+                                        <span className="text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorDebitoNegativo || 0)).toFixed(2).replace('.', ',')}</span>
+                                        {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
+                                            <span className="block text-xs text-red-500 dark:text-red-400">
+                                                (- R$ {billing.valorDebitoNegativo.toFixed(2).replace('.', ',')})
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-center">
                                          <button onClick={() => onShowActions(billing)} className="text-slate-500 dark:text-slate-400 hover:text-lime-500 dark:hover:text-lime-400">Ver</button>
                                     </td>
@@ -473,7 +482,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                                         <p className="text-slate-500">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
                                                         <PaymentMethodDisplay method={billing.paymentMethod} />
                                                     </div>
-                                                    <p className="font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</p>
+                                                    <p className="font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorDebitoNegativo || 0)).toFixed(2)}</p>
                                                 </div>
                                                 <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50">
                                                     <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -525,7 +534,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                                                             <td colSpan={3} className="px-4 py-2 text-center text-slate-400">-</td>
                                                         )}
                                                         <td className="px-4 py-2"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
-                                                        <td className="px-4 py-2 text-right font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorPagoFiado || 0)).toFixed(2)}</td>
+                                                        <td className="px-4 py-2 text-right font-mono font-bold text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorDebitoNegativo || 0)).toFixed(2)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -544,7 +553,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
 
             <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores (Fiado)</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores (Negativo)</h3>
                     <button 
                         onClick={handlePrintDebtors}
                         className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-1.5 px-3 rounded-md hover:bg-cyan-500 transition-colors text-sm"
@@ -560,7 +569,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                         {debtorCustomers.length > 0 ? debtorCustomers.map(customer => {
                             const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
                             const debtItems = billings
-                                .filter(b => b.customerId === customer.id && b.valorPagoFiado && b.valorPagoFiado > 0)
+                                .filter(b => b.customerId === customer.id && b.valorDebitoNegativo && b.valorDebitoNegativo > 0)
                                 .map(b => typeMap[b.equipmentType] || b.equipmentType);
                             const uniqueItems = [...new Set(debtItems)].join(', ');
 
@@ -607,7 +616,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({ billings, customers, onSh
                             {debtorCustomers.length > 0 ? debtorCustomers.map(customer => {
                                 const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
                                 const debtItems = billings
-                                    .filter(b => b.customerId === customer.id && b.valorPagoFiado && b.valorPagoFiado > 0)
+                                    .filter(b => b.customerId === customer.id && b.valorDebitoNegativo && b.valorDebitoNegativo > 0)
                                     .map(b => typeMap[b.equipmentType] || b.equipmentType);
                                 const uniqueItems = [...new Set(debtItems)].join(', ');
 

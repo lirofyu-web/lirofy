@@ -105,7 +105,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     <div className="mt-4 flex flex-wrap gap-2">
                         <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="" isPrimary />
                         <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" />
-                        <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Fiado" colorClass="bg-amber-600" disabled={!hasDebt} />
+                        <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Dívida" colorClass="bg-amber-600" disabled={!hasDebt} />
                         <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" colorClass="bg-indigo-600" />
                         <ActionButton onClick={() => onDelete(customer)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" />
                     </div>

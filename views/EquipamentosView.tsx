@@ -44,7 +44,8 @@ const EquipmentCard: React.FC<{
         return equipments.map(equip => {
             const equipBillings = relevantBillings.filter(b => b.equipmentId === equip.id);
             const revenue = equipBillings.reduce((sum, b) => {
-                const billingRevenue = (b.equipmentType === 'grua') ? b.valorTotal : b.valorTotal - (b.valorPagoFiado || 0);
+                // FIX: Replaced 'valorPagoFiado' with 'valorDebitoNegativo'.
+                const billingRevenue = (b.equipmentType === 'grua') ? b.valorTotal : b.valorTotal - (b.valorDebitoNegativo || 0);
                 return sum + billingRevenue;
             }, 0);
             return { ...equip, revenue };
@@ -110,7 +111,8 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
         return billings
             .filter(b => new Date(b.settledAt) >= sixMonthsAgo)
             .reduce((sum, b) => {
-                const revenue = (b.equipmentType === 'grua') ? b.valorTotal : b.valorTotal - (b.valorPagoFiado || 0);
+                // FIX: Replaced 'valorPagoFiado' with 'valorDebitoNegativo'.
+                const revenue = (b.equipmentType === 'grua') ? b.valorTotal : b.valorTotal - (b.valorDebitoNegativo || 0);
                 return sum + revenue;
             }, 0);
     }, [billings]);

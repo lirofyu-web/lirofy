@@ -7,7 +7,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // Construct an absolute URL to the service worker to be robust in sandboxed environments.
     const swUrl = `${window.location.origin}/sw.js`;
-    navigator.serviceWorker.register(swUrl, { scope: '/' })
+    navigator.serviceWorker.register(swUrl)
       .then(registration => {
         console.log('ServiceWorker registration successful with scope: ', registration.scope);
       })

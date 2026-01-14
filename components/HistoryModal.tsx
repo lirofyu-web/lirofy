@@ -18,27 +18,28 @@ type HistoryItem = {
     type: 'billing' | 'payment';
     description: string;
     amount: number;
-    paymentMethod: 'pix' | 'dinheiro' | 'fiado' | 'misto';
+    paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto';
     equipmentType?: 'mesa' | 'jukebox' | 'grua';
 };
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
-    const styles = {
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' }> = React.memo(({ method }) => {
+    const displayMethod = method === 'debito_negativo' ? 'negativo' : method;
+    const styles: Record<'pix' | 'dinheiro' | 'negativo' | 'misto', string> = {
         pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
         dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
-        fiado: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
+        negativo: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
         misto: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-600',
     };
-    const text = {
+    const text: Record<'pix' | 'dinheiro' | 'negativo' | 'misto', string> = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
-        fiado: 'Fiado',
+        negativo: 'Negativo',
         misto: 'Misto',
     };
 
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
-            {text[method]}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[displayMethod]}`}>
+            {text[displayMethod]}
         </span>
     );
 });

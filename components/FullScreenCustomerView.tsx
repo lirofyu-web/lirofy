@@ -38,21 +38,21 @@ type HistoryItem = {
     type: 'billing' | 'payment';
     description: string;
     amount: number;
-    paymentMethod: 'pix' | 'dinheiro' | 'fiado' | 'misto';
+    paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto';
     equipmentType?: 'mesa' | 'jukebox' | 'grua';
 };
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'fiado' | 'misto' }> = React.memo(({ method }) => {
+const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' }> = React.memo(({ method }) => {
     const styles = {
         pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
         dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
-        fiado: 'bg-amber-900/50 text-amber-300 border-amber-600',
+        debito_negativo: 'bg-amber-900/50 text-amber-300 border-amber-600',
         misto: 'bg-indigo-900/50 text-indigo-300 border-indigo-600',
     };
     const text = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
-        fiado: 'Fiado',
+        debito_negativo: 'Negativo',
         misto: 'Misto',
     };
 
@@ -200,7 +200,7 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                        <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-6 h-6" />} label="Faturar" colorClass="" isPrimary />
                        <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-6 h-6" />} label="Editar" colorClass="bg-sky-600" />
                        <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-6 h-6" />} label="Histórico" colorClass="bg-indigo-600" />
-                       <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-6 h-6" />} label="Pagar" colorClass="bg-amber-600" disabled={!hasDebt} />
+                       <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-6 h-6" />} label="Pagar Dívida" colorClass="bg-amber-600" disabled={!hasDebt} />
                        <ActionButton onClick={() => onShare(customer)} icon={<ShareIcon className="w-6 h-6" />} label="Exportar" colorClass="bg-pink-600" />
                        <ActionButton onClick={() => onDelete(customer)} icon={<TrashIcon className="w-6 h-6" />} label="Excluir" colorClass="bg-red-600" />
                     </div>

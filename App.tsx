@@ -316,7 +316,7 @@ const App: React.FC = () => {
         setCustomers(prev => prev.map(c => {
             if (c.id === billing.customerId) {
                 const updatedEquipment = c.equipment.map(e => e.id === billing.equipmentId ? { ...e, relogioAnterior: billing.relogioAtual } : e);
-                return { ...c, debtAmount: c.debtAmount + (billing.valorPagoFiado || 0), lastVisitedAt: new Date(), equipment: updatedEquipment };
+                return { ...c, debtAmount: c.debtAmount + (billing.valorDebitoNegativo || 0), lastVisitedAt: new Date(), equipment: updatedEquipment };
             }
             return c;
         }));
@@ -332,7 +332,7 @@ const App: React.FC = () => {
         setCustomers(prev => prev.map(c => {
             if (c.id === billingToDelete.customerId) {
                 const updatedEquipment = c.equipment.map(e => e.id === billingToDelete.equipmentId ? { ...e, relogioAnterior: billingToDelete.relogioAnterior } : e);
-                return { ...c, debtAmount: Math.max(0, c.debtAmount - (billingToDelete.valorPagoFiado || 0)), equipment: updatedEquipment };
+                return { ...c, debtAmount: Math.max(0, c.debtAmount - (billingToDelete.valorDebitoNegativo || 0)), equipment: updatedEquipment };
             }
             return c;
         }));

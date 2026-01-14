@@ -80,10 +80,10 @@ export interface Billing {
 
   // Universal
   valorTotal: number; // The final value for the company
-  paymentMethod: 'pix' | 'dinheiro' | 'fiado' | 'misto'; // Fiado will not be an option for grua
+  paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto'; // Negativo will not be an option for grua
   valorPagoDinheiro?: number;
   valorPagoPix?: number;
-  valorPagoFiado?: number;
+  valorDebitoNegativo?: number;
 }
 
 

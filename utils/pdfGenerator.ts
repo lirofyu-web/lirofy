@@ -32,6 +32,67 @@ function drawDashedLine(doc: any, y: number) {
     return y + 3.5;
 }
 
+// --- Helper Functions for PIX ---
+
+const formatField = (id: string, value: string): string => {
+  const length = value.length.toString().padStart(2, '0');
+  return `${id}${length}${value}`;
+};
+
+const crc16ccitt = (data: string): string => {
+  let crc = 0xFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = (crc << 1) ^ 0x1021;
+      } else {
+        crc <<= 1;
+      }
+    }
+  }
+  return ('0000' + (crc & 0xFFFF).toString(16).toUpperCase()).slice(-4);
+};
+
+async function generatePixQrCodeDataUrl(): Promise<string> {
+    const pixKey = "43999581993";
+    const recipientName = "BILHAR MONTANHA";
+    const recipientCity = "JAGUAPITA";
+    
+    const sanitize = (str: string, maxLength: number, removeSpacesAndSpecialChars: boolean = false) => {
+        let sanitized = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+        const regex = removeSpacesAndSpecialChars ? /[^A-Z0-9]/g : /[^A-Z0-9\s]/g;
+        sanitized = sanitized.replace(regex, "");
+        return sanitized.substring(0, maxLength).trim();
+    };
+
+    const cleanName = sanitize(recipientName, 25);
+    const cleanCity = sanitize(recipientCity, 15, true);
+    const staticTxId = '***';
+
+    const payload = [
+        formatField('00', '01'),
+        formatField('26', formatField('00', 'br.gov.bcb.pix') + formatField('01', pixKey)),
+        formatField('52', '0000'),
+        formatField('53', '986'),
+        formatField('58', 'BR'),
+        formatField('59', cleanName),
+        formatField('60', cleanCity),
+        formatField('62', formatField('05', staticTxId)),
+    ].join('');
+    
+    const payloadWithCrcPrefix = payload + '6304';
+    const crc = crc16ccitt(payloadWithCrcPrefix);
+    const finalPayload = payloadWithCrcPrefix + crc;
+    
+    return await QRCode.toDataURL(finalPayload, {
+        width: 200, // good size for PDF
+        margin: 1,
+        errorCorrectionLevel: 'M'
+    });
+}
+
+
 // --- PDF Generators ---
 
 export async function generateEquipmentLabelsPdf(equipments: EquipmentWithCustomer[]): Promise<void> {
@@ -134,9 +195,9 @@ export async function generateBillingReceiptPdf(billing: Billing, isProvisional:
             y += smallLineHeight;
             if (billing.valorPagoDinheiro) y = drawRow(doc, y, '- Dinheiro:', `R$ ${billing.valorPagoDinheiro.toFixed(2)}`, margin, maxWidth);
             if (billing.valorPagoPix) y = drawRow(doc, y, '- PIX:', `R$ ${billing.valorPagoPix.toFixed(2)}`, margin, maxWidth);
-            if (billing.valorPagoFiado) y = drawRow(doc, y, '- Fiado:', `R$ ${billing.valorPagoFiado.toFixed(2)}`, margin, maxWidth);
+            if (billing.valorDebitoNegativo) y = drawRow(doc, y, '- Debito Neg.:', `R$ ${billing.valorDebitoNegativo.toFixed(2)}`, margin, maxWidth);
         } else {
-            const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO', fiado: 'FIADO (ANOTADO)' };
+            const paymentMethodText = { pix: 'PIX', dinheiro: 'DINHEIRO', debito_negativo: 'DEBITO NEGATIVO' };
             y = drawRow(doc, y, 'Pagamento:', paymentMethodText[billing.paymentMethod] || 'N/A', margin, maxWidth);
         }
     }
@@ -148,6 +209,27 @@ export async function generateBillingReceiptPdf(billing: Billing, isProvisional:
         y = drawDashedLine(doc, y);
         y = drawWrappedText(doc, '*** COMPROVANTE PARA CONFERENCIA ***', 53 / 2, y, maxWidth, smallLineHeight, 'center');
         y = drawWrappedText(doc, '*** SEM VALOR FISCAL ***', 53 / 2, y, maxWidth, smallLineHeight, 'center');
+    }
+
+    if (billing.equipmentType === 'mesa') {
+        const pixQrDataUrl = await generatePixQrCodeDataUrl();
+        const qrSize = 35;
+        const requiredSpace = qrSize + 10;
+        
+        if (y + requiredSpace > 150) {
+            doc.addPage([53, 150], 'portrait');
+            y = 7;
+        }
+
+        y += 5;
+        doc.setFont('Courier', 'bold');
+        y = drawWrappedText(doc, 'Pague com PIX (Valor Aberto)', 53 / 2, y, maxWidth, lineHeight, 'center');
+        doc.setFont('Courier', 'normal');
+
+        const qrX = (53 - qrSize) / 2;
+        doc.addImage(pixQrDataUrl, 'PNG', qrX, y, qrSize, qrSize);
+        y += qrSize;
+        y = drawWrappedText(doc, 'Chave: 43999581993', 53 / 2, y + 2, maxWidth, smallLineHeight, 'center');
     }
 
     return doc.output('datauristring');

@@ -332,7 +332,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 
                 <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-3">
                     <InfoRow 
-                        label="Total em Dívidas (Fiado)"
+                        label="Total em Dívidas (Negativo)"
                         value={`R$ ${stats.totalOutstandingDebt.toFixed(2)}`} 
                         valueColor="text-amber-600 dark:text-amber-400 text-2xl"
                         className="flex-col !items-start"

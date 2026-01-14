@@ -22,7 +22,7 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional }) =
     const paymentMethodText = {
         pix: 'PIX',
         dinheiro: 'DINHEIRO',
-        fiado: 'FIADO (ANOTADO)',
+        debito_negativo: 'NEGATIVO',
         misto: 'MISTO',
     };
 
@@ -112,7 +112,7 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional }) =
                             <p className="font-bold">PAGAMENTO:</p>
                             {billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0 && <ReceiptRow label="- Dinheiro:" value={`R$ ${billing.valorPagoDinheiro.toFixed(2)}`} />}
                             {billing.valorPagoPix && billing.valorPagoPix > 0 && <ReceiptRow label="- PIX:" value={`R$ ${billing.valorPagoPix.toFixed(2)}`} />}
-                            {billing.valorPagoFiado && billing.valorPagoFiado > 0 && <ReceiptRow label="- Fiado:" value={`R$ ${billing.valorPagoFiado.toFixed(2)}`} />}
+                            {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && <ReceiptRow label="- Negativo:" value={`R$ ${billing.valorDebitoNegativo.toFixed(2)}`} />}
                         </div>
                     ) : (
                         <div className="flex justify-between pt-1">

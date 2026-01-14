@@ -47,7 +47,8 @@ const FormField: React.FC<{
   required?: boolean; 
   step?: string;
   isEditMode?: boolean;
-}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step, isEditMode }) => (
+  inputMode?: 'none' | 'text' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal' | 'search';
+}> = React.memo(({ label, name, value, onChange, type = 'text', required = false, step, isEditMode, inputMode }) => (
     <div>
         <label htmlFor={`${isEditMode ? 'edit-' : ''}${name}`} className={`block text-sm font-medium ${isEditMode ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'} mb-1`}>{label}</label>
         <input 
@@ -58,6 +59,7 @@ const FormField: React.FC<{
             onChange={onChange} 
             required={required} 
             step={step} 
+            inputMode={inputMode}
             className={`w-full border rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-lime-500 ${isEditMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white'}`} 
         />
     </div>
@@ -66,6 +68,7 @@ const FormField: React.FC<{
 const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onSubmit, isSaving, showNotification, onCancel, submitButtonText, isEditMode = false }) => {
   // FIX: Explicitly type `equipment` as `Partial<Equipment>[]` to handle both full and partial equipment objects during form manipulation. This resolves the type error when updating the state.
   const [formData, setFormData] = useState(() => {
+    // FIX: Explicitly type `equipment` as `Partial<Equipment>[]` to handle both full and partial equipment objects during form manipulation. This resolves the type error when updating the state.
     const equipment: Partial<Equipment>[] = initialData?.equipment ? [...initialData.equipment] : [];
     return {
       ...initialFormState,
@@ -240,7 +243,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
             </div>
             <FormField label="Nome Completo" name="name" required value={formData.name || ''} onChange={handleBaseChange} isEditMode={isEditMode}/>
             <FormField label="CPF/RG" name="cpfRg" value={formData.cpfRg || ''} onChange={handleBaseChange} isEditMode={isEditMode}/>
-            <FormField label="Telefone" name="telefone" value={formData.telefone || ''} onChange={handleBaseChange} type="tel" isEditMode={isEditMode}/>
+            <FormField label="Telefone" name="telefone" value={formData.telefone || ''} onChange={handleBaseChange} type="tel" inputMode="tel" isEditMode={isEditMode}/>
             <div>
                 <label htmlFor={`${isEditMode ? 'edit-' : ''}endereco`} className={`block text-sm font-medium ${isEditMode ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'} mb-1`}>Endereço</label>
                 <div className="relative flex items-center">
@@ -289,27 +292,27 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                                             <div/>
                                             <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
                                             <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            {equip.billingType === 'monthly' ? <FormField label="Valor Mensal (R$)" name="monthlyFeeValue" type="number" step="0.01" value={String(equip.monthlyFeeValue || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> : <> <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte da Firma (%)" name="parteFirma" type="number" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> </> }
+                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
+                                            {equip.billingType === 'monthly' ? <FormField label="Valor Mensal (R$)" name="monthlyFeeValue" type="number" step="0.01" inputMode="decimal" value={String(equip.monthlyFeeValue || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> : <> <FormField label="Valor da Ficha (R$)" name="valorFicha" type="number" step="0.01" inputMode="decimal" value={String(equip.valorFicha || '2.00')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte da Firma (%)" name="parteFirma" type="number" inputMode="numeric" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" inputMode="numeric" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> </> }
                                         </div>
                                     ) : equip.type === 'jukebox' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <FormField label="Número da Jukebox" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
                                             <FormField label="Nº Relógio da Jukebox" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="number" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="number" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
+                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
+                                            <FormField label="% da Firma" name="porcentagemJukeboxFirma" type="number" inputMode="numeric" value={String(equip.porcentagemJukeboxFirma || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
+                                            <FormField label="% do Cliente" name="porcentagemJukeboxCliente" type="number" inputMode="numeric" value={String(equip.porcentagemJukeboxCliente || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <FormField label="Número da Grua" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="number" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
+                                            <FormField label="Leitura Anterior" name="relogioAnterior" type="number" inputMode="numeric" value={String(equip.relogioAnterior || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
+                                            <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" type="number" inputMode="numeric" value={String(equip.quantidadePelucia ?? '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
                                             <div>
                                                 <label className={`block text-sm font-medium ${isEditMode ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'} mb-1`}>Tipo de Aluguel</label>
                                                 <select name="aluguelTipo" value={equip.aluguelPercentual != null ? 'percentual' : 'fixo'} onChange={e => handleEquipmentChange(index, e)} className={`w-full border rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-lime-500 ${isEditMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white'}`}><option value="fixo">Valor Fixo (R$)</option><option value="percentual">Percentual (%)</option></select>
                                             </div>
-                                            {equip.aluguelPercentual != null ? <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />}
+                                            {equip.aluguelPercentual != null ? <FormField label="Aluguel (%)" name="aluguelPercentual" type="number" inputMode="numeric" value={String(equip.aluguelPercentual ?? '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> : <FormField label="Aluguel Fixo (R$)" name="aluguelValor" type="number" step="0.01" inputMode="decimal" value={String(equip.aluguelValor || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />}
                                         </div>
                                     )}
                                 </div>

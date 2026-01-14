@@ -196,7 +196,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                         <td>${equipamentos.join(', ')}</td>
                         <td class="date-cell">${lastVisitDate}</td>
                         <td class="clocks-cell">${clockReadings || 'N/A'}</td>
-                        <td class="${customer.debtAmount > 0 ? 'fiado-cell' : 'no-fiado-cell'}">
+                        <td class="${customer.debtAmount > 0 ? 'negativo-cell' : 'no-negativo-cell'}">
                             ${customer.debtAmount > 0 ? `R$ ${customer.debtAmount.toFixed(2)}` : '-'}
                         </td>
                     </tr>
@@ -240,8 +240,8 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         .customers-table th { background-color: #f2f2f2; font-weight: bold; }
         .city-header { background-color: #e0e0e0; font-weight: bold; font-size: 10pt; padding: 2mm; }
         .checkbox-cell { width: 15px; text-align: center; } .checkbox { width: 10px; height: 10px; border: 1px solid #333; }
-        .fiado-cell { width: 60px; text-align: right; color: #D32F2F; font-weight: bold; font-family: monospace; }
-        .no-fiado-cell { width: 60px; text-align: right; font-family: monospace; }
+        .negativo-cell { width: 60px; text-align: right; color: #D32F2F; font-weight: bold; font-family: monospace; }
+        .no-negativo-cell { width: 60px; text-align: right; font-family: monospace; }
         .date-cell { width: 55px; }
         .clocks-cell { min-width: 100px; }
         .footer { position: absolute; bottom: 0; width: 100%; text-align: center; font-size: 8pt; color: #888; }

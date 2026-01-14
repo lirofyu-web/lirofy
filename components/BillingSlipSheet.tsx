@@ -119,7 +119,7 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
                     <span className="font-bold text-gray-600">Forma de Pagamento:</span>
                     <CheckboxField label="Dinheiro" />
                     <CheckboxField label="PIX" />
-                    <CheckboxField label="Fiado" />
+                    <CheckboxField label="Negativo" />
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 pt-2 border-t border-gray-200">
                     <FilledField label="Última Cobrança" value={lastBillingAmount !== null ? `R$ ${lastBillingAmount.toFixed(2)}` : 'N/A'} />
