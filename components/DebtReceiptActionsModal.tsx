@@ -45,7 +45,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
             className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-slate-500"
           >
             <PrinterIcon className="w-5 h-5" />
-            <span>Ver/Imprimir</span>
+            <span>Imprimir</span>
           </button>
           <button
             onClick={onPrintRawBt}
