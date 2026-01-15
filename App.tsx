@@ -1,6 +1,7 @@
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import ReactDOMServer from 'react-dom/server';
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning } from './types';
 
 import Sidebar from './components/Sidebar';
@@ -38,7 +39,9 @@ import DebtReceiptModal from './components/DebtReceiptModal';
 import PrintableReceiptModal from './components/PrintableReceiptModal';
 import LabelGenerationModal from './components/LabelGenerationModal';
 import EditBillingModal from './components/EditBillingModal';
-import DirectPrintModal from './components/DirectPrintModal';
+import PdfReceiptSheet from './components/PdfReceiptSheet';
+import PdfDebtReceiptSheet from './components/PdfDebtReceiptSheet';
+import SaveStatusIndicator from './components/SaveStatusIndicator';
 
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
@@ -91,6 +94,7 @@ const App: React.FC = () => {
     const [notification, setNotification] = useState<NotificationState>(null);
     const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
     const [isSharing, setIsSharing] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
 
 
     // Theme and PWA states
@@ -115,7 +119,6 @@ const App: React.FC = () => {
     const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
     const [isLabelGenerationModalOpen, setIsLabelGenerationModalOpen] = useState(false);
     const [editingBilling, setEditingBilling] = useState<Billing | null>(null);
-    const [directPrintData, setDirectPrintData] = useState<{ data: (Billing & { isProvisional?: boolean }) | DebtPayment; type: 'billing' | 'debt' } | null>(null);
     
     // Handlers
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -129,6 +132,7 @@ const App: React.FC = () => {
             localStorage.setItem('expenses', JSON.stringify(expenses));
             localStorage.setItem('debtPayments', JSON.stringify(debtPayments));
             localStorage.setItem('warnings', JSON.stringify(warnings));
+            setIsDirty(false);
         } catch (error) {
             console.error("Failed to save data to localStorage", error);
             showNotification("Erro ao salvar dados. O armazenamento pode estar cheio.", "error");
@@ -234,14 +238,61 @@ const App: React.FC = () => {
         }
     };
     
+    const handlePrintPdf = useCallback((title: string, contentComponent: React.ReactElement) => {
+        const tailwindUrl = "https://cdn.tailwindcss.com";
+        const content = ReactDOMServer.renderToString(contentComponent);
+        
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>${title}</title>
+                        <script src="${tailwindUrl}"></script>
+                        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+                        <style>
+                            body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+                            @page { size: A4; margin: 0; }
+                            @media print {
+                                body { background-color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            }
+                        </style>
+                    </head>
+                    <body onafterprint="window.close()">
+                        ${content}
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            
+            const printTimeout = setTimeout(() => {
+                printWindow.print();
+            }, 1000); 
+            
+            printWindow.onbeforeunload = () => {
+                clearTimeout(printTimeout);
+            };
+
+        } else {
+            showNotification("Por favor, habilite pop-ups para impressão.", "error");
+        }
+    }, [showNotification]);
+
     const handleDirectPrintBillingReceipt = (billing: Billing, isProvisional: boolean) => {
-        setReceiptActionsModalState(null); // Close the actions modal immediately
-        setDirectPrintData({ data: { ...billing, isProvisional }, type: 'billing' });
+        setReceiptActionsModalState(null);
+        handlePrintPdf(
+            `${isProvisional ? 'Demonstrativo' : 'Recibo'} - ${billing.customerName}`, 
+            <PdfReceiptSheet billing={billing} isProvisional={isProvisional} />
+        );
     };
 
     const handleDirectPrintDebtReceipt = (debtPayment: DebtPayment) => {
         setDebtReceiptActionsModalState(null);
-        setDirectPrintData({ data: debtPayment, type: 'debt' });
+        handlePrintPdf(
+            `Comprovante de Dívida - ${debtPayment.customerName}`, 
+            <PdfDebtReceiptSheet debtPayment={debtPayment} />
+        );
     };
 
     // Customer Handlers
@@ -255,6 +306,7 @@ const App: React.FC = () => {
             lastVisitedAt: null
         };
         setCustomers(prev => [...prev, newCustomer]);
+        setIsDirty(true);
         showNotification(`Cliente "${newCustomer.name}" adicionado com sucesso!`);
         setIsSaving(false);
     }, [showNotification]);
@@ -262,6 +314,7 @@ const App: React.FC = () => {
     const handleUpdateCustomer = useCallback(async (updatedCustomer: Customer) => {
         setIsSaving(true);
         setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+        setIsDirty(true);
         setEditCustomer(null);
         showNotification(`Cliente "${updatedCustomer.name}" atualizado!`);
         setIsSaving(false);
@@ -273,6 +326,7 @@ const App: React.FC = () => {
         setBillings(prev => prev.filter(b => b.customerId !== deleteCustomer.id));
         setDebtPayments(prev => prev.filter(p => p.customerId !== deleteCustomer.id));
         setWarnings(prev => prev.filter(w => w.customerId !== deleteCustomer.id));
+        setIsDirty(true);
         showNotification(`Cliente "${deleteCustomer.name}" e todos os seus dados foram excluídos.`);
         setDeleteCustomer(null);
     }, [deleteCustomer, showNotification]);
@@ -295,6 +349,7 @@ const App: React.FC = () => {
             }
             return c;
         }));
+        setIsDirty(true);
         setBillingModalState(null);
         setReceiptActionsModalState({ billing, isProvisional: false });
     }, []);
@@ -306,6 +361,7 @@ const App: React.FC = () => {
         const debtDifference = (updatedBilling.valorDebitoNegativo || 0) - (originalBilling.valorDebitoNegativo || 0);
 
         setBillings(prev => prev.map(b => b.id === updatedBilling.id ? updatedBilling : b));
+        setIsDirty(true);
 
         if (debtDifference !== 0) {
             setCustomers(prev => prev.map(c => 
@@ -330,6 +386,7 @@ const App: React.FC = () => {
             }
             return c;
         }));
+        setIsDirty(true);
         showNotification("Cobrança excluída e dados revertidos.");
     }, [billings, showNotification]);
 
@@ -344,6 +401,7 @@ const App: React.FC = () => {
         const newPayment: DebtPayment = { id: uuidv4(), customerId: payingDebtCustomer.id, customerName: payingDebtCustomer.name, amountPaid: amount, paidAt: new Date(), paymentMethod };
         setDebtPayments(prev => [...prev, newPayment]);
         setCustomers(prev => prev.map(c => c.id === payingDebtCustomer.id ? { ...c, debtAmount: Math.max(0, c.debtAmount - amount) } : c));
+        setIsDirty(true);
         setPayingDebtCustomer(null);
         setDebtReceiptActionsModalState({ debtPayment: newPayment, customer: payingDebtCustomer });
     }, [payingDebtCustomer]);
@@ -351,11 +409,13 @@ const App: React.FC = () => {
     const handleAddExpense = useCallback((description: string, amount: number, category: Expense['category']) => {
         const newExpense: Expense = { id: uuidv4(), description, amount, date: new Date(), category };
         setExpenses(prev => [...prev, newExpense]);
+        setIsDirty(true);
         showNotification("Despesa adicionada.");
     }, [showNotification]);
     
     const handleDeleteExpense = useCallback((expenseId: string) => {
         setExpenses(prev => prev.filter(e => e.id !== expenseId));
+        setIsDirty(true);
         showNotification("Despesa excluída.");
     }, [showNotification]);
     
@@ -365,16 +425,19 @@ const App: React.FC = () => {
         if (!customer) return;
         const newWarning: Warning = { id: uuidv4(), customerId, customerName: customer.name, message, createdAt: new Date(), isResolved: false };
         setWarnings(prev => [...prev, newWarning]);
+        setIsDirty(true);
         showNotification(`Aviso adicionado para ${customer.name}.`);
     }, [customers, showNotification]);
 
     const handleResolveWarning = useCallback((warningId: string) => {
         setWarnings(prev => prev.map(w => w.id === warningId ? { ...w, isResolved: true } : w));
+        setIsDirty(true);
         showNotification("Aviso marcado como resolvido.");
     }, [showNotification]);
     
     const handleDeleteWarning = useCallback((warningId: string) => {
         setWarnings(prev => prev.filter(w => w.id !== warningId));
+        setIsDirty(true);
         showNotification("Aviso excluído.");
     }, [showNotification]);
 
@@ -414,6 +477,7 @@ const App: React.FC = () => {
                 setExpenses(prev => merge(prev, importedData.expenses || []));
                 setDebtPayments(prev => merge(prev, importedData.debtPayments || []));
                 setWarnings(prev => merge(prev, importedData.warnings || []));
+                setIsDirty(true);
                 
                 showNotification("Dados importados e mesclados com sucesso!");
             } catch (error) {
@@ -458,7 +522,7 @@ const App: React.FC = () => {
                 <div className="flex-grow">
                     {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
                     {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} />}
-                    {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onEditBilling={setEditingBilling} onDeleteBilling={handleDeleteBilling} />}
+                    {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onEditBilling={setEditingBilling} onDeleteBilling={handleDeleteBilling} onViewDetails={(b) => handleDirectPrintBillingReceipt(b, false)} />}
                     {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setIsLabelGenerationModalOpen(true)} />}
                     {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                     {currentView === 'ROTAS' && <RotasView customers={customers} />}
@@ -467,6 +531,7 @@ const App: React.FC = () => {
                 </div>
             </main>
             
+            <SaveStatusIndicator isDirty={isDirty} />
             <Notification notification={notification} onClose={() => setNotification(null)} />
             <BottomNavBar currentView={currentView} setView={setCurrentView} />
             {deferredPrompt && isInstallBannerVisible && <InstallPwaBanner onInstall={handleInstallPrompt} onDismiss={() => setIsInstallBannerVisible(false)} />}
@@ -488,7 +553,6 @@ const App: React.FC = () => {
             {printingCustomer && <PrintPreviewOverlay customer={printingCustomer} onCancel={() => setPrintingCustomer(null)} />}
             {isLabelGenerationModalOpen && <LabelGenerationModal isOpen={isLabelGenerationModalOpen} onClose={() => setIsLabelGenerationModalOpen(false)} customers={customers} showNotification={showNotification} />}
             {editingBilling && <EditBillingModal isOpen={!!editingBilling} onClose={() => setEditingBilling(null)} onConfirm={handleUpdateBilling} billing={editingBilling} />}
-            {directPrintData && <DirectPrintModal data={directPrintData.data} type={directPrintData.type} onClose={() => setDirectPrintData(null)} />}
         </div>
     );
 };

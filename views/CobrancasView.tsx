@@ -19,6 +19,7 @@ interface CobrancasViewProps {
     onShowActions: (billing: Billing) => void;
     onEditBilling: (billing: Billing) => void;
     onDeleteBilling: (billingId: string) => void;
+    onViewDetails: (billing: Billing) => void;
 }
 
 type SortKey = 'settledAt' | 'customerName' | 'valorTotal' | 'paidAt' | 'amountPaid';
@@ -68,7 +69,8 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
     customers, 
     onShowActions,
     onEditBilling,
-    onDeleteBilling
+    onDeleteBilling,
+    onViewDetails
 }) => {
     const [activeTab, setActiveTab] = useState<MainTab>('billings');
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
@@ -184,7 +186,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                 )}
             </div>
 
-            {activeTab === 'billings' && <BillingsList billings={filteredAndSortedData as Billing[]} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} />}
+            {activeTab === 'billings' && <BillingsList billings={filteredAndSortedData as Billing[]} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} onViewDetails={onViewDetails} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} />}
             {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} billings={billings} onPrint={handlePrintDebtors} />}
             
             {deletingBilling && <ActionModal isOpen={!!deletingBilling} onClose={() => setDeletingBilling(null)} onConfirm={handleConfirmDelete} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toFixed(2)}</strong>?</p><p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p></ActionModal>}
@@ -194,7 +196,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
 
 // --- Sub-components for each tab ---
 
-const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, totalBilled, handleSort, renderSortArrow }) => (
+const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, onViewDetails, totalBilled, handleSort, renderSortArrow }) => (
     <>
         {/* Mobile View: Cards */}
         <div className="md:hidden space-y-4 mb-10">
@@ -202,7 +204,13 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                 <div key={billing.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="font-bold text-slate-900 dark:text-white break-words">{billing.customerName}</p>
+                            <p 
+                                className="font-bold text-slate-900 dark:text-white break-words cursor-pointer hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
+                                onClick={() => onViewDetails(billing)}
+                                title="Ver detalhes da cobrança"
+                            >
+                                {billing.customerName}
+                            </p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
                         </div>
                         <div className="text-right">
@@ -227,7 +235,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                             </span>
                         </span>
                         <div className="flex gap-4">
-                            <button onClick={() => onShowActions(billing)} className="text-sm font-semibold text-lime-600 dark:text-lime-400">Ver</button>
+                            <button onClick={() => onShowActions(billing)} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Ações</button>
                             <button onClick={() => onEdit(billing)} className="p-1 text-sky-500 dark:text-sky-400" title="Editar Cobrança"><PencilIcon className="w-5 h-5" /></button>
                             <button onClick={() => onDelete(billing)} className="p-1 text-red-500 dark:text-red-400" title="Excluir Cobrança"><TrashIcon className="w-5 h-5" /></button>
                         </div>
@@ -255,7 +263,13 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                         {billings.length > 0 ? billings.map((billing: Billing) => (
                             <tr key={billing.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                                 <td className="px-6 py-4">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
-                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{billing.customerName}</td>
+                                <td 
+                                    className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap cursor-pointer hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
+                                    onClick={() => onViewDetails(billing)}
+                                    title="Ver detalhes da cobrança"
+                                >
+                                    {billing.customerName}
+                                </td>
                                 <td className="px-6 py-4">
                                     <span className="flex items-center gap-2">
                                         {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
@@ -277,7 +291,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                     <div className="flex justify-center items-center gap-4">
-                                        <button onClick={() => onShowActions(billing)} className="text-slate-500 hover:text-lime-500" title="Ver Recibo">Ver</button>
+                                        <button onClick={() => onShowActions(billing)} className="text-slate-500 hover:text-indigo-500" title="Mais Ações">Ações</button>
                                         <button onClick={() => onEdit(billing)} className="text-slate-500 hover:text-sky-500" title="Editar Cobrança"><PencilIcon className="w-5 h-5" /></button>
                                         <button onClick={() => onDelete(billing)} className="text-slate-500 hover:text-red-500" title="Excluir Cobrança"><TrashIcon className="w-5 h-5" /></button>
                                     </div>
