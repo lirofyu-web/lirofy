@@ -178,35 +178,48 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Navegar por Cidade</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {sortedCities.map((city, index) => (
-                  <button
-                      key={city}
-                      onClick={() => handleCityCardClick(city)}
-                      className={`${
-                        index % 2 === 0 
-                          ? 'bg-gradient-to-br from-blue-800 to-blue-950' 
-                          : 'bg-gradient-to-br from-indigo-800 to-indigo-950'
-                      } text-white p-4 rounded-lg shadow-lg hover:shadow-sky-500/40 text-left hover:scale-105 transition-all duration-200`}
-                  >
-                      <div className="flex items-center gap-3 mb-2">
-                          <LocationMarkerIcon className={`w-5 h-5 ${
-                            index % 2 === 0 ? 'text-blue-200' : 'text-indigo-200'
-                          } flex-shrink-0`} />
-                          <h3 className="font-bold truncate">{city}</h3>
-                      </div>
-                      <p className="text-sm text-white/80 mb-2">{customersByCity[city].length} cliente(s)</p>
-                      <div className="flex justify-between items-center text-xs font-semibold border-t border-white/30 pt-2">
-                          <div className="flex items-center gap-1.5 text-white">
-                              <GreenBilliardBallIcon className="w-3 h-3"/>
-                              <span>{cityStats[city]?.visited || 0} Visitados</span>
+              {sortedCities.map((city, index) => {
+                  const isDarkCard = index % 2 === 0;
+                  // cinza escuro com letras amarelas
+                  const darkCardClasses = 'bg-slate-800 text-yellow-400 hover:bg-slate-700';
+                  const darkIconClasses = 'text-yellow-400';
+                  const darkSecondaryTextClasses = 'text-yellow-400/80';
+                  const darkBorderClasses = 'border-yellow-400/30';
+                  const darkSmallTextClasses = 'text-yellow-300';
+                  
+                  // amarelo com letras pretas
+                  const lightCardClasses = 'bg-yellow-400 text-black hover:bg-yellow-500';
+                  const lightIconClasses = 'text-black/70';
+                  const lightSecondaryTextClasses = 'text-black/80';
+                  const lightBorderClasses = 'border-black/30';
+                  const lightSmallTextClasses = 'text-black';
+
+                  return (
+                      <button
+                          key={city}
+                          onClick={() => handleCityCardClick(city)}
+                          className={`${
+                            isDarkCard ? darkCardClasses : lightCardClasses
+                          } p-4 rounded-lg shadow-lg hover:shadow-yellow-400/30 text-left hover:scale-105 transition-all duration-200`}
+                      >
+                          <div className="flex items-center gap-3 mb-2">
+                              <LocationMarkerIcon className={`w-5 h-5 ${isDarkCard ? darkIconClasses : lightIconClasses} flex-shrink-0`} />
+                              <h3 className="font-bold truncate">{city}</h3>
                           </div>
-                          <div className="flex items-center gap-1.5 text-white">
-                              <RedBilliardBallIcon className="w-3 h-3"/>
-                              <span>{cityStats[city]?.notVisited || 0} Pendentes</span>
+                          <p className={`text-sm ${isDarkCard ? darkSecondaryTextClasses : lightSecondaryTextClasses} mb-2`}>{customersByCity[city].length} cliente(s)</p>
+                          <div className={`flex justify-between items-center text-xs font-semibold border-t ${isDarkCard ? darkBorderClasses : lightBorderClasses} pt-2`}>
+                              <div className={`flex items-center gap-1.5 ${isDarkCard ? darkSmallTextClasses : lightSmallTextClasses}`}>
+                                  <GreenBilliardBallIcon className="w-3 h-3"/>
+                                  <span>{cityStats[city]?.visited || 0} Visitados</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 ${isDarkCard ? darkSmallTextClasses : lightSmallTextClasses}`}>
+                                  <RedBilliardBallIcon className="w-3 h-3"/>
+                                  <span>{cityStats[city]?.notVisited || 0} Pendentes</span>
+                              </div>
                           </div>
-                      </div>
-                  </button>
-              ))}
+                      </button>
+                  );
+              })}
           </div>
         </div>
       )}

@@ -23,8 +23,6 @@ import { generateBillingText, generateDebtText } from './utils/receiptGenerator'
 import { applyThemeColors, defaultColors, AppThemeColors } from './utils/theme';
 import FullScreenCustomerView from './components/FullScreenCustomerView';
 import { sunmiPrinterService } from './utils/sunmiPrinter';
-import { bluetoothPrinter } from './utils/bluetoothPrinter';
-import { textToEscPos, generateTestPageCommands } from './utils/escpos';
 
 
 // Modals
@@ -42,8 +40,8 @@ import DebtReceiptModal from './components/DebtReceiptModal';
 import PrintableReceiptModal from './components/PrintableReceiptModal';
 import LabelGenerationModal from './components/LabelGenerationModal';
 import EditBillingModal from './components/EditBillingModal';
-import PdfReceiptSheet from './components/PdfReceiptSheet';
-import PdfDebtReceiptSheet from './components/PdfDebtReceiptSheet';
+import ReceiptSheet from './components/ReceiptSheet';
+import DebtReceiptSheet from './components/DebtReceiptSheet';
 import SaveStatusIndicator from './components/SaveStatusIndicator';
 
 
@@ -98,7 +96,6 @@ const App: React.FC = () => {
     const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
     const [isSharing, setIsSharing] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
-    const [btPrinterState, setBtPrinterState] = useState({ isConnected: false, deviceName: null as string | null });
 
 
     // Theme and PWA states
@@ -189,21 +186,6 @@ const App: React.FC = () => {
         window.addEventListener('beforeinstallprompt', handler);
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
-
-    // Bluetooth Printer State Management
-    useEffect(() => {
-        const updateBtState = () => {
-            setBtPrinterState({
-                isConnected: bluetoothPrinter.isConnected(),
-                deviceName: bluetoothPrinter.deviceName
-            });
-        };
-        // HACK: Use a custom event to update state when the singleton changes
-        // This avoids complex state management libraries for this simple case.
-        document.addEventListener('bt-status-change', updateBtState);
-        updateBtState(); // Initial check
-        return () => document.removeEventListener('bt-status-change', updateBtState);
-    }, []);
     
     const setTheme = useCallback((newTheme: Theme) => {
         setThemeState(newTheme);
@@ -258,7 +240,6 @@ const App: React.FC = () => {
     };
     
     const handlePrintPdf = useCallback((title: string, contentComponent: React.ReactElement) => {
-        const tailwindUrl = "https://cdn.tailwindcss.com";
         const content = ReactDOMServer.renderToString(contentComponent);
         
         const printWindow = window.open('', '_blank');
@@ -267,17 +248,39 @@ const App: React.FC = () => {
                 <html>
                     <head>
                         <title>${title}</title>
-                        <script src="${tailwindUrl}"></script>
-                        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
                         <style>
-                            body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-                            @page { size: A4; margin: 0; }
-                            @media print {
-                                body { background-color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            body { 
+                                font-family: 'Courier New', Courier, monospace;
+                                font-weight: bold;
+                                color: #000;
+                                width: 58mm; 
+                                margin: 0;
+                                padding: 2mm;
+                                font-size: 11pt; /* Letra grande */
                             }
+                            @page { 
+                                size: 58mm 200mm; 
+                                margin: 0; 
+                            }
+                            @media print {
+                                body { 
+                                    -webkit-print-color-adjust: exact; 
+                                    print-color-adjust: exact; 
+                                }
+                            }
+                            /* Basic styles to replicate receipt look */
+                            * {
+                                font-weight: bold !important; /* Forçar negrito em tudo */
+                            }
+                            .header { text-align: center; margin-bottom: 8px; }
+                            .header h3 { margin: 0; font-size: 12pt; }
+                            .header p { margin: 2px 0; font-size: 10pt; }
+                            .flex { display: flex; }
+                            .justify-between { justify-content: space-between; }
+                            hr.dashed, .border-t { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
                         </style>
                     </head>
-                    <body onafterprint="window.close()">
+                    <body>
                         ${content}
                     </body>
                 </html>
@@ -287,8 +290,8 @@ const App: React.FC = () => {
             
             const printTimeout = setTimeout(() => {
                 printWindow.print();
-            }, 1000); 
-            
+            }, 500);
+
             printWindow.onbeforeunload = () => {
                 clearTimeout(printTimeout);
             };
@@ -298,11 +301,12 @@ const App: React.FC = () => {
         }
     }, [showNotification]);
 
+
     const handleDirectPrintBillingReceipt = (billing: Billing, isProvisional: boolean) => {
         setReceiptActionsModalState(null);
         handlePrintPdf(
             `${isProvisional ? 'Demonstrativo' : 'Recibo'} - ${billing.customerName}`, 
-            <PdfReceiptSheet billing={billing} isProvisional={isProvisional} />
+            <ReceiptSheet billing={billing} isProvisional={isProvisional} />
         );
     };
 
@@ -310,7 +314,7 @@ const App: React.FC = () => {
         setDebtReceiptActionsModalState(null);
         handlePrintPdf(
             `Comprovante de Dívida - ${debtPayment.customerName}`, 
-            <PdfDebtReceiptSheet debtPayment={debtPayment} />
+            <DebtReceiptSheet debtPayment={debtPayment} />
         );
     };
 
@@ -342,32 +346,6 @@ const App: React.FC = () => {
             setIsSharing(false);
             setDebtReceiptActionsModalState(null);
         }
-    };
-
-    const handlePrintBluetooth = async (receiptText: string) => {
-        if (isSharing) return;
-        setIsSharing(true);
-        try {
-            const commands = textToEscPos(receiptText);
-            await bluetoothPrinter.print(commands);
-            showNotification('Impresso com sucesso!', 'success');
-        } catch (error) {
-            showNotification(error instanceof Error ? error.message : 'Falha na impressão Bluetooth', 'error');
-        } finally {
-            setIsSharing(false);
-            setReceiptActionsModalState(null);
-            setDebtReceiptActionsModalState(null);
-        }
-    };
-
-    const handlePrintBtBillingReceipt = (billing: Billing, isProvisional: boolean) => {
-        const text = generateBillingText(billing, isProvisional);
-        handlePrintBluetooth(text);
-    };
-
-    const handlePrintBtDebtReceipt = (debtPayment: DebtPayment) => {
-        const text = generateDebtText(debtPayment);
-        handlePrintBluetooth(text);
     };
 
     // Customer Handlers
@@ -583,43 +561,6 @@ const App: React.FC = () => {
             setIsInstallBannerVisible(false);
         });
     };
-    
-    const handleConnectBtPrinter = useCallback(async () => {
-        const status = await bluetoothPrinter.connect();
-        if (status === 'connected') {
-            showNotification(`Impressora "${bluetoothPrinter.deviceName}" conectada!`, 'success');
-        } else if (status === 'failed') {
-            showNotification('Falha ao conectar. Verifique se a impressora está ligada e no alcance.', 'error');
-        }
-        document.dispatchEvent(new Event('bt-status-change'));
-    }, [showNotification]);
-
-    const handleDisconnectBtPrinter = useCallback(async () => {
-        await bluetoothPrinter.disconnect();
-        showNotification('Impressora desconectada.', 'success');
-        document.dispatchEvent(new Event('bt-status-change'));
-    }, [showNotification]);
-
-    const handlePrintTestPage = useCallback(async () => {
-        try {
-            const commands = generateTestPageCommands();
-            await bluetoothPrinter.print(commands);
-            showNotification('Página de teste enviada!', 'success');
-        } catch (e) {
-            showNotification(e instanceof Error ? e.message : 'Erro ao imprimir.', 'error');
-        }
-    }, [showNotification]);
-    
-    const isSunmiAvailable = useMemo(() => sunmiPrinterService.isPrinterAvailable(), []);
-
-    const handleSunmiPrintTestPage = useCallback(async () => {
-        try {
-            await sunmiPrinterService.printTestPage();
-            showNotification('Página de teste enviada!', 'success');
-        } catch (e) {
-            showNotification(e instanceof Error ? e.message : 'Erro ao imprimir.', 'error');
-        }
-    }, [showNotification]);
 
     return (
         <div className={`flex h-full font-sans antialiased ${theme}`}>
@@ -639,7 +580,7 @@ const App: React.FC = () => {
                     {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                     {currentView === 'ROTAS' && <RotasView customers={customers} />}
                     {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />}
-                    {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} btPrinterStatus={btPrinterState} onConnectBtPrinter={handleConnectBtPrinter} onDisconnectBtPrinter={handleDisconnectBtPrinter} onPrintTestPage={handlePrintTestPage} isSunmiAvailable={isSunmiAvailable} onSunmiPrintTestPage={handleSunmiPrintTestPage} />}
+                    {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />}
                 </div>
             </main>
             
@@ -656,8 +597,8 @@ const App: React.FC = () => {
             {historyCustomer && <HistoryModal isOpen={!!historyCustomer} onClose={() => setHistoryCustomer(null)} customer={historyCustomer} billings={billings} debtPayments={debtPayments} />}
             {sharingCustomer && <ShareCustomerModal isOpen={!!sharingCustomer} onClose={() => setSharingCustomer(null)} customer={sharingCustomer} showNotification={showNotification} onPrintCustomer={setPrintingCustomer} />}
             {deleteCustomer && <ActionModal isOpen={!!deleteCustomer} onClose={() => setDeleteCustomer(null)} onConfirm={handleConfirmDeleteCustomer} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir o cliente <strong>{deleteCustomer.name}</strong>? Todos os seus dados, incluindo histórico de cobranças e dívidas, serão permanentemente removidos. Esta ação não pode ser desfeita.</p></ActionModal>}
-            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; await handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintRawBt={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); await handlePrintRawBt(text); setReceiptActionsModalState(null); }} onPrintSunmi={() => handlePrintSunmiBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintBluetooth={() => handlePrintBtBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} isBluetoothConnected={btPrinterState.isConnected} />}
-            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; await handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintDebtReceipt(debtReceiptActionsModalState.debtPayment)} onPrintRawBt={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); await handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} onPrintSunmi={() => handlePrintSunmiDebtReceipt(debtReceiptActionsModalState.debtPayment)} onPrintBluetooth={() => handlePrintBtDebtReceipt(debtReceiptActionsModalState.debtPayment)} isBluetoothConnected={btPrinterState.isConnected} />}
+            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; await handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintRawBt={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); await handlePrintRawBt(text); setReceiptActionsModalState(null); }} onPrintSunmi={() => handlePrintSunmiBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} />}
+            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; await handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintDebtReceipt(debtReceiptActionsModalState.debtPayment)} onPrintRawBt={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); await handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} onPrintSunmi={() => handlePrintSunmiDebtReceipt(debtReceiptActionsModalState.debtPayment)} />}
             {receiptModalState && <ReceiptModal isOpen={!!receiptModalState} onClose={() => setReceiptModalState(null)} billing={receiptModalState.billing} isProvisional={receiptModalState.isProvisional} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'billing', data: receiptModalState.billing, isProvisional: receiptModalState.isProvisional }); setReceiptModalState(null); }} />}
             {debtReceiptModalState && <DebtReceiptModal isOpen={!!debtReceiptModalState} onClose={() => setDebtReceiptModalState(null)} debtPayment={debtReceiptModalState} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'debt', data: debtReceiptModalState }); setDebtReceiptModalState(null); }} />}
             {screenshotReceipt && <PrintableReceiptModal receipt={screenshotReceipt} onClose={() => setScreenshotReceipt(null)} />}

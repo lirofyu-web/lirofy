@@ -13,8 +13,6 @@ const urlsToCache = [
   '/utils.ts',
   '/utils/theme.ts',
   '/utils/receiptGenerator.ts',
-  '/utils/bluetoothPrinter.ts',
-  '/utils/escpos.ts',
   '/utils/imageGenerator.ts',
   '/utils/pdfGenerator.ts',
   '/utils/sunmiPrinter.ts',
