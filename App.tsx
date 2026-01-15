@@ -22,6 +22,7 @@ import { PrinterIcon } from './components/icons/PrinterIcon';
 import { generateBillingText, generateDebtText } from './utils/receiptGenerator';
 import { applyThemeColors, defaultColors, AppThemeColors } from './utils/theme';
 import FullScreenCustomerView from './components/FullScreenCustomerView';
+import { sunmiPrinterService } from './utils/sunmiPrinter';
 
 
 // Modals
@@ -295,6 +296,36 @@ const App: React.FC = () => {
         );
     };
 
+    const handlePrintSunmiBillingReceipt = async (billing: Billing, isProvisional: boolean) => {
+        if (isSharing) return;
+        setIsSharing(true);
+        try {
+            const text = generateBillingText(billing, isProvisional);
+            await sunmiPrinterService.printReceipt(text);
+            showNotification('Impresso com sucesso!', 'success');
+        } catch (error) {
+            showNotification(error instanceof Error ? error.message : 'Falha na impressão', 'error');
+        } finally {
+            setIsSharing(false);
+            setReceiptActionsModalState(null);
+        }
+    };
+
+    const handlePrintSunmiDebtReceipt = async (debtPayment: DebtPayment) => {
+        if (isSharing) return;
+        setIsSharing(true);
+        try {
+            const text = generateDebtText(debtPayment);
+            await sunmiPrinterService.printReceipt(text);
+            showNotification('Impresso com sucesso!', 'success');
+        } catch (error) {
+            showNotification(error instanceof Error ? error.message : 'Falha na impressão', 'error');
+        } finally {
+            setIsSharing(false);
+            setDebtReceiptActionsModalState(null);
+        }
+    };
+
     // Customer Handlers
     const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
         setIsSaving(true);
@@ -544,8 +575,8 @@ const App: React.FC = () => {
             {historyCustomer && <HistoryModal isOpen={!!historyCustomer} onClose={() => setHistoryCustomer(null)} customer={historyCustomer} billings={billings} debtPayments={debtPayments} />}
             {sharingCustomer && <ShareCustomerModal isOpen={!!sharingCustomer} onClose={() => setSharingCustomer(null)} customer={sharingCustomer} showNotification={showNotification} onPrintCustomer={setPrintingCustomer} />}
             {deleteCustomer && <ActionModal isOpen={!!deleteCustomer} onClose={() => setDeleteCustomer(null)} onConfirm={handleConfirmDeleteCustomer} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir o cliente <strong>{deleteCustomer.name}</strong>? Todos os seus dados, incluindo histórico de cobranças e dívidas, serão permanentemente removidos. Esta ação não pode ser desfeita.</p></ActionModal>}
-            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; await handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintRawBt={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); await handlePrintRawBt(text); setReceiptActionsModalState(null); }} />}
-            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; await handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintDebtReceipt(debtReceiptActionsModalState.debtPayment)} onPrintRawBt={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); await handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} />}
+            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); const title = `Comprovante - ${receiptActionsModalState.billing.customerName}`; await handleShareText(text, title); setReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintRawBt={async () => { if(isSharing || !receiptActionsModalState) return; const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional); await handlePrintRawBt(text); setReceiptActionsModalState(null); }} onPrintSunmi={() => handlePrintSunmiBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} />}
+            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); const title = `Comprovante de Pagamento - ${debtReceiptActionsModalState.debtPayment.customerName}`; await handleShareText(text, title); setDebtReceiptActionsModalState(null); }} onViewReceipt={() => handleDirectPrintDebtReceipt(debtReceiptActionsModalState.debtPayment)} onPrintRawBt={async () => { if(isSharing || !debtReceiptActionsModalState) return; const text = generateDebtText(debtReceiptActionsModalState.debtPayment); await handlePrintRawBt(text); setDebtReceiptActionsModalState(null); }} onPrintSunmi={() => handlePrintSunmiDebtReceipt(debtReceiptActionsModalState.debtPayment)}/>}
             {receiptModalState && <ReceiptModal isOpen={!!receiptModalState} onClose={() => setReceiptModalState(null)} billing={receiptModalState.billing} isProvisional={receiptModalState.isProvisional} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'billing', data: receiptModalState.billing, isProvisional: receiptModalState.isProvisional }); setReceiptModalState(null); }} />}
             {debtReceiptModalState && <DebtReceiptModal isOpen={!!debtReceiptModalState} onClose={() => setDebtReceiptModalState(null)} debtPayment={debtReceiptModalState} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'debt', data: debtReceiptModalState }); setDebtReceiptModalState(null); }} />}
             {screenshotReceipt && <PrintableReceiptModal receipt={screenshotReceipt} onClose={() => setScreenshotReceipt(null)} />}

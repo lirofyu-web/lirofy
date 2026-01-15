@@ -4,6 +4,8 @@ import { ShareIcon } from './icons/ShareIcon';
 import { DebtPayment } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
 import { RawBtIcon } from './icons/RawBtIcon';
+import { sunmiPrinterService } from '../utils/sunmiPrinter';
+import { SunmiIcon } from './icons/SunmiIcon';
 
 interface DebtReceiptActionsModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface DebtReceiptActionsModalProps {
   onShare: () => Promise<void>;
   onViewReceipt: () => void;
   onPrintRawBt: () => Promise<void>;
+  onPrintSunmi: () => Promise<void>;
   debtPayment: DebtPayment;
   isSharing: boolean;
   showNotification: (message: string, type: 'success' | 'error') => void;
@@ -22,9 +25,12 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
   onShare,
   onViewReceipt,
   onPrintRawBt,
+  onPrintSunmi,
   isSharing,
 }) => {
   if (!isOpen) return null;
+
+  const isSunmiAvailable = sunmiPrinterService.isPrinterAvailable();
 
   return (
     <div 
@@ -39,13 +45,24 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
           <p className="text-slate-400 mt-4">Deseja enviar um comprovante?</p>
         </div>
         <div className="p-6 bg-slate-800/50 rounded-b-lg flex flex-col gap-3">
+          {isSunmiAvailable && (
+             <button
+              onClick={onPrintSunmi}
+              disabled={isSharing}
+              className="w-full inline-flex items-center justify-center gap-2 bg-orange-600 text-white font-bold py-3 px-6 rounded-md hover:bg-orange-500 transition-colors disabled:bg-slate-500"
+              title="Imprimir na impressora interna Sunmi"
+            >
+              <SunmiIcon className="w-5 h-5" />
+              <span>{isSharing ? 'Imprimindo...' : 'Imprimir (Sunmi)'}</span>
+            </button>
+          )}
           <button
             onClick={onViewReceipt}
             disabled={isSharing}
             className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-slate-500"
           >
             <PrinterIcon className="w-5 h-5" />
-            <span>Imprimir</span>
+            <span>Imprimir (PDF A4)</span>
           </button>
           <button
             onClick={onPrintRawBt}
