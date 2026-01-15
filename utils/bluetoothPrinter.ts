@@ -10,6 +10,7 @@ export class BluetoothPrinter {
     // FIX: Use 'any' for Web Bluetooth API types (BluetoothDevice, BluetoothRemoteGATTCharacteristic) as they are not available in the current TypeScript environment.
     private device: any | null = null;
     private characteristic: any | null = null;
+    public deviceName: string | null = null;
 
     async connect(): Promise<'connected' | 'cancelled' | 'failed'> {
         try {
@@ -18,6 +19,8 @@ export class BluetoothPrinter {
                 filters: [{ services: PRINTER_SERVICES }],
                 acceptAllDevices: false,
             });
+
+            this.deviceName = this.device.name;
 
             if (!this.device.gatt) {
                 throw new Error("GATT Server not available on this device.");
@@ -53,15 +56,14 @@ export class BluetoothPrinter {
         console.log('Bluetooth device disconnected.');
         this.device = null;
         this.characteristic = null;
+        this.deviceName = null;
     }
 
     async disconnect() {
         if (this.device?.gatt?.connected) {
             this.device.gatt.disconnect();
         }
-        this.device?.removeEventListener('gattserverdisconnected', this.onDisconnected);
-        this.device = null;
-        this.characteristic = null;
+        // The 'gattserverdisconnected' event will handle the cleanup.
     }
 
     isConnected(): boolean {

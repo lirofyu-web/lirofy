@@ -36,3 +36,47 @@ export function combine(...arrays: Uint8Array[]): Uint8Array {
     }
     return result;
 }
+
+export function textToEscPos(receiptText: string): Uint8Array {
+    const lines = receiptText.split('\n');
+    const commands: Uint8Array[] = [INIT];
+
+    for (const line of lines) {
+        let alignCmd = ALIGN_LEFT;
+        let isBold = false;
+        let printText = line.trim();
+
+        if (printText.includes('MONTANHA BILHAR') || printText.startsWith('ACERTO') || printText.startsWith('DEMONSTRATIVO') || printText.startsWith('COMPROVANTE')) {
+            alignCmd = ALIGN_CENTER;
+            isBold = true;
+        }
+
+        if (printText.startsWith('*') && printText.endsWith('*')) {
+            isBold = true;
+            printText = printText.substring(1, printText.length - 1);
+        }
+
+        commands.push(alignCmd);
+        if (isBold) commands.push(BOLD_ON);
+        commands.push(text(printText + '\n'));
+        if (isBold) commands.push(BOLD_OFF);
+    }
+
+    commands.push(text('\n\n\n\n'));
+    commands.push(CUT_PAPER);
+
+    return combine(...commands);
+}
+
+export function generateTestPageCommands(): Uint8Array {
+    const testText = `
+*Pagina de Teste*
+--------------------------------
+Se voce pode ler isso, a
+impressora Bluetooth esta
+funcionando corretamente.
+
+MONTANHA BILHAR & JUKEBOX
+    `.trim();
+    return textToEscPos(testText);
+}

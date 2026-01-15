@@ -6,6 +6,7 @@ import { PrinterIcon } from './icons/PrinterIcon';
 import { RawBtIcon } from './icons/RawBtIcon';
 import { sunmiPrinterService } from '../utils/sunmiPrinter';
 import { SunmiIcon } from './icons/SunmiIcon';
+import { BluetoothIcon } from './icons/BluetoothIcon';
 
 interface DebtReceiptActionsModalProps {
   isOpen: boolean;
@@ -14,9 +15,11 @@ interface DebtReceiptActionsModalProps {
   onViewReceipt: () => void;
   onPrintRawBt: () => Promise<void>;
   onPrintSunmi: () => Promise<void>;
+  onPrintBluetooth: () => Promise<void>;
   debtPayment: DebtPayment;
   isSharing: boolean;
   showNotification: (message: string, type: 'success' | 'error') => void;
+  isBluetoothConnected: boolean;
 }
 
 const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
@@ -26,7 +29,9 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
   onViewReceipt,
   onPrintRawBt,
   onPrintSunmi,
+  onPrintBluetooth,
   isSharing,
+  isBluetoothConnected,
 }) => {
   if (!isOpen) return null;
 
@@ -56,6 +61,17 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
               <span>{isSharing ? 'Imprimindo...' : 'Imprimir (Sunmi)'}</span>
             </button>
           )}
+           {isBluetoothConnected && (
+             <button
+              onClick={onPrintBluetooth}
+              disabled={isSharing}
+              className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 transition-colors disabled:bg-slate-500"
+              title="Imprimir em impressora térmica Bluetooth"
+            >
+              <BluetoothIcon className="w-5 h-5" />
+              <span>{isSharing ? 'Imprimindo...' : 'Imprimir (Bluetooth)'}</span>
+            </button>
+          )}
           <button
             onClick={onViewReceipt}
             disabled={isSharing}
@@ -67,7 +83,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
           <button
             onClick={onPrintRawBt}
             disabled={isSharing}
-            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 transition-colors disabled:bg-slate-500"
+            className="w-full inline-flex items-center justify-center gap-2 bg-gray-600 text-white font-bold py-3 px-6 rounded-md hover:bg-gray-500 transition-colors disabled:bg-slate-500"
             title="Imprimir em impressora térmica via RawBT"
           >
             <RawBtIcon className="w-5 h-5" />

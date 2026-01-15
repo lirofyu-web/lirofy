@@ -8,6 +8,9 @@ import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
 import { InstallIcon } from '../components/icons/InstallIcon';
 import { applyThemeColors, defaultColors, AppThemeColors } from '../utils/theme';
+import { BluetoothIcon } from '../components/icons/BluetoothIcon';
+import { PrinterIcon } from '../components/icons/PrinterIcon';
+import { SunmiIcon } from '../components/icons/SunmiIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
@@ -18,6 +21,14 @@ interface ConfiguracoesViewProps {
   showNotification: (message: string, type?: 'success' | 'error') => void;
   deferredPrompt: any;
   onInstallPrompt: () => void;
+  // Bluetooth Printer Props
+  btPrinterStatus: { isConnected: boolean; deviceName: string | null };
+  onConnectBtPrinter: () => void;
+  onDisconnectBtPrinter: () => void;
+  onPrintTestPage: () => void;
+  // Sunmi Printer Props
+  isSunmiAvailable: boolean;
+  onSunmiPrintTestPage: () => void;
 }
 
 const ColorPicker: React.FC<{ label: string, color: string, onChange: (color: string) => void }> = ({ label, color, onChange }) => (
@@ -45,6 +56,12 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   showNotification,
   deferredPrompt,
   onInstallPrompt,
+  btPrinterStatus,
+  onConnectBtPrinter,
+  onDisconnectBtPrinter,
+  onPrintTestPage,
+  isSunmiAvailable,
+  onSunmiPrintTestPage,
 }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [customerText, setCustomerText] = useState('');
@@ -128,6 +145,59 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       />
 
       <div className="space-y-12">
+        {/* Printer Section */}
+        <section>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Impressoras</h2>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-6">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Impressora Interna (POS Android / Sunmi)</h3>
+            {isSunmiAvailable ? (
+              <p className="text-green-600 dark:text-green-400 mb-4">
+                Impressora interna detectada e pronta para uso.
+              </p>
+            ) : (
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Nenhuma impressora interna (Sunmi) foi detectada neste dispositivo.
+              </p>
+            )}
+            {isSunmiAvailable && (
+                <div className="mt-4">
+                    <button onClick={onSunmiPrintTestPage} className="inline-flex items-center gap-2 bg-orange-600 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-500">
+                        <SunmiIcon className="w-5 h-5" /> Imprimir Página de Teste
+                    </button>
+                </div>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Impressora Térmica Bluetooth</h3>
+            {btPrinterStatus.isConnected ? (
+              <p className="text-green-600 dark:text-green-400 mb-4">
+                Conectado a: <strong>{btPrinterStatus.deviceName || 'Dispositivo Desconhecido'}</strong>
+              </p>
+            ) : (
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Nenhuma impressora conectada. Conecte-se para imprimir recibos térmicos diretamente.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-4">
+              {!btPrinterStatus.isConnected ? (
+                <button onClick={onConnectBtPrinter} className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-500">
+                  <BluetoothIcon className="w-5 h-5" /> Conectar Impressora
+                </button>
+              ) : (
+                <>
+                  <button onClick={onDisconnectBtPrinter} className="inline-flex items-center gap-2 bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-500">
+                    <BluetoothIcon className="w-5 h-5" /> Desconectar
+                  </button>
+                  <button onClick={onPrintTestPage} className="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500">
+                    <PrinterIcon className="w-5 h-5" /> Imprimir Teste
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Install App Section */}
         {deferredPrompt && (
           <section>

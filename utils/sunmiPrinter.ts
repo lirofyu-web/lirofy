@@ -85,6 +85,22 @@ class SunmiPrinterService {
       throw new Error("Falha na impressão. A impressora está pronta?");
     }
   }
+
+  /**
+   * Imprime uma página de teste para verificar a funcionalidade da impressora.
+   */
+  public async printTestPage(): Promise<void> {
+    const testText = `
+*Teste de Impressora Interna*
+
+Se voce pode ler isto, a
+impressora interna (Sunmi)
+esta funcionando corretamente.
+
+MONTANHA BILHAR & JUKEBOX
+    `.trim();
+    await this.printReceipt(testText);
+  }
 }
 
 // Exporta uma única instância do serviço para ser usada em todo o aplicativo.
