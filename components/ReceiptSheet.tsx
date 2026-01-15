@@ -132,6 +132,10 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional }) =
                     </>
                 )}
             </div>
+            <div className="text-center mt-4 pt-2 border-t border-dashed border-black">
+                <p className="font-bold text-xs">MONTANHA BILHAR & JUKEBOX</p>
+                <p className="text-xs">DIVERSAO LEVADO A SERIO.</p>
+            </div>
         </div>
     );
 };

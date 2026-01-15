@@ -18,7 +18,7 @@ const DirectPrintModal: React.FC<DirectPrintModalProps> = ({ data, type, onClose
     const timer = setTimeout(() => {
         const printContent = printRef.current?.innerHTML;
         if (printContent) {
-            const printWindow = window.open('', '', 'height=800,width=400');
+            const printWindow = window.open('', '_blank', 'width=400');
             if (printWindow) {
                 printWindow.document.write('<html><head><title>Recibo</title>');
                 printWindow.document.write(`
@@ -32,8 +32,8 @@ const DirectPrintModal: React.FC<DirectPrintModalProps> = ({ data, type, onClose
                       padding: 3mm;
                     }
                     @page {
-                        size: 80mm;
-                        margin: 0;
+                        size: auto;
+                        margin: 0mm;
                     }
                     .header h3 { margin: 0; font-size: 14px; }
                     .header p { margin: 2px 0; }
