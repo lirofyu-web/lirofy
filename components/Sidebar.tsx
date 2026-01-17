@@ -9,12 +9,14 @@ import { LogoIcon } from './icons/LogoIcon';
 import { MapIcon } from './icons/MapIcon';
 import { CogIcon } from './icons/CogIcon';
 import { ListBulletIcon } from './icons/ListBulletIcon';
+import { QrCodeIcon } from './icons/QrCodeIcon';
 
 interface SidebarProps {
   currentView: View;
   setView: (view: View) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  onOpenScanner: () => void;
 }
 
 const navItems = [
@@ -31,13 +33,18 @@ const secondaryNavItems = [
     { view: 'CONFIGURACOES' as View, label: 'Configurações', icon: CogIcon },
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, onOpenScanner }) => {
     
     const handleViewChange = (view: View) => {
         setView(view);
         setIsOpen(false); // Close sidebar on navigation in mobile
     };
     
+    const handleScanClick = () => {
+        onOpenScanner();
+        setIsOpen(false); // Close sidebar on action
+    };
+
     const NavButton: React.FC<{item: {view: View, label: string, icon: React.FC<any>}}> = ({ item }) => {
         const Icon = item.icon;
         const isActive = currentView === item.view;
@@ -76,6 +83,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
                 <nav className="flex-grow">
                     <ul>
                         {navItems.map(item => <NavButton key={item.view} item={item} />)}
+                        <li className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <button 
+                                onClick={handleScanClick}
+                                className="w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500"
+                            >
+                                <QrCodeIcon className="w-5 h-5 mr-4" />
+                                <span>Escanear e Faturar</span>
+                            </button>
+                        </li>
                     </ul>
                 </nav>
                 <div className="mt-auto">

@@ -12,6 +12,7 @@ import { PencilIcon } from '../components/icons/PencilIcon';
 import ActionModal from '../components/ActionModal';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
+import { ListBulletIcon } from '../components/icons/ListBulletIcon';
 
 interface CobrancasViewProps {
     billings: Billing[];
@@ -139,7 +140,55 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
             }
         });
 
-        const reportHtml = `...`; // (Implementation unchanged)
+        const reportHtml = `
+            <html>
+                <head>
+                    <title>Relatório de Clientes Devedores</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; font-size: 10pt; }
+                        @page { size: A4; margin: 20mm; }
+                        h1, h2 { text-align: center; }
+                        h1 { font-size: 16pt; }
+                        h2 { font-size: 12pt; color: #555; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        .currency { text-align: right; font-family: monospace; }
+                        .total-row { font-weight: bold; border-top: 2px solid #333; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Montanha Bilhar & Jukebox</h1>
+                    <h2>Relatório de Clientes Devedores - ${new Date().toLocaleDateString('pt-BR')}</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Cidade</th>
+                                <th>Origem da Dívida</th>
+                                <th class="currency">Valor da Dívida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${debtorCustomers.map(customer => `
+                                <tr>
+                                    <td>${customer.name}</td>
+                                    <td>${customer.cidade}</td>
+                                    <td>${Array.from(debtOrigins.get(customer.id) || []).join(', ') || 'Pagamento Avulso'}</td>
+                                    <td class="currency">R$ ${customer.debtAmount.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="3">Total Geral de Dívidas</td>
+                                <td class="currency">R$ ${totalDebt.toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </body>
+            </html>
+        `;
         const printWindow = window.open('', '', 'height=800,width=1000');
         if (printWindow) {
             printWindow.document.write(reportHtml);
@@ -167,21 +216,35 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                 </div>
                 
                 {activeTab !== 'debtors' && (
-                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-center flex-wrap">
-                        <div className="relative flex-grow w-full sm:w-auto">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon className="w-5 h-5 text-slate-400" /></div>
-                            <input type="text" placeholder="Filtrar por nome do cliente..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-lime-500"/>
-                        </div>
+                    <div className="space-y-4">
                         {activeTab === 'billings' && (
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <button onClick={() => setEquipmentFilter('all')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>Todos</button>
-                                <button onClick={() => setEquipmentFilter('mesa')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>Mesas</button>
-                                <button onClick={() => setEquipmentFilter('jukebox')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>Jukebox</button>
-                                <button onClick={() => setEquipmentFilter('grua')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>Gruas</button>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+                                <button onClick={() => setEquipmentFilter('all')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'all' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                                    <ListBulletIcon className={`w-8 h-8 ${equipmentFilter === 'all' ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                                    <span className="text-xs font-bold mt-1">Todos</span>
+                                </button>
+                                <button onClick={() => setEquipmentFilter('mesa')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                                    <BilliardIcon className={`w-8 h-8 ${equipmentFilter === 'mesa' ? 'text-white' : 'text-cyan-600 dark:text-cyan-400'}`} />
+                                    <span className="text-xs font-bold mt-1">Mesas</span>
+                                </button>
+                                <button onClick={() => setEquipmentFilter('jukebox')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                                    <JukeboxIcon className={`w-8 h-8 ${equipmentFilter === 'jukebox' ? 'text-white' : 'text-fuchsia-600 dark:text-fuchsia-400'}`} />
+                                    <span className="text-xs font-bold mt-1">Jukebox</span>
+                                </button>
+                                <button onClick={() => setEquipmentFilter('grua')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                                    <CraneIcon className={`w-8 h-8 ${equipmentFilter === 'grua' ? 'text-white' : 'text-orange-600 dark:text-orange-400'}`} />
+                                    <span className="text-xs font-bold mt-1">Gruas</span>
+                                </button>
                             </div>
                         )}
-                        <div className="flex-grow w-full sm:w-auto"><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
-                        <div className="flex-grow w-full sm:w-auto"><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center flex-wrap">
+                            <div className="relative flex-grow w-full">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon className="w-5 h-5 text-slate-400" /></div>
+                                <input type="text" placeholder="Filtrar por nome do cliente..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-lime-500"/>
+                            </div>
+                            <div className="flex-grow w-full sm:w-auto"><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
+                            <div className="flex-grow w-full sm:w-auto"><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
+                        </div>
                     </div>
                 )}
             </div>

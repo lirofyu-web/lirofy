@@ -38,11 +38,12 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
     const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
     const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
 
-    const EquipmentIcon: React.FC<{type: Equipment['type']}> = ({ type }) => {
-        switch(type) {
-            case 'mesa': return <BilliardIcon className="w-5 h-5 text-[var(--color-accent)] dark:text-[var(--color-accent)]" />;
-            case 'jukebox': return <JukeboxIcon className="w-5 h-5 text-fuchsia-500 dark:text-fuchsia-400" />;
-            case 'grua': return <CraneIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />;
+    const EquipmentIcon: React.FC<{ type: Equipment['type'], className?: string }> = ({ type, className }) => {
+        const finalClassName = className || 'w-5 h-5';
+        switch (type) {
+            case 'mesa': return <BilliardIcon className={finalClassName} />;
+            case 'jukebox': return <JukeboxIcon className={finalClassName} />;
+            case 'grua': return <CraneIcon className={finalClassName} />;
             default: return null;
         }
     };
@@ -63,6 +64,12 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
             <span className="mt-1.5">{label}</span>
         </button>
     );
+
+    const equipmentTypeText = {
+        'mesa': 'Mesa de Sinuca',
+        'jukebox': 'Jukebox',
+        'grua': 'Grua de Pelúcia'
+    };
 
     return (
         <>
@@ -136,17 +143,21 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                         {isExpanded && (
                             <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 space-y-3">
                                 {customer.equipment.map((equip) => (
-                                    <div key={equip.id} className="flex justify-between items-center text-sm p-2 bg-white dark:bg-slate-800 rounded-md">
-                                        <div className="flex items-center gap-2">
-                                            <EquipmentIcon type={equip.type} />
-                                            <span className="font-medium text-slate-800 dark:text-white capitalize">{equip.type} {equip.numero}</span>
-                                        </div>
-                                        <div className="text-slate-500 dark:text-slate-400 font-mono">
-                                            {equip.type === 'mesa' && equip.billingType === 'monthly' ? (
-                                                <span>Mensal: R$ {(equip.monthlyFeeValue || 0).toFixed(2)}</span>
-                                            ) : (
-                                                <span>Leitura: {equip.relogioAnterior}</span>
-                                            )}
+                                    <div key={equip.id} className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-inner">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-shrink-0 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                                                <EquipmentIcon type={equip.type} className="w-12 h-12" />
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-lg text-slate-800 dark:text-white">{equipmentTypeText[equip.type]} {equip.numero}</span>
+                                                <div className="text-slate-500 dark:text-slate-400 font-mono text-sm mt-1">
+                                                    {equip.type === 'mesa' && equip.billingType === 'monthly' ? (
+                                                        <span>Mensal: R$ {(equip.monthlyFeeValue || 0).toFixed(2)}</span>
+                                                    ) : (
+                                                        <span>Leitura: {equip.relogioAnterior}</span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

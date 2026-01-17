@@ -18,6 +18,7 @@ interface RelatoriosViewProps {
   billings: Billing[];
   expenses: Expense[];
   debtPayments: DebtPayment[];
+  onThermalPrint: (title: string, content: string) => void;
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
@@ -197,7 +198,7 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
 
 // --- Main View Component ---
 
-const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, expenses, debtPayments }) => {
+const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, expenses, debtPayments, onThermalPrint }) => {
   const getInitialDateRange = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -758,6 +759,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   
   const handleGenerateSlips = (selectedCustomers: Customer[]) => {
       // 1. Sort customers by city, then by name for a consistent, grouped order.
+// FIX: Explicitly type `a` and `b` as `Customer` to resolve type inference issue.
       const sortedCustomers = [...selectedCustomers].sort((a, b) => {
           const cityComparison = a.cidade.localeCompare(b.cidade);
           if (cityComparison !== 0) {
@@ -790,9 +792,76 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
       setSlipsToPrint(slips);
       setIsCustomerSelectionOpen(false);
   };
+  
+    const handlePrintThermalReport = useCallback(() => {
+        const start = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início';
+        const end = dateRange.end ? new Date(dateRange.end + 'T00:00:00').toLocaleDateString('pt-BR') : 'Fim';
 
-  const PrintButton = ({ onClick, label, colorClass }: { onClick: () => void, label: string, colorClass: string }) => (
-     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50">
+        const allBillings = [
+            ...stats.periodMesaBillings,
+            ...stats.periodJukeboxBillings,
+            ...stats.periodGruaBillings,
+        ].sort((a, b) => new Date(a.settledAt).getTime() - new Date(b.settledAt).getTime());
+        
+        const customerMap = new Map(customers.map(c => [c.id, c]));
+
+        let reportText = `*Relatorio de Caixa*\n`;
+        reportText += `Periodo: ${start} a ${end}\n`;
+        reportText += `--------------------------------\n\n`;
+
+        allBillings.forEach(b => {
+            const customer = customerMap.get(b.customerId);
+            reportText += `Cliente: ${b.customerName}\n`;
+            if (customer) {
+                reportText += `Cidade: ${customer.cidade}\n`;
+            }
+
+            const valorFirma = (b.equipmentType === 'grua') 
+                ? b.valorTotal 
+                : b.valorTotal - (b.valorDebitoNegativo || 0);
+            
+            reportText += `Valor Firma: R$ ${valorFirma.toFixed(2)}\n`;
+            
+            reportText += `Pagamento:\n`;
+            if (b.equipmentType === 'grua') {
+                if ((b.recebimentoEspecie || 0) > 0) reportText += ` - Dinheiro: R$ ${b.recebimentoEspecie.toFixed(2)}\n`;
+                if ((b.recebimentoPix || 0) > 0) reportText += ` - PIX: R$ ${b.recebimentoPix.toFixed(2)}\n`;
+            } else {
+                if ((b.valorPagoDinheiro || 0) > 0) reportText += ` - Dinheiro: R$ ${b.valorPagoDinheiro.toFixed(2)}\n`;
+                if ((b.valorPagoPix || 0) > 0) reportText += ` - PIX: R$ ${b.valorPagoPix.toFixed(2)}\n`;
+                if ((b.valorDebitoNegativo || 0) > 0) reportText += ` - Negativo: R$ ${b.valorDebitoNegativo.toFixed(2)}\n`;
+            }
+            reportText += `--------------------------------\n`;
+        });
+        
+        if (stats.periodDebtPayments.length > 0) {
+            reportText += `\n*Pagamentos de Dividas Avulsas*\n\n`;
+            stats.periodDebtPayments.forEach(p => {
+                reportText += `Cliente: ${p.customerName}\n`;
+                reportText += `Valor Pago: R$ ${p.amountPaid.toFixed(2)}\n`;
+                reportText += `Metodo: ${p.paymentMethod.toUpperCase()}\n`;
+                reportText += `--------------------------------\n`;
+            });
+        }
+        
+        const totalDinheiro = stats.revenueMesaDinheiro + stats.revenueJukeboxDinheiro + stats.revenueGruaEspecie;
+        const totalPix = stats.revenueMesaPix + stats.revenueJukeboxPix + stats.revenueGruaPix;
+        const totalNegativo = allBillings.reduce((sum, b) => sum + (b.valorDebitoNegativo || 0), 0);
+
+        reportText += `\n*RESUMO DO PERIODO*\n`;
+        reportText += `--------------------------------\n`;
+        reportText += `Total Entradas (Dinheiro): R$ ${totalDinheiro.toFixed(2)}\n`;
+        reportText += `Total Entradas (PIX): R$ ${totalPix.toFixed(2)}\n`;
+        reportText += `Total Divida Gerada (Negativo): R$ ${totalNegativo.toFixed(2)}\n`;
+        reportText += `--------------------------------\n`;
+        reportText += `*Total em Caixa (Dinheiro + PIX): R$ ${(totalDinheiro + totalPix).toFixed(2)}*\n`;
+        
+        onThermalPrint('Relatório de Caixa', reportText);
+    }, [dateRange, stats, customers, onThermalPrint]);
+
+
+  const PrintButton = ({ onClick, label, colorClass, className }: { onClick: () => void, label: string, colorClass: string, className?: string }) => (
+     <div className={`mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50 ${className}`}>
         <button
             onClick={onClick}
             className={`w-full inline-flex items-center justify-center gap-2 text-white font-bold py-2 px-3 rounded-md transition-colors ${colorClass}`}
@@ -868,6 +937,12 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <PrintButton 
                 onClick={() => setIsCustomerSelectionOpen(true)}
                 label="Imprimir Talões de Cobrança"
+                colorClass="bg-gray-600 hover:bg-gray-500"
+                className="mt-0 pt-0 border-none"
+            />
+            <PrintButton 
+                onClick={handlePrintThermalReport}
+                label="Relatório de Caixa (Térmica)"
                 colorClass="bg-gray-600 hover:bg-gray-500"
             />
         </InfoCard>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ReactDOMServer from 'react-dom/server';
+import QRCode from 'qrcode';
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning } from './types';
 
 import Sidebar from './components/Sidebar';
@@ -43,6 +44,8 @@ import EditBillingModal from './components/EditBillingModal';
 import ReceiptSheet from './components/ReceiptSheet';
 import DebtReceiptSheet from './components/DebtReceiptSheet';
 import SaveStatusIndicator from './components/SaveStatusIndicator';
+import QrScannerModal from './components/QrScannerModal';
+import ThermalPrintActionsModal from './components/ThermalPrintActionsModal';
 
 
 export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
@@ -120,6 +123,8 @@ const App: React.FC = () => {
     const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
     const [isLabelGenerationModalOpen, setIsLabelGenerationModalOpen] = useState(false);
     const [editingBilling, setEditingBilling] = useState<Billing | null>(null);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [thermalPrintModalState, setThermalPrintModalState] = useState<{ title: string; content: string } | null>(null);
     
     // Handlers
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -187,6 +192,35 @@ const App: React.FC = () => {
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
     
+    const isAnyModalOpen = useMemo(() => {
+      return !!(
+        billingModalState || editCustomer || deleteCustomer || payingDebtCustomer ||
+        historyCustomer || sharingCustomer || receiptActionsModalState ||
+        debtReceiptActionsModalState || receiptModalState || debtReceiptModalState ||
+        screenshotReceipt || equipmentSelectionCustomer || focusedCustomer ||
+        printingCustomer || isLabelGenerationModalOpen || editingBilling ||
+        isScannerOpen || thermalPrintModalState
+      );
+    }, [
+      billingModalState, editCustomer, deleteCustomer, payingDebtCustomer,
+      historyCustomer, sharingCustomer, receiptActionsModalState,
+      debtReceiptActionsModalState, receiptModalState, debtReceiptModalState,
+      screenshotReceipt, equipmentSelectionCustomer, focusedCustomer,
+      printingCustomer, isLabelGenerationModalOpen, editingBilling,
+      isScannerOpen, thermalPrintModalState
+    ]);
+    
+    useEffect(() => {
+        if (isAnyModalOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = ''; // Cleanup on unmount
+        };
+    }, [isAnyModalOpen]);
+
     const setTheme = useCallback((newTheme: Theme) => {
         setThemeState(newTheme);
         localStorage.setItem('theme', newTheme);
@@ -239,8 +273,16 @@ const App: React.FC = () => {
         }
     };
     
-    const handlePrintPdf = useCallback((title: string, contentComponent: React.ReactElement) => {
-        const content = ReactDOMServer.renderToString(contentComponent);
+    const handlePrintPdf = useCallback(async (title: string, contentComponent: React.ReactElement) => {
+        const pixPayload = "00020126360014BR.GOV.BCB.PIX0114+55439995819935204000053039865802BR5915BILHAR MONTANHA6012Jaguapita-PR62070503***6304F96E";
+        const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, {
+            width: 150,
+            margin: 1,
+            errorCorrectionLevel: 'M',
+        });
+        
+        const componentWithQr = React.cloneElement(contentComponent, { qrCodeDataUrl });
+        const content = ReactDOMServer.renderToString(componentWithQr);
         
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -319,34 +361,31 @@ const App: React.FC = () => {
     };
 
     const handlePrintSunmiBillingReceipt = async (billing: Billing, isProvisional: boolean) => {
-        if (isSharing) return;
-        setIsSharing(true);
-        try {
-            const text = generateBillingText(billing, isProvisional);
-            await sunmiPrinterService.printReceipt(text);
-            showNotification('Impresso com sucesso!', 'success');
-        } catch (error) {
-            showNotification(error instanceof Error ? error.message : 'Falha na impressão', 'error');
-        } finally {
-            setIsSharing(false);
-            setReceiptActionsModalState(null);
-        }
+        const text = generateBillingText(billing, isProvisional);
+        await handlePrintSunmiText(text);
+        setReceiptActionsModalState(null);
     };
 
     const handlePrintSunmiDebtReceipt = async (debtPayment: DebtPayment) => {
+        const text = generateDebtText(debtPayment);
+        await handlePrintSunmiText(text);
+        setDebtReceiptActionsModalState(null);
+    };
+
+    const handlePrintSunmiText = async (text: string) => {
         if (isSharing) return;
         setIsSharing(true);
         try {
-            const text = generateDebtText(debtPayment);
             await sunmiPrinterService.printReceipt(text);
             showNotification('Impresso com sucesso!', 'success');
         } catch (error) {
             showNotification(error instanceof Error ? error.message : 'Falha na impressão', 'error');
         } finally {
             setIsSharing(false);
-            setDebtReceiptActionsModalState(null);
+            setThermalPrintModalState(null);
         }
     };
+
 
     // Customer Handlers
     const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
@@ -562,9 +601,36 @@ const App: React.FC = () => {
         });
     };
 
+    const handleOpenScanner = useCallback(() => setIsScannerOpen(true), []);
+
+    const handleScanSuccess = useCallback((decodedText: string) => {
+        setIsScannerOpen(false);
+        try {
+            const data = JSON.parse(decodedText);
+            if (data.type === 'equipment' && data.id) {
+                const customerWithEquipment = customers.find(c => c.equipment.some(e => e.id === data.id));
+                if (customerWithEquipment) {
+                    showNotification(`Equipamento encontrado para ${customerWithEquipment.name}!`, 'success');
+                    handleSelectEquipmentForBilling(customerWithEquipment);
+                } else {
+                    showNotification("Equipamento não encontrado ou não associado a um cliente.", "error");
+                }
+                return;
+            }
+        } catch (e) {
+            const customer = customers.find(c => c.id === decodedText);
+            if (customer) {
+                showNotification(`Cliente ${customer.name} encontrado!`, 'success');
+                handleSelectEquipmentForBilling(customer);
+            } else {
+                showNotification("QR Code inválido. Não corresponde a um cliente ou equipamento conhecido.", "error");
+            }
+        }
+    }, [customers, showNotification, handleSelectEquipmentForBilling]);
+
     return (
         <div className={`flex h-full font-sans antialiased ${theme}`}>
-            <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+            <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} onOpenScanner={handleOpenScanner} />
             <main className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
                 <MobileHeader
                     title={viewTitles[currentView]}
@@ -574,12 +640,12 @@ const App: React.FC = () => {
                 />
                 <div className="flex-grow">
                     {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupDate} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
-                    {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} />}
+                    {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} onOpenScanner={handleOpenScanner} />}
                     {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onEditBilling={setEditingBilling} onDeleteBilling={handleDeleteBilling} onViewDetails={(b) => handleDirectPrintBillingReceipt(b, false)} />}
                     {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setIsLabelGenerationModalOpen(true)} />}
                     {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                     {currentView === 'ROTAS' && <RotasView customers={customers} />}
-                    {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} />}
+                    {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} onThermalPrint={(title, content) => setThermalPrintModalState({ title, content })} />}
                     {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} onAddCustomerFromText={handleAddCustomerFromText} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />}
                 </div>
             </main>
@@ -606,6 +672,26 @@ const App: React.FC = () => {
             {printingCustomer && <PrintPreviewOverlay customer={printingCustomer} onCancel={() => setPrintingCustomer(null)} />}
             {isLabelGenerationModalOpen && <LabelGenerationModal isOpen={isLabelGenerationModalOpen} onClose={() => setIsLabelGenerationModalOpen(false)} customers={customers} showNotification={showNotification} />}
             {editingBilling && <EditBillingModal isOpen={!!editingBilling} onClose={() => setEditingBilling(null)} onConfirm={handleUpdateBilling} billing={editingBilling} />}
+            {isScannerOpen && (
+                <QrScannerModal
+                    isOpen={isScannerOpen}
+                    onClose={() => setIsScannerOpen(false)}
+                    onScanSuccess={handleScanSuccess}
+                    showNotification={showNotification}
+                />
+            )}
+             {thermalPrintModalState && (
+                <ThermalPrintActionsModal
+                    isOpen={!!thermalPrintModalState}
+                    onClose={() => setThermalPrintModalState(null)}
+                    title={thermalPrintModalState.title}
+                    content={thermalPrintModalState.content}
+                    onShare={handleShareText}
+                    onPrintRawBt={handlePrintRawBt}
+                    onPrintSunmi={handlePrintSunmiText}
+                    isSharing={isSharing}
+                />
+            )}
         </div>
     );
 };

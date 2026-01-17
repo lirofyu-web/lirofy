@@ -6,6 +6,7 @@ import PixQrCode from './PixQrCode';
 interface ReceiptSheetProps {
   billing: Billing;
   isProvisional?: boolean;
+  qrCodeDataUrl?: string; // For SSR/PDF printing
 }
 
 const ReceiptRow: React.FC<{label: string, value: string | number}> = ({ label, value }) => (
@@ -15,7 +16,7 @@ const ReceiptRow: React.FC<{label: string, value: string | number}> = ({ label, 
     </div>
 );
 
-const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional }) => {
+const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrCodeDataUrl }) => {
     const isMesa = billing.equipmentType === 'mesa';
     const isGrua = billing.equipmentType === 'grua';
     
@@ -123,15 +124,23 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional }) =
                 )}
                 
                 {isProvisional && (
-                    <>
-                        <div className="text-center font-bold mt-4 border-t border-b border-dashed border-black py-1">
-                            <p>*** COMPROVANTE PARA CONFERÊNCIA ***</p>
-                            <p>*** SEM VALOR FISCAL ***</p>
-                        </div>
-                        <PixQrCode />
-                    </>
+                    <div className="text-center font-bold mt-4 border-t border-b border-dashed border-black py-1">
+                        <p>*** COMPROVANTE PARA CONFERÊNCIA ***</p>
+                        <p>*** SEM VALOR FISCAL ***</p>
+                    </div>
                 )}
             </div>
+
+            {qrCodeDataUrl ? (
+                <div className="text-center mt-4">
+                    <p className="font-bold">Pague com PIX</p>
+                    <img src={qrCodeDataUrl} alt="PIX QR Code" style={{ width: '150px', height: '150px', margin: '8px auto', border: '4px solid black' }} />
+                    <p className="text-xs">Chave: 43999581993</p>
+                </div>
+            ) : (
+                <PixQrCode />
+            )}
+
             <div className="text-center mt-4 pt-2 border-t border-dashed border-black">
                 <p className="font-bold text-xs">MONTANHA BILHAR & JUKEBOX</p>
                 <p className="text-xs">DIVERSAO LEVADO A SERIO.</p>

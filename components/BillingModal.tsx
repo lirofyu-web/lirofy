@@ -387,8 +387,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             setError("A soma de Espécie e PIX deve ser igual ao Total para a Firma.");
             return;
         }
-    } else if (Math.abs(remainingAmountLiquido) > 0.01) {
-      setError("A soma de Dinheiro e PIX deve ser igual ao valor 'Líquido a Receber'.");
+    } else if (Math.round(remainingAmountLiquido * 100) !== 0) {
+      setError("A soma dos pagamentos (Dinheiro, PIX, Negativo) deve ser igual ao valor total para a firma.");
       return;
     }
 
@@ -474,7 +474,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           )}
           <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
           <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-          {Math.abs(remainingAmountLiquido) > 0.01 && (
+          {Math.round(remainingAmountLiquido * 100) !== 0 && (
               <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
                   {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toFixed(2).replace('.', ',')}`}
               </div>
@@ -597,7 +597,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
                   
-                  {Math.abs(remainingAmountLiquido) > 0.01 && (
+                  {Math.round(remainingAmountLiquido * 100) !== 0 && (
                       <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
                           {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toFixed(2).replace('.', ',')}`}
                       </div>
@@ -640,7 +640,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                         <button onClick={() => setJukeboxStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
                         <button 
                           onClick={handleFinalize} 
-                          disabled={!!error || Math.abs(remainingAmountLiquido) > 0.01}
+                          disabled={!!error || Math.round(remainingAmountLiquido * 100) !== 0}
                           className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                         >
                           Finalizar Cobrança
@@ -663,7 +663,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                     <button onClick={() => setMesaStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
                     <button 
                       onClick={handleFinalize} 
-                      disabled={Math.abs(remainingAmountLiquido) > 0.01}
+                      disabled={Math.round(remainingAmountLiquido * 100) !== 0}
                       className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                     >
                       Finalizar Cobrança

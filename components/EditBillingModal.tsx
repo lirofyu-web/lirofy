@@ -43,7 +43,7 @@ const EditBillingModal: React.FC<EditBillingModalProps> = ({ isOpen, onClose, on
   }, [dinheiro, pix, negativo, recebimentoEspecie, recebimentoPix, valorTotal, isGrua]);
 
   const handleConfirm = useCallback(() => {
-    if (Math.abs(remainingAmount) > 0.01) {
+    if (Math.round(remainingAmount * 100) !== 0) {
       setError('A soma dos pagamentos deve ser igual ao valor total.');
       return;
     }
@@ -116,7 +116,7 @@ const EditBillingModal: React.FC<EditBillingModalProps> = ({ isOpen, onClose, on
             </>
           )}
 
-          {Math.abs(remainingAmount) > 0.01 && (
+          {Math.round(remainingAmount * 100) !== 0 && (
               <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmount > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
                   {remainingAmount > 0 ? `Falta alocar: R$ ${remainingAmount.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmount).toFixed(2).replace('.', ',')}`}
               </div>
@@ -125,7 +125,7 @@ const EditBillingModal: React.FC<EditBillingModalProps> = ({ isOpen, onClose, on
         </div>
         <div className="p-6 bg-slate-800/50 rounded-b-lg flex justify-end gap-4">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
-          <button onClick={handleConfirm} disabled={Math.abs(remainingAmount) > 0.01} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed">Salvar</button>
+          <button onClick={handleConfirm} disabled={Math.round(remainingAmount * 100) !== 0} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed">Salvar</button>
         </div>
       </div>
       <style>{`

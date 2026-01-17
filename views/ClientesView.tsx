@@ -6,11 +6,14 @@ import CustomerCard from '../components/CustomerCard';
 import PageHeader from '../components/PageHeader';
 import { SearchIcon } from '../components/icons/SearchIcon';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
-import QrScannerModal from '../components/QrScannerModal';
 import { LocationMarkerIcon } from '../components/icons/LocationMarkerIcon';
 import CityCustomersModal from '../components/CityCustomersModal';
 import { GreenBilliardBallIcon } from '../components/icons/GreenBilliardBallIcon';
 import { RedBilliardBallIcon } from '../components/icons/RedBilliardBallIcon';
+import { BilliardIcon } from '../components/icons/BilliardIcon';
+import { JukeboxIcon } from '../components/icons/JukeboxIcon';
+import { CraneIcon } from '../components/icons/CraneIcon';
+import { ListBulletIcon } from '../components/icons/ListBulletIcon';
 
 interface ClientesViewProps {
   customers: Customer[];
@@ -26,6 +29,7 @@ interface ClientesViewProps {
   onPayDebtCustomer: (customer: Customer) => void;
   onHistoryCustomer: (customer: Customer) => void;
   onShareCustomer: (customer: Customer) => void;
+  onOpenScanner: () => void;
 }
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
@@ -42,11 +46,11 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onDeleteCustomer,
     onPayDebtCustomer,
     onHistoryCustomer,
-    onShareCustomer
+    onShareCustomer,
+    onOpenScanner
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [viewingCity, setViewingCity] = useState<string | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -107,31 +111,6 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     return stats;
   }, [sortedCities, customersByCity]);
 
-  const handleScanSuccess = useCallback((decodedText: string) => {
-      setIsScannerOpen(false);
-      try {
-          const data = JSON.parse(decodedText);
-          if (data.type === 'equipment' && data.id) {
-              const customerWithEquipment = customers.find(c => c.equipment.some(e => e.id === data.id));
-              if (customerWithEquipment) {
-                  showNotification(`Equipamento encontrado para ${customerWithEquipment.name}!`, 'success');
-                  onBillCustomer(customerWithEquipment);
-              } else {
-                  showNotification("Equipamento não encontrado ou não associado a um cliente.", "error");
-              }
-              return;
-          }
-      } catch (e) {
-          const customer = customers.find(c => c.id === decodedText);
-          if (customer) {
-              showNotification(`Cliente ${customer.name} encontrado!`, 'success');
-              onBillCustomer(customer);
-          } else {
-              showNotification("QR Code inválido. Não corresponde a um cliente ou equipamento conhecido.", "error");
-          }
-      }
-  }, [customers, showNotification, onBillCustomer]);
-
   const handleCityCardClick = useCallback((city: string) => {
     setViewingCity(city);
   }, []);
@@ -159,18 +138,30 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                 />
             </div>
             <button
-                onClick={() => setIsScannerOpen(true)}
+                onClick={onOpenScanner}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500 transition-colors"
             >
                 <QrCodeIcon className="w-5 h-5" />
                 <span>Escanear QR Code</span>
             </button>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button onClick={() => setEquipmentFilter('all')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'all' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Todos</button>
-            <button onClick={() => setEquipmentFilter('mesa')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Mesas</button>
-            <button onClick={() => setEquipmentFilter('jukebox')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Jukebox</button>
-            <button onClick={() => setEquipmentFilter('grua')} className={`flex-1 sm:flex-initial px-4 py-2 text-sm font-bold rounded-md ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>Gruas</button>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+            <button onClick={() => setEquipmentFilter('all')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'all' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <ListBulletIcon className={`w-8 h-8 ${equipmentFilter === 'all' ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span className="text-xs font-bold mt-1">Todos</span>
+            </button>
+            <button onClick={() => setEquipmentFilter('mesa')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <BilliardIcon className={`w-8 h-8 ${equipmentFilter === 'mesa' ? 'text-white' : 'text-cyan-600 dark:text-cyan-400'}`} />
+                <span className="text-xs font-bold mt-1">Mesas</span>
+            </button>
+            <button onClick={() => setEquipmentFilter('jukebox')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <JukeboxIcon className={`w-8 h-8 ${equipmentFilter === 'jukebox' ? 'text-white' : 'text-fuchsia-600 dark:text-fuchsia-400'}`} />
+                <span className="text-xs font-bold mt-1">Jukebox</span>
+            </button>
+            <button onClick={() => setEquipmentFilter('grua')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <CraneIcon className={`w-8 h-8 ${equipmentFilter === 'grua' ? 'text-white' : 'text-orange-600 dark:text-orange-400'}`} />
+                <span className="text-xs font-bold mt-1">Gruas</span>
+            </button>
         </div>
       </div>
 
@@ -179,42 +170,49 @@ const ClientesView: React.FC<ClientesViewProps> = ({
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Navegar por Cidade</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {sortedCities.map((city, index) => {
+                  const cityParts = city.split(', ');
+                  const cityName = cityParts[0];
+                  const stateAbbr = cityParts.length > 1 ? cityParts[1] : null;
+
                   const isDarkCard = index % 2 === 0;
-                  // cinza escuro com letras amarelas
-                  const darkCardClasses = 'bg-slate-800 text-yellow-400 hover:bg-slate-700';
-                  const darkIconClasses = 'text-yellow-400';
-                  const darkSecondaryTextClasses = 'text-yellow-400/80';
-                  const darkBorderClasses = 'border-yellow-400/30';
-                  const darkSmallTextClasses = 'text-yellow-300';
                   
-                  // amarelo com letras pretas
-                  const lightCardClasses = 'bg-yellow-400 text-black hover:bg-yellow-500';
-                  const lightIconClasses = 'text-black/70';
-                  const lightSecondaryTextClasses = 'text-black/80';
-                  const lightBorderClasses = 'border-black/30';
-                  const lightSmallTextClasses = 'text-black';
+                  // Dark Card: slate-800
+                  const darkCardClasses = 'bg-slate-800 text-white hover:bg-slate-700';
+                  const darkIconClasses = 'text-slate-300';
+                  const darkSecondaryTextClasses = 'text-slate-400';
+                  const darkBorderClasses = 'border-slate-600';
+                  const darkSmallTextClasses = 'text-slate-300';
+                  
+                  // Light Card: lime-600
+                  const lightCardClasses = 'bg-lime-600 text-white hover:bg-lime-500';
+                  const lightIconClasses = 'text-lime-100';
+                  const lightSecondaryTextClasses = 'text-lime-200';
+                  const lightBorderClasses = 'border-lime-400/50';
+                  const lightSmallTextClasses = 'text-lime-100';
+
 
                   return (
                       <button
                           key={city}
                           onClick={() => handleCityCardClick(city)}
-                          className={`${
-                            isDarkCard ? darkCardClasses : lightCardClasses
-                          } p-4 rounded-lg shadow-lg hover:shadow-yellow-400/30 text-left hover:scale-105 transition-all duration-200`}
+                           className={`${isDarkCard ? darkCardClasses : lightCardClasses} p-4 rounded-lg shadow-lg text-left hover:scale-105 transition-all duration-200 flex flex-col justify-between h-full`}
                       >
-                          <div className="flex items-center gap-3 mb-2">
-                              <LocationMarkerIcon className={`w-5 h-5 ${isDarkCard ? darkIconClasses : lightIconClasses} flex-shrink-0`} />
-                              <h3 className="font-bold truncate">{city}</h3>
-                          </div>
-                          <p className={`text-sm ${isDarkCard ? darkSecondaryTextClasses : lightSecondaryTextClasses} mb-2`}>{customersByCity[city].length} cliente(s)</p>
-                          <div className={`flex justify-between items-center text-xs font-semibold border-t ${isDarkCard ? darkBorderClasses : lightBorderClasses} pt-2`}>
+                           <div className="flex items-start gap-3">
+                               <LocationMarkerIcon className={`w-6 h-6 ${isDarkCard ? darkIconClasses : lightIconClasses} flex-shrink-0 mt-1`} />
+                               <div className="flex-grow truncate">
+                                   <h3 className="font-bold text-base leading-tight truncate">{cityName}</h3>
+                                   {stateAbbr && <p className="text-xs opacity-80 font-semibold">{stateAbbr}</p>}
+                               </div>
+                           </div>
+                          <p className={`text-sm ${isDarkCard ? darkSecondaryTextClasses : lightSecondaryTextClasses} mt-2`}>{customersByCity[city].length} cliente(s)</p>
+                          <div className={`flex justify-between items-center text-xs font-semibold border-t ${isDarkCard ? darkBorderClasses : lightBorderClasses} pt-2 mt-2`}>
                               <div className={`flex items-center gap-1.5 ${isDarkCard ? darkSmallTextClasses : lightSmallTextClasses}`}>
                                   <GreenBilliardBallIcon className="w-3 h-3"/>
-                                  <span>{cityStats[city]?.visited || 0} Visitados</span>
+                                  <span>{cityStats[city]?.visited || 0}</span>
                               </div>
                               <div className={`flex items-center gap-1.5 ${isDarkCard ? darkSmallTextClasses : lightSmallTextClasses}`}>
                                   <RedBilliardBallIcon className="w-3 h-3"/>
-                                  <span>{cityStats[city]?.notVisited || 0} Pendentes</span>
+                                  <span>{cityStats[city]?.notVisited || 0}</span>
                               </div>
                           </div>
                       </button>
@@ -259,15 +257,6 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         )}
       </div>
       
-      {isScannerOpen && (
-        <QrScannerModal
-          isOpen={isScannerOpen}
-          onClose={() => setIsScannerOpen(false)}
-          onScanSuccess={handleScanSuccess}
-          showNotification={showNotification}
-        />
-      )}
-
       {viewingCity && (
         <CityCustomersModal
             city={viewingCity}
