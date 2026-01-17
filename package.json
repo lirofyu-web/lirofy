@@ -13,9 +13,6 @@
     "uuid": "13.0.0",
     "qrcode": "1.5.3",
     "html5-qrcode": "2.3.8",
-    "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js": "latest",
-    "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js": "latest",
-    "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js": "latest",
     "react-dom": "^19.2.3"
   },
   "devDependencies": {
