@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v59'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'montanha-bilhar-cache-v60'; // Versão incrementada para forçar atualização
 
 // Lista de ativos para armazenar em cache.
 const urlsToCache = [
@@ -10,12 +10,15 @@ const urlsToCache = [
   '/sw.js',
   '/types.ts',
   '/App.tsx',
+  '/firebase.ts',
   '/utils.ts',
   '/utils/theme.ts',
   '/utils/receiptGenerator.ts',
   '/utils/imageGenerator.ts',
   '/utils/pdfGenerator.ts',
   '/utils/sunmiPrinter.ts',
+  '/utils/bluetoothPrinter.ts',
+  '/utils/escpos.ts',
   '/icon-192.svg',
   '/icon-512.svg',
   '/views/ClientesView.tsx',
@@ -24,6 +27,7 @@ const urlsToCache = [
   '/views/DashboardView.tsx',
   '/views/DespesasView.tsx',
   '/views/EquipamentosView.tsx',
+  '/views/LoginView.tsx',
   '/views/RelatoriosView.tsx',
   '/views/RotasView.tsx',
   '/components/ActionModal.tsx',
@@ -57,6 +61,8 @@ const urlsToCache = [
   '/components/MobileHeader.tsx',
   '/components/Notification.tsx',
   '/components/PageHeader.tsx',
+  '/components/PdfDebtReceiptSheet.tsx',
+  '/components/PdfReceiptSheet.tsx',
   '/components/PixQrCode.tsx',
   '/components/PrintableReceiptModal.tsx',
   '/components/PrintableSlipsModal.tsx',
@@ -64,6 +70,7 @@ const urlsToCache = [
   '/components/ReceiptActionsModal.tsx',
   '/components/ReceiptModal.tsx',
   '/components/ReceiptSheet.tsx',
+  '/components/SaveStatusIndicator.tsx',
   '/components/ShareCustomerModal.tsx',
   '/components/Sidebar.tsx',
   '/components/SignatureModal.tsx',

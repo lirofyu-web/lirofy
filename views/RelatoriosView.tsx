@@ -759,8 +759,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
   
   const handleGenerateSlips = (selectedCustomers: Customer[]) => {
       // 1. Sort customers by city, then by name for a consistent, grouped order.
-// FIX: Explicitly type `a` and `b` as `Customer` to resolve type inference issue.
-      const sortedCustomers = [...selectedCustomers].sort((a, b) => {
+      const sortedCustomers = [...selectedCustomers].sort((a: Customer, b: Customer) => {
           const cityComparison = a.cidade.localeCompare(b.cidade);
           if (cityComparison !== 0) {
               return cityComparison;
@@ -803,7 +802,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             ...stats.periodGruaBillings,
         ].sort((a, b) => new Date(a.settledAt).getTime() - new Date(b.settledAt).getTime());
         
-        const customerMap = new Map(customers.map(c => [c.id, c]));
+        // FIX: Explicitly type the Map to ensure correct type inference for `customer`.
+        const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
 
         let reportText = `*Relatorio de Caixa*\n`;
         reportText += `Periodo: ${start} a ${end}\n`;

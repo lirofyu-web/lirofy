@@ -1,5 +1,7 @@
 // views/ConfiguracoesView.tsx
 import React, { useState, useRef, useCallback } from 'react';
+import { signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { auth } from '../firebase';
 import PageHeader from '../components/PageHeader';
 import { CloudUploadIcon } from '../components/icons/CloudUploadIcon';
 import ActionModal from '../components/ActionModal';
@@ -58,6 +60,19 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
         return defaultColors;
     }
   });
+  
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onMergeData(file);
+    }
+    // Limpa o valor para permitir a seleção do mesmo arquivo novamente
+    event.target.value = '';
+  };
 
   const handleColorChange = (colorType: keyof AppThemeColors, value: string) => {
     const newColors = { ...themeColors, [colorType]: value };
@@ -77,46 +92,17 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
     showNotification('Cores padrão restauradas.', 'success');
   };
 
-  const handleImportClick = useCallback(() => {
-    setIsImportModalOpen(true);
-  }, []);
-  
-  const confirmImport = useCallback(() => {
-    setIsImportModalOpen(false);
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      onMergeData(file);
-    }
-  }, [onMergeData]);
-
-  const handleTextImport = useCallback(() => {
-    if (customerText.trim()) {
-      onAddCustomerFromText(customerText);
-      setCustomerText('');
-    }
-  }, [customerText, onAddCustomerFromText]);
-
   const handleThemeChange = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
-
-  const handleManualSwRegister = () => {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                showNotification('Service Worker registrado com sucesso!', 'success');
-                console.log('Service Worker registered successfully from manual trigger:', registration.scope);
-            })
-            .catch(error => {
-                showNotification('Falha ao registrar o Service Worker.', 'error');
-                console.error('Service Worker registration failed from manual trigger:', error);
-            });
-    } else {
-        showNotification('Service Workers não são suportados neste navegador.', 'error');
+  
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        showNotification('Você saiu com sucesso.', 'success');
+    } catch (error) {
+        console.error("Erro ao sair: ", error);
+        showNotification('Erro ao tentar sair.', 'error');
     }
   };
   
@@ -128,6 +114,23 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       />
 
       <div className="space-y-12">
+        {/* Account Section */}
+        <section>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Conta</h2>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Você está logado como: <strong className="text-slate-800 dark:text-slate-200">{auth.currentUser?.email}</strong>
+              </p>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-500 transition-colors"
+              >
+                Sair (Logout)
+              </button>
+            </div>
+        </section>
+
+
         {/* Install App Section */}
         {deferredPrompt && (
           <section>
@@ -202,11 +205,11 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
 
         {/* Data Management Section */}
         <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Gerenciamento de Dados</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Backup e Restauração</h2>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Backup e Restauração</h3>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Backup e Importação de Dados</h3>
               <p className="text-slate-500 dark:text-slate-400 mb-4">
-                Exporte todos os seus dados para um arquivo de backup ou importe um arquivo existente para mesclar com os dados atuais.
+                Exporte um backup de segurança. A importação <strong className="text-red-500">substituirá todos os dados atuais</strong> na nuvem. Use com cuidado.
               </p>
               <div className="flex flex-wrap gap-4">
                 <button
@@ -221,75 +224,19 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
                   className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
                 >
                   <CloudUploadIcon className="w-5 h-5" />
-                  <span>Importar e Mesclar Dados</span>
+                  <span>Importar e Substituir</span>
                 </button>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
+                  accept="application/json"
                   className="hidden"
-                  accept=".json"
                 />
               </div>
             </div>
-
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Importar Cliente por Texto (JSON)</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-4">
-                Cole os dados de um cliente no formato JSON (copiado de outro dispositivo) para adicioná-lo rapidamente.
-              </p>
-              <textarea
-                value={customerText}
-                onChange={(e) => setCustomerText(e.target.value)}
-                placeholder='Cole o JSON do cliente aqui...'
-                rows={5}
-                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md p-2 font-mono text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
-              />
-              <div className="text-right mt-4">
-                <button
-                  onClick={handleTextImport}
-                  className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold py-2 px-4 rounded-md hover:bg-emerald-500 transition-colors"
-                >
-                  <CloudUploadIcon className="w-5 h-5" />
-                  <span>Adicionar Cliente</span>
-                </button>
-              </div>
-            </div>
         </section>
-
-         {/* Advanced Section */}
-        <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Avançado</h2>
-             <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
-                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Service Worker</h3>
-                 <p className="text-slate-500 dark:text-slate-400 mb-4">
-                    O Service Worker é responsável pela funcionalidade offline. Se o aplicativo não estiver funcionando sem internet, tente registrá-lo novamente.
-                 </p>
-                 <button
-                    onClick={handleManualSwRegister}
-                    className="bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500"
-                >
-                    Forçar Registro do Service Worker
-                </button>
-             </div>
-        </section>
-
       </div>
-
-      <ActionModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onConfirm={confirmImport}
-        title="Importar e Mesclar Dados"
-        confirmText="Sim, continuar"
-      >
-        <p>
-          Tem certeza de que deseja importar um arquivo de backup? Os dados do arquivo serão mesclados com os dados existentes no aplicativo.
-        </p>
-        <p className="mt-2 font-semibold text-amber-600 dark:text-amber-400">
-          Recomenda-se exportar um backup dos seus dados atuais antes de prosseguir.
-        </p>
-      </ActionModal>
     </>
   );
 };
