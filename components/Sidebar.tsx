@@ -77,21 +77,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
             ></div>
 
             <aside className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-800 p-4 flex flex-col border-r border-slate-200 dark:border-slate-700 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 no-print ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="mb-8 text-center">
+                <div className="mb-4 text-center">
                     <LogoIcon className="w-full h-auto py-4" />
+                </div>
+                <div className="mb-6">
+                    <button 
+                        onClick={handleScanClick}
+                        className="w-full flex items-center justify-center rounded-md p-3 transition-colors text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 shadow-md"
+                    >
+                        <QrCodeIcon className="w-5 h-5 mr-3" />
+                        <span>Escanear e Faturar</span>
+                    </button>
                 </div>
                 <nav className="flex-grow">
                     <ul>
                         {navItems.map(item => <NavButton key={item.view} item={item} />)}
-                        <li className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                            <button 
-                                onClick={handleScanClick}
-                                className="w-full flex items-center rounded-md p-3 transition-colors text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500"
-                            >
-                                <QrCodeIcon className="w-5 h-5 mr-4" />
-                                <span>Escanear e Faturar</span>
-                            </button>
-                        </li>
                     </ul>
                 </nav>
                 <div className="mt-auto">

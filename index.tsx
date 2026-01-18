@@ -4,7 +4,7 @@ import App from './App';
 
 // Registra o Service Worker para funcionalidade offline
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  const registerServiceWorker = () => {
     // Construct an absolute URL to the service worker to be robust in sandboxed environments.
     const swUrl = `${window.location.origin}/sw.js`;
     navigator.serviceWorker.register(swUrl)
@@ -14,7 +14,15 @@ if ('serviceWorker' in navigator) {
       .catch(error => {
         console.error('ServiceWorker registration failed: ', error);
       });
-  });
+  };
+  
+  // Garante que o SW seja registrado apenas após o carregamento completo da página
+  // para evitar condições de corrida.
+  if (document.readyState === 'complete') {
+    registerServiceWorker();
+  } else {
+    window.addEventListener('load', registerServiceWorker);
+  }
 }
 
 const rootElement = document.getElementById('root');

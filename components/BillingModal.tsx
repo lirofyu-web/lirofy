@@ -179,13 +179,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       if(equipment.aluguelPercentual != null){
           aluguelValor = saldo * (equipment.aluguelPercentual / 100);
       }
+      
+      const valorTotalFirma = saldo - aluguelValor;
 
-      const valorTotal = saldo - aluguelValor;
       result = { 
           partidasJogadas,
           saldo,
           aluguelValor,
-          valorTotal,
+          valorTotal: valorTotalFirma,
           recebimentoEspecie,
           recebimentoPix,
           sobraPelucia: parseInt(formState.sobraPelucia || '0', 10),
@@ -207,21 +208,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const valorPix = useMemo(() => safeParseFloat(paymentValues.pix), [paymentValues.pix]);
   const totalPagoEmCaixa = useMemo(() => valorDinheiro + valorPix, [valorDinheiro, valorPix]);
   const remainingAmountLiquido = useMemo(() => liquidoAReceber - totalPagoEmCaixa, [liquidoAReceber, totalPagoEmCaixa]);
-
-  useEffect(() => {
-    if (isOpen && equipment.type === 'grua' && gruaStep === 3) {
-        const valorTotalInt = Math.round(valorTotalParaFirma);
-        const especieInt = Math.round(safeParseFloat(formState.recebimentoEspecie));
-        const pixValue = Math.max(0, valorTotalInt - especieInt);
-
-        if (String(pixValue) !== formState.recebimentoPix) {
-            setFormState(prev => ({
-                ...prev,
-                recebimentoPix: String(pixValue)
-            }));
-        }
-    }
-  }, [isOpen, equipment.type, gruaStep, formState.recebimentoEspecie, valorTotalParaFirma]);
 
   useEffect(() => {
     if ((mesaStep === 2 || jukeboxStep === 2) && equipment.type !== 'grua') {
@@ -246,10 +232,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             const saldoBruto = (relogioAtualNum >= relogioAnteriorNum) ? relogioAtualNum - relogioAnteriorNum : 0;
             newState.saldo = String(saldoBruto.toFixed(2).replace('.', ','));
 
+            let aluguelValorNum = safeParseFloat(newState.aluguelValor);
             if (equipment.aluguelPercentual != null) {
-                const aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
+                aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
                 newState.aluguelValor = String(aluguelValorNum.toFixed(2).replace('.', ','));
             }
+            
+            const valorTotalFirma = saldoBruto - aluguelValorNum;
+            const recebimentoEspecieNum = safeParseFloat(newState.recebimentoEspecie);
+            const pixCalculado = Math.max(0, valorTotalFirma - recebimentoEspecieNum);
+            newState.recebimentoPix = String(pixCalculado.toFixed(2).replace('.', ','));
         }
         
         return newState;
@@ -269,8 +261,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
     let billingData;
     if (equipment.type === 'grua') {
-        const recebimentoEspecie = Math.round(safeParseFloat(formState.recebimentoEspecie));
-        const recebimentoPix = Math.round(safeParseFloat(formState.recebimentoPix));
+        const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
+        const recebimentoPix = safeParseFloat(formState.recebimentoPix);
         let paymentMethod: Billing['paymentMethod'] = 'dinheiro';
         if (recebimentoEspecie > 0 && recebimentoPix > 0) {
             paymentMethod = 'misto';
@@ -309,7 +301,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       relogioAnterior: equipment.relogioAnterior,
       relogioAtual: relogioAtual,
       settledAt: new Date(),
-      billingType: equipment.billingType,
       ...calculation,
       ...billingData,
       valorTotal: calculation.valorTotal || 0,
@@ -380,11 +371,19 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
 
     if (equipment.type === 'grua') {
-        const especie = Math.round(safeParseFloat(formState.recebimentoEspecie));
-        const pix = Math.round(safeParseFloat(formState.recebimentoPix));
-        const totalRecebido = especie + pix;
-        if (totalRecebido !== Math.round(valorTotalParaFirma)) {
-            setError("A soma de Espécie e PIX deve ser igual ao Total para a Firma.");
+        const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
+        const recebimentoPix = safeParseFloat(formState.recebimentoPix);
+        const totalRecebido = recebimentoEspecie + recebimentoPix;
+
+        const saldo = safeParseFloat(formState.saldo);
+        let aluguelValor = safeParseFloat(formState.aluguelValor);
+        if (equipment.aluguelPercentual != null) {
+            aluguelValor = saldo * (equipment.aluguelPercentual / 100);
+        }
+        const baseValorTotalFirma = saldo - aluguelValor;
+
+        if (Math.round(totalRecebido * 100) !== Math.round(baseValorTotalFirma * 100)) {
+            setError("O valor recebido (espécie + PIX) deve ser igual ao total calculado para a firma.");
             return;
         }
     } else if (Math.round(remainingAmountLiquido * 100) !== 0) {
@@ -520,8 +519,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const renderGruaStep3 = () => (
       <div className="space-y-4">
           <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
-          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="number" step="1" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="number" step="1" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
+          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
           <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />

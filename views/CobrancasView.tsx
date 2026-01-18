@@ -122,7 +122,16 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
     
     const renderSortArrow = (key: SortKey) => (sortKey === key) ? (sortDirection === 'asc' ? '▲' : '▼') : null;
 
-    const totalBilled = useMemo(() => (filteredAndSortedData as Billing[]).reduce((sum, b) => sum + (b.valorTotal - (b.valorDebitoNegativo || 0)), 0), [filteredAndSortedData]);
+    const getNetBilledAmount = useCallback((billing: Billing): number => {
+      // For gruas, `valorTotal` is already the firm's share. `valorDebitoNegativo` is not applicable.
+      if (billing.equipmentType === 'grua') {
+        return billing.valorTotal;
+      }
+      // For mesas and jukeboxes, subtract any amount that was turned into debt.
+      return billing.valorTotal - (billing.valorDebitoNegativo || 0);
+    }, []);
+
+    const totalBilled = useMemo(() => (filteredAndSortedData as Billing[]).reduce((sum, b) => sum + getNetBilledAmount(b), 0), [filteredAndSortedData, getNetBilledAmount]);
 
     const { debtorCustomers, totalDebt } = useMemo(() => {
         const debtors = customers.filter(c => c.debtAmount > 0).sort((a,b) => b.debtAmount - a.debtAmount);
@@ -249,7 +258,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                 )}
             </div>
 
-            {activeTab === 'billings' && <BillingsList billings={filteredAndSortedData as Billing[]} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} onViewDetails={onViewDetails} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} />}
+            {activeTab === 'billings' && <BillingsList billings={filteredAndSortedData as Billing[]} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} onViewDetails={onViewDetails} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} getNetBilledAmount={getNetBilledAmount} />}
             {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} billings={billings} onPrint={handlePrintDebtors} />}
             
             {deletingBilling && <ActionModal isOpen={!!deletingBilling} onClose={() => setDeletingBilling(null)} onConfirm={handleConfirmDelete} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toFixed(2)}</strong>?</p><p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p></ActionModal>}
@@ -259,7 +268,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
 
 // --- Sub-components for each tab ---
 
-const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, onViewDetails, totalBilled, handleSort, renderSortArrow }) => (
+const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, onViewDetails, totalBilled, handleSort, renderSortArrow, getNetBilledAmount }) => (
     <>
         {/* Mobile View: Cards */}
         <div className="md:hidden space-y-4 mb-10">
@@ -277,7 +286,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                             <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
                         </div>
                         <div className="text-right">
-                            <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorDebitoNegativo || 0)).toFixed(2).replace('.', ',')}</p>
+                            <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {getNetBilledAmount(billing).toFixed(2).replace('.', ',')}</p>
                             {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
                                 <p className="font-mono text-sm text-red-500 dark:text-red-400">
                                     (- R$ {billing.valorDebitoNegativo.toFixed(2).replace('.', ',')})
@@ -345,7 +354,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                                 </td>
                                 <td className="px-6 py-4"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
                                 <td className="px-6 py-4 text-right font-mono font-bold">
-                                    <span className="text-lime-600 dark:text-lime-400">R$ {(billing.valorTotal - (billing.valorDebitoNegativo || 0)).toFixed(2).replace('.', ',')}</span>
+                                    <span className="text-lime-600 dark:text-lime-400">R$ {getNetBilledAmount(billing).toFixed(2).replace('.', ',')}</span>
                                     {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
                                         <span className="block text-xs text-red-500 dark:text-red-400">
                                             (- R$ {billing.valorDebitoNegativo.toFixed(2).replace('.', ',')})

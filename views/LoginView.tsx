@@ -49,7 +49,7 @@ const LoginView: React.FC<LoginViewProps> = ({ showNotification }) => {
     <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900 p-4">
       <div className="w-full max-w-md bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700">
         <div className="text-center mb-8">
-          <LogoIcon />
+          <LogoIcon className="h-24 w-auto" />
         </div>
         <h2 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-2">
           {isLogin ? 'Bem-vindo de volta!' : 'Crie sua Conta'}
