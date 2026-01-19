@@ -259,7 +259,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         return null; // Safeguard for non-jukebox
     }
 
-    let billingData;
+    let billingData: Partial<Billing>;
     if (equipment.type === 'grua') {
         const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
         const recebimentoPix = safeParseFloat(formState.recebimentoPix);
@@ -278,17 +278,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const valorPagoDinheiro = safeParseFloat(paymentValues.dinheiro);
         const valorPagoPix = safeParseFloat(paymentValues.pix);
         const valorDebitoNegativo = safeParseFloat(paymentValues.negativo);
-        let paymentMethod: Billing['paymentMethod'] = 'dinheiro';
-        const methodsUsed = [valorPagoDinheiro > 0 && 'dinheiro', valorPagoPix > 0 && 'pix', valorDebitoNegativo > 0 && 'debito_negativo'].filter(Boolean);
-        if (methodsUsed.length > 1) { paymentMethod = 'misto'; }
-        else if (methodsUsed.length === 1) { paymentMethod = methodsUsed[0] as Billing['paymentMethod']; }
+
+        const methodsUsed: ('dinheiro' | 'pix' | 'debito_negativo')[] = [];
+        if (valorPagoDinheiro > 0) methodsUsed.push('dinheiro');
+        if (valorPagoPix > 0) methodsUsed.push('pix');
+        if (valorDebitoNegativo > 0) methodsUsed.push('debito_negativo');
         
-        billingData = {
-          paymentMethod,
-          valorPagoDinheiro: valorPagoDinheiro > 0 ? valorPagoDinheiro : undefined,
-          valorPagoPix: valorPagoPix > 0 ? valorPagoPix : undefined,
-          valorDebitoNegativo: valorDebitoNegativo > 0 ? valorDebitoNegativo : undefined,
-        };
+        let paymentMethod: Billing['paymentMethod'] = 'dinheiro'; // Default
+        if (methodsUsed.length > 1) {
+            paymentMethod = 'misto';
+        } else if (methodsUsed.length === 1) {
+            paymentMethod = methodsUsed[0];
+        }
+
+        // FIX: Constrói o objeto de dados de pagamento condicionalmente para evitar
+        // a inclusão de campos com valor 'undefined', que o Firestore rejeita.
+        const data: Partial<Billing> = { paymentMethod };
+        if (valorPagoDinheiro > 0) data.valorPagoDinheiro = valorPagoDinheiro;
+        if (valorPagoPix > 0) data.valorPagoPix = valorPagoPix;
+        if (valorDebitoNegativo > 0) data.valorDebitoNegativo = valorDebitoNegativo;
+        billingData = data;
     }
 
     return {

@@ -123,11 +123,9 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
     const renderSortArrow = (key: SortKey) => (sortKey === key) ? (sortDirection === 'asc' ? '▲' : '▼') : null;
 
     const getNetBilledAmount = useCallback((billing: Billing): number => {
-      // For gruas, `valorTotal` is already the firm's share. `valorDebitoNegativo` is not applicable.
-      if (billing.equipmentType === 'grua') {
-        return billing.valorTotal;
-      }
-      // For mesas and jukeboxes, subtract any amount that was turned into debt.
+      // O valor líquido recebido pela firma é sempre a sua parte total (`valorTotal`)
+      // menos qualquer porção que tenha se tornado dívida (`valorDebitoNegativo`).
+      // Esta fórmula universal é robusta e funciona para todos os tipos de equipamento.
       return billing.valorTotal - (billing.valorDebitoNegativo || 0);
     }, []);
 

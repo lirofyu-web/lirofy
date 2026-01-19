@@ -32,7 +32,9 @@ const LoginView: React.FC<LoginViewProps> = ({ showNotification }) => {
     } catch (error: any) {
       console.error(error);
       let message = 'Ocorreu um erro.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      // FIX: Adiciona 'auth/invalid-credential' e 'auth/invalid-login-credentials' para cobrir
+      // todos os casos de erro de credenciais inválidas em diferentes versões do SDK do Firebase.
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
         message = 'E-mail ou senha incorretos.';
       } else if (error.code === 'auth/email-already-in-use') {
         message = 'Este e-mail já está em uso.';
