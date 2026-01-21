@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PrinterIcon } from './icons/PrinterIcon';
+import { safeParseFloat } from '../utils';
 
 interface CraneReportModalProps {
   isOpen: boolean;
@@ -26,15 +27,9 @@ const CraneReportModal: React.FC<CraneReportModalProps> = ({ isOpen, onClose, on
     }
   }, [isOpen]);
 
-  const parseCurrencyInput = (val: string) => {
-      if(!val) return 0;
-      const clean = val.replace(/\./g, '').replace(',', '.');
-      return parseFloat(clean) || 0;
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const depositNum = parseCurrencyInput(moneyDeposit);
+    const depositNum = safeParseFloat(moneyDeposit);
     onConfirm(startDate, endDate, depositNum);
   };
 

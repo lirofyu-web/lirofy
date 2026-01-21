@@ -16,22 +16,19 @@ const EquipmentLabel: React.FC<EquipmentLabelProps> = ({ equipment, qrCodeDataUr
 
   return (
     <div 
-        className="bg-white text-black p-2 w-full" 
+        className="bg-white text-black p-2 w-full flex flex-col items-center" 
         style={{ fontFamily: "'Courier New', Courier, monospace" }}
     >
-        <div className="text-center mb-2">
+        <div className="text-center mb-1">
             <h1 className="font-black text-sm leading-tight tracking-tighter">
                 MONTANHA BILHAR E JUKEBOX
             </h1>
         </div>
-        <hr className="border-dashed border-black my-1" />
-        <div className="flex items-center justify-start gap-2 mt-1">
-            <img src={qrCodeDataUrl} alt="QR Code" style={{ width: 70, height: 70 }} />
-            <div className="text-left flex-grow overflow-hidden">
-                <p className="font-bold text-xs leading-tight">{equipmentTypeText[equipment.type]}</p>
-                <p className="text-base font-black tracking-wider">Nº: {equipment.numero}</p>
-                <p className="text-xs leading-tight mt-1 truncate">Cliente: {equipment.customerName}</p>
-            </div>
+        <img src={qrCodeDataUrl} alt="QR Code" style={{ width: 180, height: 180, margin: '4px 0' }} />
+        <div className="text-center mt-1 w-full border-t border-dashed border-black pt-2">
+            <p className="font-bold text-base leading-tight">{equipmentTypeText[equipment.type]}</p>
+            <p className="text-xl font-black tracking-wider">Nº: {equipment.numero}</p>
+            <p className="text-sm leading-tight mt-1 truncate">Cliente: {equipment.customerName}</p>
         </div>
     </div>
   );

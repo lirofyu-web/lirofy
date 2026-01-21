@@ -106,6 +106,7 @@ const App: React.FC = () => {
     const [isSharing, setIsSharing] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
+    const [lastBackupTimestamp, setLastBackupTimestamp] = useState<string | null>(null);
 
     // Sync & Offline State
     const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -369,7 +370,6 @@ const App: React.FC = () => {
         const pixPayload = "00020126360014BR.GOV.BCB.PIX0114+55439995819935204000053039865802BR5915BILHAR MONTANHA6012Jaguapita-PR62070503***6304F96E";
         const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, { width: 150, margin: 1, errorCorrectionLevel: 'M' });
         
-        // FIX: Cast the component to a type that accepts `qrCodeDataUrl` to satisfy TypeScript's strict checking with React.cloneElement.
         const componentWithQr = React.cloneElement(contentComponent as React.ReactElement<{ qrCodeDataUrl?: string }>, { qrCodeDataUrl });
         const content = ReactDOMServer.renderToString(componentWithQr);
         
@@ -666,19 +666,21 @@ const App: React.FC = () => {
         }
 
         const LAST_BACKUP_KEY = 'lastAutomaticBackupTimestamp';
+        const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
+        setLastBackupTimestamp(lastBackup);
+
         const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
-
-        const lastBackupTimestamp = localStorage.getItem(LAST_BACKUP_KEY);
         const now = new Date().getTime();
-
-        const shouldBackup = !lastBackupTimestamp || (now - parseInt(lastBackupTimestamp, 10)) > SEVEN_DAYS_IN_MS;
+        const shouldBackup = !lastBackup || (now - parseInt(lastBackup, 10)) > SEVEN_DAYS_IN_MS;
 
         if (shouldBackup) {
             showNotification('Iniciando backup automático semanal...', 'success');
             
             setTimeout(() => {
                 handleExportData(true);
-                localStorage.setItem(LAST_BACKUP_KEY, String(now));
+                const nowStr = String(now);
+                localStorage.setItem(LAST_BACKUP_KEY, nowStr);
+                setLastBackupTimestamp(nowStr);
                 showNotification("Backup automático semanal concluído!");
             }, 2000);
         }
@@ -754,7 +756,7 @@ const App: React.FC = () => {
             const labelHtmlPromises = equipments.map(async (equipment) => {
                 const qrData = JSON.stringify({ type: 'equipment', id: equipment.id });
                 const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-                    width: 80,
+                    width: 200,
                     margin: 1,
                     errorCorrectionLevel: 'H',
                     color: { dark: '#000000', light: '#FFFFFF' }
@@ -891,7 +893,7 @@ const App: React.FC = () => {
                     onInstallPrompt={handleInstallPrompt}
                 />
                 <div className="flex-grow">
-                    {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={null} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
+                    {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
                     {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={false} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} onOpenScanner={handleOpenScanner} onLocationActions={setLocationActionsCustomer} />}
                     {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onEditBilling={setEditingBilling} onDeleteBilling={handleDeleteBilling} onViewDetails={(b) => handleDirectPrintBillingReceipt(b, false)} />}
                     {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setIsLabelGenerationModalOpen(true)} onGenerateLabels={handleGenerateLabels} />}

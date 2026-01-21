@@ -5,18 +5,14 @@ import PageHeader from '../components/PageHeader';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import CraneReportModal from '../components/CraneReportModal';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
-// FIX: Corrected import path for JukeboxIcon.
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
-// FIX: Corrected import path for CraneIcon.
 import { CraneIcon } from '../components/icons/CraneIcon';
-// FIX: Corrected import path for CurrencyDollarIcon.
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
-// FIX: Corrected import path for CalculatorIcon.
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 import PrintableSlipsModal from '../components/PrintableSlipsModal';
-// FIX: Corrected import path for DocumentDuplicateIcon.
 import { DocumentDuplicateIcon } from '../components/icons/DocumentDuplicateIcon';
 import CustomerSelectionForSlipsModal from '../components/CustomerSelectionForSlipsModal';
+import { safeParseFloat } from '../utils';
 
 interface RelatoriosViewProps {
   customers: Customer[];
@@ -43,7 +39,7 @@ const JukeboxReportModal: React.FC<{
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const depositNum = parseFloat(deposit.replace(',', '.')) || 0;
+    const depositNum = safeParseFloat(deposit);
     onConfirm(depositNum);
   };
 
@@ -114,7 +110,7 @@ const MesaReportModal: React.FC<{
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const depositNum = parseFloat(deposit.replace(',', '.')) || 0;
+    const depositNum = safeParseFloat(deposit);
     onConfirm(depositNum);
   };
 

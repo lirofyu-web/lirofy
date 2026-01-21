@@ -155,7 +155,7 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
             id: equipment.id,
         });
         const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-            width: 80,
+            width: 200,
             margin: 1,
             errorCorrectionLevel: 'H',
             color: { dark: '#000000', light: '#FFFFFF' }

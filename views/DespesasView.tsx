@@ -8,6 +8,7 @@ import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
+import { safeParseFloat } from '../utils';
 
 interface DespesasViewProps {
   expenses: Expense[];
@@ -51,7 +52,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = parseFloat(amount.replace(',', '.'));
+    const amountNum = safeParseFloat(amount);
     if (description && amountNum > 0) {
       onAddExpense(description, amountNum, category);
       setDescription('');
