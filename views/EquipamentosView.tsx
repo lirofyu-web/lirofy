@@ -215,6 +215,10 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
             printWindow.document.write(fullHtml);
             printWindow.document.close();
             printWindow.focus();
+            // Add a small delay for content rendering before printing
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
         } else {
             showNotification("Por favor, habilite pop-ups para abrir a etiqueta.", "error");
         }

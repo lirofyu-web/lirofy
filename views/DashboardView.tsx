@@ -12,7 +12,6 @@ import { CreditCardIcon } from '../components/icons/CreditCardIcon';
 import WarningsReminders from '../components/WarningsReminders';
 import BackupReminder from '../components/BackupReminder';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
-import AiInsightsCard from '../components/AiInsightsCard';
 
 
 interface DashboardViewProps {
@@ -322,8 +321,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 <WarningsReminders warnings={warnings} />
             </div>
             
-            <AiInsightsCard billings={billings} expenses={expenses} customers={customers} />
-
             <DateFilter 
                 currentDate={currentDate}
                 onMonthChange={handleMonthChange}

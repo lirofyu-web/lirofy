@@ -645,18 +645,44 @@ const App: React.FC = () => {
     }, []);
 
     // Data Management Handlers
-    const handleExportData = useCallback(() => {
+    const handleExportData = useCallback((isAutomatic = false) => {
         const data = { customers, billings, expenses, debtPayments, warnings, version: 2, exportDate: new Date().toISOString() };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         const date = new Date().toISOString().slice(0, 10);
-        a.download = `backup-montanha-bilhar-${date}.json`;
+        a.download = `backup-${isAutomatic ? 'automatico-' : ''}montanha-bilhar-${date}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        showNotification("Backup exportado com sucesso!");
+        if (!isAutomatic) {
+            showNotification("Backup exportado com sucesso!");
+        }
     }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
+
+    useEffect(() => {
+        if (customers.length === 0 || !user) {
+            return;
+        }
+
+        const LAST_BACKUP_KEY = 'lastAutomaticBackupTimestamp';
+        const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
+
+        const lastBackupTimestamp = localStorage.getItem(LAST_BACKUP_KEY);
+        const now = new Date().getTime();
+
+        const shouldBackup = !lastBackupTimestamp || (now - parseInt(lastBackupTimestamp, 10)) > SEVEN_DAYS_IN_MS;
+
+        if (shouldBackup) {
+            showNotification('Iniciando backup automático semanal...', 'success');
+            
+            setTimeout(() => {
+                handleExportData(true);
+                localStorage.setItem(LAST_BACKUP_KEY, String(now));
+                showNotification("Backup automático semanal concluído!");
+            }, 2000);
+        }
+    }, [customers, user, handleExportData, showNotification]);
 
     const handleImportData = useCallback((file: File) => {
         if (file && file.type === 'application/json') {
@@ -872,7 +898,7 @@ const App: React.FC = () => {
                     {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                     {currentView === 'ROTAS' && <RotasView customers={customers} />}
                     {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} onThermalPrint={(title, content) => setThermalPrintModalState({ title, content })} />}
-                    {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={handleExportData} onMergeData={handleImportData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />}
+                    {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={() => handleExportData(false)} onMergeData={handleImportData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />}
                 </div>
             </main>
             
