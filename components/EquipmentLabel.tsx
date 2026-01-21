@@ -1,35 +1,13 @@
 // components/EquipmentLabel.tsx
-import React, { useRef, useEffect } from 'react';
-import QRCode from 'qrcode';
-import { Equipment } from '../types';
+import React from 'react';
+import { EquipmentWithCustomer } from '../types';
 
 interface EquipmentLabelProps {
-  equipment: Equipment;
+  equipment: EquipmentWithCustomer;
+  qrCodeDataUrl: string;
 }
 
-const EquipmentLabel: React.FC<EquipmentLabelProps> = ({ equipment }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    if (canvasRef.current) {
-        const qrData = JSON.stringify({
-            type: 'equipment',
-            id: equipment.id,
-        });
-        QRCode.toCanvas(canvasRef.current, qrData, {
-            width: 80,
-            margin: 1,
-            errorCorrectionLevel: 'H',
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            }
-        }, (error) => {
-            if (error) console.error('Erro ao gerar QR Code da Etiqueta:', error);
-        });
-    }
-  }, [equipment.id]);
-  
+const EquipmentLabel: React.FC<EquipmentLabelProps> = ({ equipment, qrCodeDataUrl }) => {
   const equipmentTypeText = {
       'mesa': 'Mesa de Sinuca',
       'jukebox': 'Jukebox',
@@ -38,21 +16,21 @@ const EquipmentLabel: React.FC<EquipmentLabelProps> = ({ equipment }) => {
 
   return (
     <div 
-        className="bg-white text-black p-2" 
-        style={{ width: '57mm', fontFamily: "'Courier New', Courier, monospace" }}
+        className="bg-white text-black p-2 w-full" 
+        style={{ fontFamily: "'Courier New', Courier, monospace" }}
     >
         <div className="text-center mb-2">
             <h1 className="font-black text-sm leading-tight tracking-tighter">
                 MONTANHA BILHAR E JUKEBOX
             </h1>
         </div>
-        <hr className="border-dashed border-black my-2" />
-        <p className="text-center font-bold text-xs">EQUIPAMENTO</p>
-        <div className="flex items-center justify-center gap-2 mt-2">
-            <canvas ref={canvasRef}></canvas>
-            <div className="text-left">
-                <p className="font-bold text-sm leading-tight">{equipmentTypeText[equipment.type]}</p>
-                <p className="text-lg font-black tracking-wider">Nº: {equipment.numero}</p>
+        <hr className="border-dashed border-black my-1" />
+        <div className="flex items-center justify-start gap-2 mt-1">
+            <img src={qrCodeDataUrl} alt="QR Code" style={{ width: 70, height: 70 }} />
+            <div className="text-left flex-grow overflow-hidden">
+                <p className="font-bold text-xs leading-tight">{equipmentTypeText[equipment.type]}</p>
+                <p className="text-base font-black tracking-wider">Nº: {equipment.numero}</p>
+                <p className="text-xs leading-tight mt-1 truncate">Cliente: {equipment.customerName}</p>
             </div>
         </div>
     </div>

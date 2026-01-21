@@ -1,10 +1,11 @@
 // views/LoginView.tsx
 import React, { useState } from 'react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { doc, setDoc, Timestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { LogoIcon } from '../components/icons/LogoIcon';
 
 interface LoginViewProps {
@@ -26,14 +27,20 @@ const LoginView: React.FC<LoginViewProps> = ({ showNotification }) => {
         await signInWithEmailAndPassword(auth, email, password);
         showNotification('Login realizado com sucesso!', 'success');
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Create a user profile document in Firestore.
+        await setDoc(doc(db, "user_profiles", user.uid), {
+            email: user.email,
+            createdAt: Timestamp.now(),
+        });
+
         showNotification('Conta criada com sucesso!', 'success');
       }
     } catch (error: any) {
       console.error(error);
       let message = 'Ocorreu um erro.';
-      // FIX: Adiciona 'auth/invalid-credential' e 'auth/invalid-login-credentials' para cobrir
-      // todos os casos de erro de credenciais inválidas em diferentes versões do SDK do Firebase.
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
         message = 'E-mail ou senha incorretos.';
       } else if (error.code === 'auth/email-already-in-use') {

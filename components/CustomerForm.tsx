@@ -66,7 +66,6 @@ const FormField: React.FC<{
 ));
 
 const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onSubmit, isSaving, showNotification, onCancel, submitButtonText, isEditMode = false }) => {
-  // FIX: Explicitly type `equipment` as `Partial<Equipment>[]` to handle both full and partial equipment objects during form manipulation. This resolves the type error when updating the state.
   const [formData, setFormData] = useState(() => {
     // FIX: Explicitly type `equipment` as `Partial<Equipment>[]` to handle both full and partial equipment objects during form manipulation. This resolves the type error when updating the state.
     const equipment: Partial<Equipment>[] = initialData?.equipment ? [...initialData.equipment] : [];

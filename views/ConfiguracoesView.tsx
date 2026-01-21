@@ -1,11 +1,11 @@
 // views/ConfiguracoesView.tsx
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { auth } from '../firebase';
 import PageHeader from '../components/PageHeader';
 import { CloudUploadIcon } from '../components/icons/CloudUploadIcon';
-import ActionModal from '../components/ActionModal';
-import { Theme } from '../App';
+// FIX: Import Theme from types.ts to break circular dependency.
+import { Theme } from '../types';
 import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
 import { InstallIcon } from '../components/icons/InstallIcon';
@@ -14,7 +14,6 @@ import { applyThemeColors, defaultColors, AppThemeColors } from '../utils/theme'
 interface ConfiguracoesViewProps {
   onExportData: () => void;
   onMergeData: (file: File) => void;
-  onAddCustomerFromText: (text: string) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   showNotification: (message: string, type?: 'success' | 'error') => void;
@@ -41,15 +40,12 @@ const ColorPicker: React.FC<{ label: string, color: string, onChange: (color: st
 const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   onExportData,
   onMergeData,
-  onAddCustomerFromText,
   theme,
   setTheme,
   showNotification,
   deferredPrompt,
   onInstallPrompt,
 }) => {
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [customerText, setCustomerText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [themeColors, setThemeColors] = useState<AppThemeColors>(() => {
@@ -130,7 +126,6 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
             </div>
         </section>
 
-
         {/* Install App Section */}
         {deferredPrompt && (
           <section>
@@ -196,9 +191,9 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
                  <ColorPicker label="Cor Primária" color={themeColors.primary} onChange={(c) => handleColorChange('primary', c)} />
                  <ColorPicker label="Cor de Destaque" color={themeColors.accent} onChange={(c) => handleColorChange('accent', c)} />
             </div>
-             <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <button onClick={restoreDefaultColors} className="bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400">Restaurar Padrão</button>
-                <button onClick={saveThemeColors} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600">Salvar Cores</button>
+             <div className="flex flex-col sm:flex-row gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <button onClick={restoreDefaultColors} className="flex-1 bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400">Restaurar Padrão</button>
+                <button onClick={saveThemeColors} className="flex-1 bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600">Salvar Cores</button>
              </div>
           </div>
         </section>

@@ -1,6 +1,6 @@
 // views/CobrancasView.tsx
 import React, { useMemo, useState, useCallback } from 'react';
-import { Billing, Customer, DebtPayment } from '../types';
+import { Billing, Customer } from '../types';
 import PageHeader from '../components/PageHeader';
 import { SearchIcon } from '../components/icons/SearchIcon';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
@@ -71,7 +71,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
     onShowActions,
     onEditBilling,
     onDeleteBilling,
-    onViewDetails
+    onViewDetails,
 }) => {
     const [activeTab, setActiveTab] = useState<MainTab>('billings');
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
@@ -123,10 +123,10 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
     const renderSortArrow = (key: SortKey) => (sortKey === key) ? (sortDirection === 'asc' ? '▲' : '▼') : null;
 
     const getNetBilledAmount = useCallback((billing: Billing): number => {
-      // O valor líquido recebido pela firma é sempre a sua parte total (`valorTotal`)
-      // menos qualquer porção que tenha se tornado dívida (`valorDebitoNegativo`).
-      // Esta fórmula universal é robusta e funciona para todos os tipos de equipamento.
-      return billing.valorTotal - (billing.valorDebitoNegativo || 0);
+      // O valor líquido arrecadado (caixa) é a parte da firma (`valorTotal`),
+      // menos qualquer bônus concedido e menos qualquer valor que tenha se tornado dívida.
+      // Esta fórmula é universal e funciona para todos os tipos de equipamento.
+      return billing.valorTotal - (billing.valorDebitoNegativo || 0) - (billing.valorBonus || 0);
     }, []);
 
     const totalBilled = useMemo(() => (filteredAndSortedData as Billing[]).reduce((sum, b) => sum + getNetBilledAmount(b), 0), [filteredAndSortedData, getNetBilledAmount]);
@@ -244,13 +244,13 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                                 </button>
                             </div>
                         )}
-                        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center flex-wrap">
+                        <div className="flex flex-col sm:flex-row gap-4 items-center">
                             <div className="relative flex-grow w-full">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon className="w-5 h-5 text-slate-400" /></div>
                                 <input type="text" placeholder="Filtrar por nome do cliente..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-lime-500"/>
                             </div>
-                            <div className="flex-grow w-full sm:w-auto"><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
-                            <div className="flex-grow w-full sm:w-auto"><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
+                            <div className="flex-shrink-0 w-full sm:w-auto"><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
+                            <div className="flex-shrink-0 w-full sm:w-auto"><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-1.5 px-3" /></div>
                         </div>
                     </div>
                 )}
@@ -306,8 +306,8 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                         </span>
                         <div className="flex gap-4">
                             <button onClick={() => onShowActions(billing)} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Ações</button>
-                            <button onClick={() => onEdit(billing)} className="p-1 text-sky-500 dark:text-sky-400" title="Editar Cobrança"><PencilIcon className="w-5 h-5" /></button>
-                            <button onClick={() => onDelete(billing)} className="p-1 text-red-500 dark:text-red-400" title="Excluir Cobrança"><TrashIcon className="w-5 h-5" /></button>
+                            <button onClick={() => onEdit(billing)} className="p-1 text-sky-500 dark:text-sky-400" title='Editar Cobrança'><PencilIcon className="w-5 h-5" /></button>
+                            <button onClick={() => onDelete(billing)} className="p-1 text-red-500 dark:text-red-400" title='Excluir Cobrança'><TrashIcon className="w-5 h-5" /></button>
                         </div>
                     </div>
                 </div>
@@ -325,7 +325,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                             <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('customerName')}>Cliente {renderSortArrow('customerName')}</th>
                             <th scope="col" className="px-6 py-3">Equipamento</th>
                             <th scope="col" className="px-6 py-3">Pagamento</th>
-                            <th scope="col" className="px-6 py-3 text-right cursor-pointer" onClick={() => handleSort('valorTotal')}>Valor (Firma) {renderSortArrow('valorTotal')}</th>
+                            <th scope="col" className="px-6 py-3 text-right cursor-pointer" onClick={() => handleSort('valorTotal')}>Valor (Arrecadado) {renderSortArrow('valorTotal')}</th>
                             <th scope="col" className="px-6 py-3 text-center">Ações</th>
                         </tr>
                     </thead>
@@ -362,8 +362,8 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                                 <td className="px-6 py-4 text-center">
                                     <div className="flex justify-center items-center gap-4">
                                         <button onClick={() => onShowActions(billing)} className="text-slate-500 hover:text-indigo-500" title="Mais Ações">Ações</button>
-                                        <button onClick={() => onEdit(billing)} className="text-slate-500 hover:text-sky-500" title="Editar Cobrança"><PencilIcon className="w-5 h-5" /></button>
-                                        <button onClick={() => onDelete(billing)} className="text-slate-500 hover:text-red-500" title="Excluir Cobrança"><TrashIcon className="w-5 h-5" /></button>
+                                        <button onClick={() => onEdit(billing)} className="text-slate-500 hover:text-sky-500" title='Editar Cobrança'><PencilIcon className="w-5 h-5" /></button>
+                                        <button onClick={() => onDelete(billing)} className="text-slate-500 hover:text-red-500" title='Excluir Cobrança'><TrashIcon className="w-5 h-5" /></button>
                                     </div>
                                 </td>
                             </tr>
@@ -373,7 +373,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                     </tbody>
                     <tfoot className="bg-slate-100 dark:bg-slate-700/50 font-bold text-slate-900 dark:text-white">
                         <tr>
-                            <td colSpan={5} className="text-right px-6 py-3 uppercase">Total Filtrado</td>
+                            <td colSpan={5} className="text-right px-6 py-3 uppercase">Total Arrecadado (Filtrado)</td>
                             <td className="text-right px-6 py-3 font-mono text-lg text-lime-600 dark:text-lime-400">R$ {totalBilled.toFixed(2)}</td>
                         </tr>
                     </tfoot>

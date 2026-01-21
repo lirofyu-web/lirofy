@@ -1,8 +1,8 @@
 // components/LabelGenerationModal.tsx
 import React, { useState, useMemo } from 'react';
 import { Customer } from '../types';
-import { EquipmentWithCustomer } from '../views/EquipamentosView';
-import { generateEquipmentLabelsPdf } from '../utils/pdfGenerator';
+// FIX: Corrected import path for EquipmentWithCustomer.
+import { EquipmentWithCustomer } from '../types';
 import { SearchIcon } from './icons/SearchIcon';
 import { PrinterIcon } from './icons/PrinterIcon';
 
@@ -11,9 +11,10 @@ interface LabelGenerationModalProps {
   onClose: () => void;
   customers: Customer[];
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  onConfirm: (equipments: EquipmentWithCustomer[]) => void;
 }
 
-const LabelGenerationModal: React.FC<LabelGenerationModalProps> = ({ isOpen, onClose, customers, showNotification }) => {
+const LabelGenerationModal: React.FC<LabelGenerationModalProps> = ({ isOpen, onClose, customers, showNotification, onConfirm }) => {
   const [selectionMode, setSelectionMode] = useState<'all' | 'select'>('all');
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +46,7 @@ const LabelGenerationModal: React.FC<LabelGenerationModalProps> = ({ isOpen, onC
     }
   };
 
-  const handleGeneratePdf = async () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
     try {
       const targetCustomers = selectionMode === 'all'
@@ -58,7 +59,7 @@ const LabelGenerationModal: React.FC<LabelGenerationModalProps> = ({ isOpen, onC
       }
 
       const allEquipment: EquipmentWithCustomer[] = targetCustomers.flatMap(customer =>
-        customer.equipment.map(equip => ({
+        (customer.equipment || []).map(equip => ({
           ...equip,
           customerName: customer.name,
           customerId: customer.id,
@@ -69,14 +70,12 @@ const LabelGenerationModal: React.FC<LabelGenerationModalProps> = ({ isOpen, onC
         showNotification('Os clientes selecionados não possuem equipamentos.', 'error');
         return;
       }
-
-      await generateEquipmentLabelsPdf(allEquipment);
-      showNotification('PDF das etiquetas gerado com sucesso!', 'success');
-      onClose();
+      
+      onConfirm(allEquipment);
 
     } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      showNotification('Ocorreu um erro ao gerar o PDF.', 'error');
+      console.error("Erro ao preparar etiquetas:", error);
+      showNotification('Ocorreu um erro ao preparar as etiquetas.', 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -122,9 +121,9 @@ const LabelGenerationModal: React.FC<LabelGenerationModalProps> = ({ isOpen, onC
         
         <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex justify-end gap-4 border-t border-slate-700">
           <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
-          <button onClick={handleGeneratePdf} disabled={isGenerating || (selectionMode === 'select' && selectedCustomerIds.size === 0)} className="inline-flex items-center gap-2 bg-lime-600 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-500 disabled:bg-slate-500 disabled:cursor-wait">
+          <button onClick={handleGenerate} disabled={isGenerating || (selectionMode === 'select' && selectedCustomerIds.size === 0)} className="inline-flex items-center gap-2 bg-lime-600 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-500 disabled:bg-slate-500 disabled:cursor-not-allowed">
             <PrinterIcon className="w-5 h-5" />
-            <span>{isGenerating ? 'Gerando...' : `Gerar PDF (${selectionMode === 'all' ? customers.reduce((acc, c) => acc + c.equipment.length, 0) : customers.filter(c => selectedCustomerIds.has(c.id)).reduce((acc, c) => acc + c.equipment.length, 0)})`}</span>
+            <span>{isGenerating ? 'Gerando...' : `Gerar PDF (${selectionMode === 'all' ? customers.reduce((acc, c) => acc + (c.equipment || []).length, 0) : customers.filter(c => selectedCustomerIds.has(c.id)).reduce((acc, c) => acc + (c.equipment || []).length, 0)})`}</span>
           </button>
         </div>
       </div>

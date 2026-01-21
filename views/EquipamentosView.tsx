@@ -1,14 +1,16 @@
 // views/EquipamentosView.tsx
 import React, { useState, useMemo, useCallback } from 'react';
-import { Customer, Equipment, Billing } from '../types';
+import ReactDOMServer from 'react-dom/server';
+import QRCode from 'qrcode';
+import { Customer, Equipment, Billing, EquipmentWithCustomer } from '../types';
 import PageHeader from '../components/PageHeader';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { QrCodeIcon } from '../components/icons/QrCodeIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
-import EquipmentQrCodeModal from '../components/EquipmentQrCodeModal';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
+import EquipmentLabel from '../components/EquipmentLabel';
 
 
 interface EquipamentosViewProps {
@@ -16,12 +18,8 @@ interface EquipamentosViewProps {
   billings: Billing[];
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onOpenLabelGenerator: () => void;
+  onGenerateLabels: (equipments: EquipmentWithCustomer[]) => void;
 }
-
-export type EquipmentWithCustomer = Equipment & {
-  customerName: string;
-  customerId: string;
-};
 
 const EquipmentCard: React.FC<{
   title: string;
@@ -44,8 +42,7 @@ const EquipmentCard: React.FC<{
         return equipments.map(equip => {
             const equipBillings = relevantBillings.filter(b => b.equipmentId === equip.id);
             const revenue = equipBillings.reduce((sum, b) => {
-                // FIX: Replaced 'valorPagoFiado' with 'valorDebitoNegativo'.
-                const billingRevenue = (b.equipmentType === 'grua') ? b.valorTotal : b.valorTotal - (b.valorDebitoNegativo || 0);
+                const billingRevenue = b.valorTotal - (b.valorDebitoNegativo || 0) - (b.valorBonus || 0);
                 return sum + billingRevenue;
             }, 0);
             return { ...equip, revenue };
@@ -111,8 +108,7 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
         return billings
             .filter(b => new Date(b.settledAt) >= sixMonthsAgo)
             .reduce((sum, b) => {
-                // FIX: Replaced 'valorPagoFiado' with 'valorDebitoNegativo'.
-                const revenue = (b.equipmentType === 'grua') ? b.valorTotal : b.valorTotal - (b.valorDebitoNegativo || 0);
+                const revenue = b.valorTotal - (b.valorDebitoNegativo || 0) - (b.valorBonus || 0);
                 return sum + revenue;
             }, 0);
     }, [billings]);
@@ -134,12 +130,11 @@ const GrandTotalCard: React.FC<{ billings: Billing[] }> = ({ billings }) => {
 };
 
 
-const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification, onOpenLabelGenerator }) => {
-  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithCustomer | null>(null);
+const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings, showNotification, onOpenLabelGenerator, onGenerateLabels }) => {
 
   const allEquipment = useMemo(() => {
     const flatList: EquipmentWithCustomer[] = customers.flatMap(customer =>
-      customer.equipment.map(equip => ({
+      (customer.equipment || []).map(equip => ({
         ...equip,
         customerName: customer.name,
         customerId: customer.id,
@@ -153,9 +148,81 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
     };
   }, [customers]);
 
-  const handleGenerateLabel = useCallback((equipment: EquipmentWithCustomer) => {
-    setSelectedEquipment(equipment);
-  }, []);
+  const handleGenerateLabel = useCallback(async (equipment: EquipmentWithCustomer) => {
+    try {
+        const qrData = JSON.stringify({
+            type: 'equipment',
+            id: equipment.id,
+        });
+        const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+            width: 80,
+            margin: 1,
+            errorCorrectionLevel: 'H',
+            color: { dark: '#000000', light: '#FFFFFF' }
+        });
+
+        const labelHtml = ReactDOMServer.renderToString(
+            <EquipmentLabel equipment={equipment} qrCodeDataUrl={qrCodeDataUrl} />
+        );
+
+        const fullHtml = `
+            <html>
+                <head>
+                    <title>Etiqueta - Equip. ${equipment.numero}</title>
+                    <script src="https://cdn.tailwindcss.com"></script>
+                    <style>
+                        @page {
+                            size: 58mm auto; /* Thermal printer paper size */
+                            margin: 0;
+                        }
+                        body {
+                            font-family: 'Courier New', Courier, monospace;
+                            color: #000;
+                            margin: 0;
+                            padding: 2mm;
+                            width: 54mm; /* 58mm - 2*2mm margins */
+                            background-color: #fff;
+                        }
+                        @media screen {
+                            body {
+                                width: auto;
+                                background-color: #334155;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                padding: 1rem;
+                            }
+                            .label-preview {
+                                background-color: #fff;
+                                box-shadow: 0 0 15px rgba(0,0,0,0.5);
+                                width: 58mm;
+                                padding: 2mm;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="label-preview">
+                        ${labelHtml}
+                    </div>
+                </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(fullHtml);
+            printWindow.document.close();
+            printWindow.focus();
+        } else {
+            showNotification("Por favor, habilite pop-ups para abrir a etiqueta.", "error");
+        }
+    } catch (error) {
+        console.error("Erro ao gerar etiqueta:", error);
+        showNotification("Ocorreu um erro ao gerar a etiqueta.", "error");
+    }
+  }, [showNotification]);
 
   return (
     <>
@@ -201,15 +268,6 @@ const EquipamentosView: React.FC<EquipamentosViewProps> = ({ customers, billings
         />
         <GrandTotalCard billings={billings} />
       </div>
-
-      {selectedEquipment && (
-        <EquipmentQrCodeModal
-          isOpen={!!selectedEquipment}
-          onClose={() => setSelectedEquipment(null)}
-          equipment={selectedEquipment}
-          showNotification={showNotification}
-        />
-      )}
     </>
   );
 };

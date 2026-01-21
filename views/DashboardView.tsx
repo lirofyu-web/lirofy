@@ -12,6 +12,7 @@ import { CreditCardIcon } from '../components/icons/CreditCardIcon';
 import WarningsReminders from '../components/WarningsReminders';
 import BackupReminder from '../components/BackupReminder';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
+import AiInsightsCard from '../components/AiInsightsCard';
 
 
 interface DashboardViewProps {
@@ -255,14 +256,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
         const expensesGrua = monthlyExpenses.filter(e => e.category === 'grua').reduce((sum, e) => sum + e.amount, 0);
         const totalExpenses = expensesMesa + expensesJukebox + expensesGrua + monthlyExpenses.filter(e => e.category === 'geral').reduce((sum, e) => sum + e.amount, 0);
 
-        // Faturamento (accrual basis) from company's share for each category
-        const totalRevenueMesa = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + b.valorTotal, 0);
+        // Faturamento (accrual basis) from company's share for each category, accounting for bonuses
+        const totalRevenueMesa = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + (b.valorTotal - (b.valorBonus || 0)), 0);
         const balanceMesa = totalRevenueMesa - expensesMesa;
 
-        const totalRevenueJukebox = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + b.valorTotal, 0);
+        const totalRevenueJukebox = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + (b.valorTotal - (b.valorBonus || 0)), 0);
         const balanceJukebox = totalRevenueJukebox - expensesJukebox;
 
-        const totalRevenueGrua = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + b.valorTotal, 0);
+        const totalRevenueGrua = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.valorTotal - (b.valorBonus || 0)), 0);
         const balanceGrua = totalRevenueGrua - expensesGrua;
         
         // Total outstanding debt (from all customers, not period-specific)
@@ -321,6 +322,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 <WarningsReminders warnings={warnings} />
             </div>
             
+            <AiInsightsCard billings={billings} expenses={expenses} customers={customers} />
+
             <DateFilter 
                 currentDate={currentDate}
                 onMonthChange={handleMonthChange}

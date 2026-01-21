@@ -18,6 +18,7 @@ interface CityCustomersModalProps {
   onShareCustomer: (customer: Customer) => void;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
+  onLocationActions: (customer: Customer) => void;
 }
 
 const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
@@ -25,7 +26,15 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
   customers,
   warnings,
   onClose,
-  ...customerCardProps // Spread the rest of the props for CustomerCard
+  onBillCustomer,
+  onEditCustomer,
+  onDeleteCustomer,
+  onPayDebtCustomer,
+  onHistoryCustomer,
+  onShareCustomer,
+  showNotification,
+  onFocusCustomer,
+  onLocationActions,
 }) => {
   return (
     <div
@@ -56,14 +65,15 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
                   key={customer.id}
                   customer={customer}
                   hasActiveWarning={hasActiveWarning}
-                  onBill={customerCardProps.onBillCustomer}
-                  onEdit={customerCardProps.onEditCustomer}
-                  onDelete={customerCardProps.onDeleteCustomer}
-                  onPayDebt={customerCardProps.onPayDebtCustomer}
-                  onHistory={customerCardProps.onHistoryCustomer}
-                  onShare={customerCardProps.onShareCustomer}
-                  showNotification={customerCardProps.showNotification}
-                  onFocusCustomer={customerCardProps.onFocusCustomer}
+                  onBill={onBillCustomer}
+                  onEdit={onEditCustomer}
+                  onDelete={onDeleteCustomer}
+                  onPayDebt={onPayDebtCustomer}
+                  onHistory={onHistoryCustomer}
+                  onShare={onShareCustomer}
+                  showNotification={showNotification}
+                  onFocusCustomer={onFocusCustomer}
+                  onLocationActions={onLocationActions}
                 />
               );
             })}

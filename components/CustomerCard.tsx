@@ -26,32 +26,51 @@ interface CustomerCardProps {
   onPayDebt: (customer: Customer) => void;
   onHistory: (customer: Customer) => void;
   onShare: (customer: Customer) => void;
+  onLocationActions: (customer: Customer) => void;
   hasActiveWarning: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
 }
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, hasActiveWarning, showNotification, onFocusCustomer }) => {
+const EquipmentIcon: React.FC<{ type: Equipment['type'], className?: string }> = ({ type, className }) => {
+    const finalClassName = className || 'w-5 h-5';
+    const colorMap = {
+        mesa: 'text-cyan-400',
+        jukebox: 'text-fuchsia-400',
+        grua: 'text-orange-400',
+    };
+    const colors = colorMap[type] || '';
+    switch (type) {
+        case 'mesa': return <BilliardIcon className={`${finalClassName} ${colors}`} />;
+        case 'jukebox': return <JukeboxIcon className={`${finalClassName} ${colors}`} />;
+        case 'grua': return <CraneIcon className={`${finalClassName} ${colors}`} />;
+        default: return null;
+    }
+};
+
+const EquipmentDetailRow: React.FC<{ label: string; value: string | number | undefined | null }> = ({ label, value }) => {
+  if (value === undefined || value === null || value === '') return null;
+  return (
+    <div className="flex justify-between text-xs">
+      <span className="text-slate-400">{label}:</span>
+      <span className="font-semibold text-slate-200">{String(value)}</span>
+    </div>
+  );
+};
+
+
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, hasActiveWarning, showNotification, onFocusCustomer }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const hasDebt = customer.debtAmount > 0;
     const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
     const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
-
-    const EquipmentIcon: React.FC<{ type: Equipment['type'], className?: string }> = ({ type, className }) => {
-        const finalClassName = className || 'w-5 h-5';
-        switch (type) {
-            case 'mesa': return <BilliardIcon className={finalClassName} />;
-            case 'jukebox': return <JukeboxIcon className={finalClassName} />;
-            case 'grua': return <CraneIcon className={finalClassName} />;
-            default: return null;
-        }
-    };
     
-    const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, disabled?: boolean, isPrimary?: boolean}> = ({onClick, icon, label, colorClass, disabled, isPrimary}) => (
+    const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, disabled?: boolean, isPrimary?: boolean, title?: string}> = ({onClick, icon, label, colorClass, disabled, isPrimary, title}) => (
         <button
             onClick={onClick}
             disabled={disabled}
+            title={title}
             className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-medium transition-colors ${
                 disabled 
                 ? 'bg-slate-400 dark:bg-slate-700 text-slate-500 dark:text-slate-500 cursor-not-allowed' 
@@ -73,7 +92,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
 
     return (
         <>
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:scale-105 hover:shadow-xl">
                 <div className="p-3">
                     <div
                         className="flex justify-between items-start cursor-pointer group"
@@ -111,10 +130,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     
                     <div className="mt-4 flex flex-wrap gap-2">
                         <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="" isPrimary />
-                        <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" />
+                        <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" title='Editar Cliente' />
                         <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Dívida" colorClass="bg-amber-600" disabled={!hasDebt} />
                         <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" colorClass="bg-indigo-600" />
-                        <ActionButton onClick={() => onDelete(customer)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" />
+                        <ActionButton onClick={() => onDelete(customer)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" title='Excluir Cliente' />
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2 text-white">
@@ -122,10 +141,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                             <WhatsAppIcon className="w-5 h-5" />
                             <span className="mt-1">WhatsApp</span>
                         </a>
-                        <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600' : 'bg-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'}`}>
+                         <button onClick={() => onLocationActions(customer)} disabled={!customer.latitude} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-slate-400 dark:bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
                             <LocationArrowIcon className="w-5 h-5" />
                             <span className="mt-1">Localização</span>
-                        </a>
+                        </button>
                         <button onClick={() => onShare(customer)} className="flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors bg-pink-600 hover:bg-pink-500">
                             <ShareIcon className="w-5 h-5" />
                             <span className="mt-1">Exportar</span>
@@ -143,21 +162,34 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                         {isExpanded && (
                             <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 space-y-3">
                                 {customer.equipment.map((equip) => (
-                                    <div key={equip.id} className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-inner">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex-shrink-0 p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                                                <EquipmentIcon type={equip.type} className="w-12 h-12" />
-                                            </div>
-                                            <div>
-                                                <span className="font-bold text-lg text-slate-800 dark:text-white">{equipmentTypeText[equip.type]} {equip.numero}</span>
-                                                <div className="text-slate-500 dark:text-slate-400 font-mono text-sm mt-1">
-                                                    {equip.type === 'mesa' && equip.billingType === 'monthly' ? (
-                                                        <span>Mensal: R$ {(equip.monthlyFeeValue || 0).toFixed(2)}</span>
-                                                    ) : (
-                                                        <span>Leitura: {equip.relogioAnterior}</span>
-                                                    )}
-                                                </div>
-                                            </div>
+                                    <div key={equip.id} className="p-3 bg-slate-800 rounded-lg">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <EquipmentIcon type={equip.type} className="w-5 h-5" />
+                                            <span className="font-bold text-md text-white">{equipmentTypeText[equip.type]} {equip.numero}</span>
+                                        </div>
+                                        <div className="space-y-1 font-mono">
+                                            <EquipmentDetailRow label="Nº Relógio" value={equip.relogioNumero} />
+                                            <EquipmentDetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
+                                            {equip.type === 'mesa' && (
+                                                equip.billingType === 'monthly' ? (
+                                                    <EquipmentDetailRow label="Mensalidade" value={`R$ ${(equip.monthlyFeeValue || 0).toFixed(2)}`} />
+                                                ) : (
+                                                    <>
+                                                        <EquipmentDetailRow label="Vlr. Ficha" value={`R$ ${(equip.valorFicha || 0).toFixed(2)}`} />
+                                                        <EquipmentDetailRow label="Parte Firma" value={`${equip.parteFirma || 0}%`} />
+                                                    </>
+                                                )
+                                            )}
+                                            {equip.type === 'jukebox' && (
+                                                <EquipmentDetailRow label="Parte Firma" value={`${equip.porcentagemJukeboxFirma || 0}%`} />
+                                            )}
+                                            {equip.type === 'grua' && (
+                                                <>
+                                                    {equip.aluguelPercentual != null && <EquipmentDetailRow label="Aluguel" value={`${equip.aluguelPercentual}%`} />}
+                                                    {equip.aluguelValor != null && <EquipmentDetailRow label="Aluguel" value={`R$ ${equip.aluguelValor.toFixed(2)}`} />}
+                                                    <EquipmentDetailRow label="Capacidade Pelúcias" value={equip.quantidadePelucia} />
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

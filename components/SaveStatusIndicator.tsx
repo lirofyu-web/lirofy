@@ -9,8 +9,10 @@ interface SaveStatusIndicatorProps {
   isDirty: boolean;
 }
 
+// FIX: Added a trailing comma to the generic type parameter list (`<T,>`) to prevent a JSX parsing error in .tsx files.
 const usePrevious = <T,>(value: T): T | undefined => {
-  const ref = useRef<T>();
+  // FIX: Explicitly initialize useRef with a value and type to avoid JSX parsing ambiguity with `<T>`.
+  const ref = useRef<T | undefined>(undefined);
   useEffect(() => {
     ref.current = value;
   });

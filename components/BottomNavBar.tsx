@@ -1,6 +1,7 @@
 // components/BottomNavBar.tsx
 import React from 'react';
-import { View } from '../App';
+// FIX: Import View from types.ts to break circular dependency.
+import { View } from '../types';
 import { HomeIcon } from './icons/HomeIcon';
 import { UsersIcon } from './icons/UsersIcon';
 import { ReceiptIcon } from './icons/ReceiptIcon';

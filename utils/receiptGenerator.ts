@@ -34,13 +34,20 @@ ALUGUEL (PAGO AO CLIENTE): R$ ${(billing.aluguelValor || 0).toFixed(2)}
 *TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
         `.trim();
     } else { // Mesa or Jukebox
+        const totalSection = (billing.valorBonus && billing.valorBonus > 0)
+          ? `Subtotal (Firma): R$ ${billing.valorTotal.toFixed(2)}\n` +
+            `Desconto / Bonus: - R$ ${billing.valorBonus.toFixed(2)}\n` +
+            `--------------------------------\n` +
+            `*TOTAL (FIRMA): R$ ${(billing.valorTotal - billing.valorBonus).toFixed(2)}*`
+          : `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*`;
+
         if (isMesa && billing.billingType === 'monthly') {
             details = `
 EQUIPAMENTO: MESA ${billing.equipmentNumero} (MENSAL)
 --------------------------------
 Partidas Jogadas (Periodo): ${billing.partidasJogadas}
 --------------------------------
-*MENSALIDADE FIXA: R$ ${billing.valorTotal.toFixed(2)}*
+${totalSection}
             `.trim();
         } else {
             let mesaDetails = '';
@@ -60,7 +67,7 @@ Leitura Atual: ${billing.relogioAtual}
 Valor Bruto: R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0)).toFixed(2)}
 Parte Cliente: R$ ${(billing.parteCliente ?? 0).toFixed(2)}
 --------------------------------
-*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
+${totalSection}
             `.trim();
         }
     }
@@ -87,7 +94,7 @@ Chave (Celular): ${pixKey}
 *** SEM VALOR FISCAL ***` : '';
 
     return `*MONTANHA BILHAR & JUKEBOX*
-${isProvisional ? 'DEMONSTRATIVO DE COBRANCA' : 'ACERTO DE CONTAS'}
+${isProvisional ? 'DEMONSTRATIVO DE COBRANÇA' : 'ACERTO DE CONTAS'}
 --------------------------------
 CLIENTE: ${billing.customerName}
 DATA: ${new Date(billing.settledAt).toLocaleString('pt-BR')}
@@ -254,9 +261,9 @@ export function generateCustomerShareText(customer: Customer): string {
   if (customer.linhaNumero) text += `*Cobrador:* ${customer.linhaNumero}\n`;
   if (customer.createdAt) text += `*Data do Contrato:* ${new Date(customer.createdAt).toLocaleDateString('pt-BR')}\n`;
   
-  if (customer.equipment && customer.equipment.length > 0) {
+  if ((customer.equipment || []).length > 0) {
     text += `\n*Equipamentos Instalados (${customer.equipment.length}):*\n`;
-    customer.equipment.forEach(eq => {
+    (customer.equipment || []).forEach(eq => {
       const type = eq.type.charAt(0).toUpperCase() + eq.type.slice(1);
       text += `- ${type} Nº ${eq.numero} (Leitura: ${eq.relogioAnterior})\n`;
     });

@@ -133,11 +133,11 @@ const CustomerSheet: React.FC<CustomerSheetProps> = ({ customer }) => {
             </section>
 
             <section>
-                <h2 className="text-lg font-bold text-white bg-slate-700 px-4 py-2 rounded-t-lg -mb-1">EQUIPAMENTOS INSTALADOS ({customer.equipment.length})</h2>
+                <h2 className="text-lg font-bold text-white bg-slate-700 px-4 py-2 rounded-t-lg -mb-1">EQUIPAMENTOS INSTALADOS ({(customer.equipment || []).length})</h2>
                 <div className="p-4 border border-gray-300 rounded-b-lg bg-slate-50 shadow-inner">
-                {customer.equipment.length > 0 ? (
+                {(customer.equipment || []).length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {customer.equipment.map(equip => <EquipmentCard key={equip.id} equip={equip} />)}
+                    {(customer.equipment || []).map(equip => <EquipmentCard key={equip.id} equip={equip} />)}
                     </div>
                 ) : (
                     <p className="text-gray-500 text-center py-4">Nenhum equipamento cadastrado.</p>

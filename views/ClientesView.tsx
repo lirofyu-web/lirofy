@@ -1,5 +1,5 @@
 // views/ClientesView.tsx
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Customer, Warning } from '../types';
 import AddCustomerForm from '../components/AddCustomerForm';
 import CustomerCard from '../components/CustomerCard';
@@ -30,6 +30,7 @@ interface ClientesViewProps {
   onHistoryCustomer: (customer: Customer) => void;
   onShareCustomer: (customer: Customer) => void;
   onOpenScanner: () => void;
+  onLocationActions: (customer: Customer) => void;
 }
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
@@ -47,12 +48,43 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onPayDebtCustomer,
     onHistoryCustomer,
     onShareCustomer,
-    onOpenScanner
+    onOpenScanner,
+    onLocationActions,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   const [viewingCity, setViewingCity] = useState<string | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  // State for city search suggestions
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Get unique cities from customer list
+  const uniqueCities = useMemo(() => {
+    const cities = new Set<string>();
+    customers.forEach(customer => {
+        if (customer.cidade) {
+            cities.add(customer.cidade);
+        }
+    });
+    return Array.from(cities).sort((a, b) => a.localeCompare(b));
+  }, [customers]);
+
+  // Click outside handler for suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target as Node)) {
+        setIsSuggestionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
 
   const filteredCustomers = useMemo(() => {
     return customers
@@ -66,7 +98,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         .filter(customer => {
             // Equipment filter
             if (equipmentFilter === 'all') return true;
-            return customer.equipment.some(e => e.type === equipmentFilter);
+            return (customer.equipment || []).some(e => e.type === equipmentFilter);
         });
   }, [customers, searchQuery, equipmentFilter]);
 
@@ -114,6 +146,28 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const handleCityCardClick = useCallback((city: string) => {
     setViewingCity(city);
   }, []);
+  
+  // New handlers for search suggestions
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (query.length > 1) {
+      const matchingCities = uniqueCities.filter(city => 
+        city.toLowerCase().startsWith(query.toLowerCase())
+      );
+      setCitySuggestions(matchingCities.slice(0, 5));
+      setIsSuggestionsOpen(matchingCities.length > 0);
+    } else {
+      setCitySuggestions([]);
+      setIsSuggestionsOpen(false);
+    }
+  };
+
+  const handleSuggestionClick = (city: string) => {
+    setSearchQuery(city);
+    setIsSuggestionsOpen(false);
+  };
 
   return (
     <>
@@ -125,7 +179,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
 
       <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
-            <div className="relative flex-grow w-full">
+            <div className="relative flex-grow w-full" ref={searchWrapperRef}>
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <SearchIcon className="w-5 h-5 text-slate-400" />
                 </div>
@@ -133,9 +187,26 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                     type="text"
                     placeholder="Filtrar por nome, cidade ou linha..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
+                    onFocus={() => citySuggestions.length > 0 && setIsSuggestionsOpen(true)}
+                    autoComplete="off"
                     className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
+                 {isSuggestionsOpen && citySuggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-700 rounded-md shadow-lg border border-slate-200 dark:border-slate-600 max-h-60 overflow-y-auto">
+                        <ul className="py-1">
+                            {citySuggestions.map((city) => (
+                                <li
+                                    key={city}
+                                    onClick={() => handleSuggestionClick(city)}
+                                    className="px-4 py-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600"
+                                >
+                                    {city}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
             <button
                 onClick={onOpenScanner}
@@ -173,44 +244,34 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                   const cityParts = city.split(', ');
                   const cityName = cityParts[0];
                   const stateAbbr = cityParts.length > 1 ? cityParts[1] : null;
-
-                  const isDarkCard = index % 2 === 0;
-                  
-                  // Dark Card: slate-800
-                  const darkCardClasses = 'bg-slate-800 text-white hover:bg-slate-700';
-                  const darkIconClasses = 'text-slate-300';
-                  const darkSecondaryTextClasses = 'text-slate-400';
-                  const darkBorderClasses = 'border-slate-600';
-                  const darkSmallTextClasses = 'text-slate-300';
-                  
-                  // Light Card: lime-600
-                  const lightCardClasses = 'bg-lime-600 text-white hover:bg-lime-500';
-                  const lightIconClasses = 'text-lime-100';
-                  const lightSecondaryTextClasses = 'text-lime-200';
-                  const lightBorderClasses = 'border-lime-400/50';
-                  const lightSmallTextClasses = 'text-lime-100';
-
+                  const isNeutralCard = index % 2 === 0;
 
                   return (
                       <button
                           key={city}
                           onClick={() => handleCityCardClick(city)}
-                           className={`${isDarkCard ? darkCardClasses : lightCardClasses} p-4 rounded-lg shadow-lg text-left hover:scale-105 transition-all duration-200 flex flex-col justify-between h-full`}
+                          className={`
+                              p-4 rounded-lg shadow-lg text-left hover:scale-105 transition-all duration-200 flex flex-col justify-between h-full
+                              ${isNeutralCard
+                                  ? 'bg-slate-800 text-white hover:bg-slate-700'
+                                  : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-primary-text)]'
+                              }
+                          `}
                       >
                            <div className="flex items-start gap-3">
-                               <LocationMarkerIcon className={`w-6 h-6 ${isDarkCard ? darkIconClasses : lightIconClasses} flex-shrink-0 mt-1`} />
+                               <LocationMarkerIcon className={`w-6 h-6 flex-shrink-0 mt-1 ${isNeutralCard ? 'text-slate-300' : 'opacity-80'}`} />
                                <div className="flex-grow truncate">
                                    <h3 className="font-bold text-base leading-tight truncate">{cityName}</h3>
-                                   {stateAbbr && <p className="text-xs opacity-80 font-semibold">{stateAbbr}</p>}
+                                   {stateAbbr && <p className={`text-xs font-semibold ${isNeutralCard ? 'opacity-80 text-slate-400' : 'opacity-70'}`}>{stateAbbr}</p>}
                                </div>
                            </div>
-                          <p className={`text-sm ${isDarkCard ? darkSecondaryTextClasses : lightSecondaryTextClasses} mt-2`}>{customersByCity[city].length} cliente(s)</p>
-                          <div className={`flex justify-between items-center text-xs font-semibold border-t ${isDarkCard ? darkBorderClasses : lightBorderClasses} pt-2 mt-2`}>
-                              <div className={`flex items-center gap-1.5 ${isDarkCard ? darkSmallTextClasses : lightSmallTextClasses}`}>
+                          <p className={`text-sm mt-2 ${isNeutralCard ? 'text-slate-400' : 'opacity-70'}`}>{customersByCity[city].length} cliente(s)</p>
+                          <div className={`flex justify-between items-center text-xs font-semibold border-t pt-2 mt-2 ${isNeutralCard ? 'border-slate-600' : 'border-[var(--color-primary-text)]/30'}`}>
+                              <div className="flex items-center gap-1.5">
                                   <GreenBilliardBallIcon className="w-3 h-3"/>
                                   <span>{cityStats[city]?.visited || 0}</span>
                               </div>
-                              <div className={`flex items-center gap-1.5 ${isDarkCard ? darkSmallTextClasses : lightSmallTextClasses}`}>
+                              <div className="flex items-center gap-1.5">
                                   <RedBilliardBallIcon className="w-3 h-3"/>
                                   <span>{cityStats[city]?.notVisited || 0}</span>
                               </div>
@@ -242,6 +303,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                 onPayDebt={onPayDebtCustomer}
                                 onHistory={onHistoryCustomer}
                                 onShare={onShareCustomer}
+                                onLocationActions={onLocationActions}
                                 hasActiveWarning={hasActiveWarning}
                                 showNotification={showNotification}
                                 onFocusCustomer={onFocusCustomer}
@@ -271,6 +333,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             onShareCustomer={onShareCustomer}
             showNotification={showNotification}
             onFocusCustomer={onFocusCustomer}
+            onLocationActions={onLocationActions}
         />
       )}
     </>

@@ -50,16 +50,29 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
     );
 
     const renderMesaJukeboxDetails = () => {
+        const finalFirmaValue = billing.valorTotal - (billing.valorBonus || 0);
+
         if (isMesa && billing.billingType === 'monthly') {
             return (
                 <>
                     <p className="font-bold">EQUIPAMENTO: MESA {billing.equipmentNumero} (MENSAL)</p>
                     <hr className="border-dashed border-black my-2" />
                     <ReceiptRow label="Partidas Jogadas (Período):" value={billing.partidasJogadas} />
-                    <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
-                        <span>MENSALIDADE FIXA:</span>
-                        <span>R$ {billing.valorTotal.toFixed(2)}</span>
-                    </div>
+                    {billing.valorBonus && billing.valorBonus > 0 ? (
+                        <>
+                            <ReceiptRow label="Subtotal (Firma):" value={`R$ ${billing.valorTotal.toFixed(2)}`} />
+                            <ReceiptRow label="Desconto / Bônus:" value={`- R$ ${billing.valorBonus.toFixed(2)}`} />
+                            <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+                                <span>TOTAL (FIRMA):</span>
+                                <span>R$ {finalFirmaValue.toFixed(2)}</span>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+                            <span>TOTAL (FIRMA):</span>
+                            <span>R$ {billing.valorTotal.toFixed(2)}</span>
+                        </div>
+                    )}
                 </>
             );
         }
@@ -84,10 +97,21 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
                 <ReceiptRow label="Valor Bruto:" value={`R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0)).toFixed(2)}`} />
                 <ReceiptRow label="Parte Cliente:" value={`R$ ${(billing.parteCliente ?? 0).toFixed(2)}`} />
                 
-                <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
-                    <span>TOTAL (FIRMA):</span>
-                    <span>R$ {billing.valorTotal.toFixed(2)}</span>
-                </div>
+                {billing.valorBonus && billing.valorBonus > 0 ? (
+                    <>
+                        <ReceiptRow label="Subtotal (Firma):" value={`R$ ${billing.valorTotal.toFixed(2)}`} />
+                        <ReceiptRow label="Desconto / Bônus:" value={`- R$ ${billing.valorBonus.toFixed(2)}`} />
+                        <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+                            <span>TOTAL (FIRMA):</span>
+                            <span>R$ {finalFirmaValue.toFixed(2)}</span>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
+                        <span>TOTAL (FIRMA):</span>
+                        <span>R$ {billing.valorTotal.toFixed(2)}</span>
+                    </div>
+                )}
             </>
         );
     };

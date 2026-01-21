@@ -1,4 +1,13 @@
 // types.ts
+export type View = 'DASHBOARD' | 'CLIENTES' | 'COBRANCAS' | 'EQUIPAMENTOS' | 'DESPESAS' | 'ROTAS' | 'RELATORIOS' | 'CONFIGURACOES';
+export type Theme = 'light' | 'dark';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  createdAt: Date;
+}
+
 export interface Equipment {
   id: string;
   type: 'mesa' | 'jukebox' | 'grua';
@@ -84,6 +93,7 @@ export interface Billing {
   valorPagoDinheiro?: number;
   valorPagoPix?: number;
   valorDebitoNegativo?: number;
+  valorBonus?: number;
 }
 
 
@@ -112,3 +122,8 @@ export interface Warning {
   createdAt: Date;
   isResolved: boolean;
 }
+
+export type EquipmentWithCustomer = Equipment & {
+  customerName: string;
+  customerId: string;
+};

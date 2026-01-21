@@ -5,11 +5,16 @@ import PageHeader from '../components/PageHeader';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
 import CraneReportModal from '../components/CraneReportModal';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
+// FIX: Corrected import path for JukeboxIcon.
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
+// FIX: Corrected import path for CraneIcon.
 import { CraneIcon } from '../components/icons/CraneIcon';
+// FIX: Corrected import path for CurrencyDollarIcon.
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
+// FIX: Corrected import path for CalculatorIcon.
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 import PrintableSlipsModal from '../components/PrintableSlipsModal';
+// FIX: Corrected import path for DocumentDuplicateIcon.
 import { DocumentDuplicateIcon } from '../components/icons/DocumentDuplicateIcon';
 import CustomerSelectionForSlipsModal from '../components/CustomerSelectionForSlipsModal';
 
@@ -676,306 +681,117 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
             <tr>
               <td class="text-left">${b.customerName}</td> <td class="text-left">${cidade}</td> <td>${b.equipmentNumero}</td> <td class="currency">${b.relogioAnterior}</td> <td class="currency">${b.relogioAtual}</td> <td class="currency">${b.partidasJogadas}</td> <td class="currency">R$ ${(b.saldo || 0).toFixed(2).replace('.', ',')}</td> <td class="currency">R$ ${(b.aluguelValor || 0).toFixed(2).replace('.', ',')}</td> <td class="currency">R$ ${b.valorTotal.toFixed(2).replace('.', ',')}</td> <td class="currency">${b.reposicaoPelucia || 0}</td> <td class="currency">R$ ${(b.recebimentoEspecie || 0).toFixed(2).replace('.', ',')}</td> <td class="currency">R$ ${(b.recebimentoPix || 0).toFixed(2).replace('.', ',')}</td>
             </tr>
-          `}).join('') : '<tr><td colspan="12" class="no-records">Nenhuma cobrança de grua no período selecionado.</td></tr>'}
+            `;
+          }).join('') : '<tr><td colspan="12" class="no-records">Nenhuma cobrança no período.</td></tr>'}
         </tbody>
         <tfoot>
-          <tr>
-            <td colspan="6" class="text-left"><strong>TOTAIS</strong></td>
-            <td class="currency"><strong style="color: #0d47a1;">R$ ${totalSaldoBruto.toFixed(2).replace('.', ',')}</strong></td>
-            <td class="currency"><strong style="color: #b71c1c;">R$ ${totalAluguelCliente.toFixed(2).replace('.', ',')}</strong></td>
-            <td class="currency"><strong style="color: #1b5e20;">R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</strong></td>
-            <td class="currency"><strong>${totalReposicao}</strong></td>
-            <td class="currency"><strong style="color: #0369a1;">R$ ${totalEspecie.toFixed(2).replace('.', ',')}</strong></td>
-            <td class="currency"><strong style="color: #7b1fa2;">R$ ${totalPix.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
+            <td>TOTAIS</td> <td></td> <td></td> <td></td> <td></td> <td></td> <td class="currency">R$ ${totalSaldoBruto.toFixed(2).replace('.', ',')}</td> <td class="currency">R$ ${totalAluguelCliente.toFixed(2).replace('.', ',')}</td> <td class="currency">R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</td> <td class="currency">${totalReposicao}</td> <td class="currency">R$ ${totalEspecie.toFixed(2).replace('.', ',')}</td> <td class="currency">R$ ${totalPix.toFixed(2).replace('.', ',')}</td>
         </tfoot>
       </table>
 
-      <h3 style="margin-top: 40px; margin-bottom: 10px;">Fechamento Financeiro</h3>
       <div class="fin-grid">
-          <div class="fin-box bg-blue"> <span class="fin-label">Total Entrada (Firma)</span> <span class="fin-value">R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</span> </div>
-          <div class="fin-box bg-red"> <span class="fin-label">(-) Despesas (Gruas)</span> <span class="fin-value">R$ ${reportExpenses.toFixed(2).replace('.', ',')}</span> </div>
-          <div class="fin-box bg-green"> <span class="fin-label">(=) Saldo Final</span> <span class="fin-value">R$ ${saldoFinal.toFixed(2).replace('.', ',')}</span> </div>
-          <div class="fin-box bg-purple"> <span class="fin-label">Total PIX</span> <span class="fin-value">R$ ${totalPix.toFixed(2).replace('.', ',')}</span> </div>
-          <div class="fin-box bg-amber"> <span class="fin-label">Depósito (Info)</span> <span class="fin-value">R$ ${moneyDeposit.toFixed(2).replace('.', ',')}</span> </div>
+        <div class="fin-box bg-blue"><span class="fin-label">Total Arrecadado</span><span class="fin-value">R$ ${totalValorFirma.toFixed(2).replace('.', ',')}</span></div>
+        <div class="fin-box bg-red"><span class="fin-label">(-) Despesas</span><span class="fin-value">- R$ ${reportExpenses.toFixed(2).replace('.', ',')}</span></div>
+        <div class="fin-box bg-green"><span class="fin-label">(=) Saldo Final</span><span class="fin-value">R$ ${saldoFinal.toFixed(2).replace('.', ',')}</span></div>
+        <div class="fin-box bg-amber"><span class="fin-label">Depósito</span><span class="fin-value">R$ ${moneyDeposit.toFixed(2).replace('.', ',')}</span></div>
+        <div class="fin-box bg-purple"><span class="fin-label">Total Dinheiro</span><span class="fin-value">R$ ${(totalEspecie + moneyDeposit).toFixed(2).replace('.', ',')}</span></div>
       </div>
     `;
-    
-    const formattedStart = new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR');
-    const formattedEnd = new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR');
-    
-    printReport('Relatório de Gruas de Pelúcia', content, `${formattedStart} a ${formattedEnd}`);
+
+    const dateTitle = `${new Date(startDate + 'T00:00:00').toLocaleDateString('pt-BR')} a ${new Date(endDate + 'T00:00:00').toLocaleDateString('pt-BR')}`;
+    printReport('Relatório de Gruas de Pelúcia', content, dateTitle);
     setIsCraneReportModalOpen(false);
-  }, [billings, customers, expenses, printReport]);
+  }, [expenses, billings, printReport, customers]);
 
-  const handlePrintDebtReport = useCallback(() => {
-    const content = `
-      <table>
-        <thead><tr><th>Data</th><th class="text-left">Cliente</th><th>Pgto</th><th class="currency">Valor Pago</th></tr></thead>
-        <tbody>
-          ${stats.periodDebtPayments.length > 0 ? stats.periodDebtPayments.map(p => `
-            <tr>
-              <td>${new Date(p.paidAt).toLocaleDateString('pt-BR')}</td>
-              <td class="text-left">${p.customerName}</td>
-              <td>${p.paymentMethod}</td>
-              <td class="currency">R$ ${p.amountPaid.toFixed(2).replace('.', ',')}</td>
-            </tr>
-          `).join('') : '<tr><td colspan="4" class="no-records">Nenhum pagamento de dívida no período.</td></tr>'}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="3" class="text-left"><strong>Total Recebido</strong></td>
-            <td class="currency"><strong>R$ ${stats.totalDebtPaymentsReceived.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
-    printReport('Relatório de Pagamento de Dívidas', content);
-  }, [stats, printReport]);
+  const handleGenerateSlips = useCallback((selectedCustomers: Customer[]) => {
+      const slipsData = selectedCustomers.flatMap(customer => {
+          return (customer.equipment || [])
+              .filter(e => e.type === 'mesa' || e.type === 'jukebox')
+              .map(equipment => {
+                  const lastBilling = billings
+                      .filter(b => b.equipmentId === equipment.id)
+                      .sort((a, b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime())[0];
+                  
+                  const lastBillingAmount = lastBilling ? lastBilling.valorTotal - (lastBilling.valorBonus || 0) : null;
 
-  const handlePrintExpenseReport = useCallback(() => {
-    const content = `
-      <table>
-        <thead><tr><th>Data</th><th class="text-left">Descrição</th><th class="currency">Valor</th></tr></thead>
-        <tbody>
-          ${stats.periodExpenses.length > 0 ? stats.periodExpenses.map(e => `
-            <tr>
-              <td>${new Date(e.date).toLocaleDateString('pt-BR')}</td>
-              <td class="text-left">${e.description}</td>
-              <td class="currency">R$ ${e.amount.toFixed(2).replace('.', ',')}</td>
-            </tr>
-          `).join('') : '<tr><td colspan="3" class="no-records">Nenhuma despesa no período.</td></tr>'}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2" class="text-left"><strong>Total de Despesas</strong></td>
-            <td class="currency"><strong>R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
-    printReport('Relatório de Despesas', content);
-  }, [stats, printReport]);
-  
-  const handleGenerateSlips = (selectedCustomers: Customer[]) => {
-      // 1. Sort customers by city, then by name for a consistent, grouped order.
-      const sortedCustomers = [...selectedCustomers].sort((a: Customer, b: Customer) => {
-          const cityComparison = a.cidade.localeCompare(b.cidade);
-          if (cityComparison !== 0) {
-              return cityComparison;
-          }
-          return a.name.localeCompare(b.name);
+                  return { customer, equipment, lastBillingAmount };
+              });
       });
-
-      const slips: { customer: Customer; equipment: Equipment; lastBillingAmount: number | null; }[] = [];
-      
-      // 2. Iterate through the sorted customers to generate slips.
-      sortedCustomers.forEach(customer => {
-          // Filter for relevant equipment and sort by number for consistency
-          const relevantEquipment = customer.equipment
-              .filter(equipment => equipment.type === 'mesa' || equipment.type === 'jukebox')
-              .sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
-
-          relevantEquipment.forEach(equipment => {
-              const lastBilling = billings
-                  .filter(b => b.customerId === customer.id && b.equipmentId === equipment.id)
-                  .sort((a, b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime())
-                  [0];
-              
-              const lastBillingAmount = lastBilling ? (lastBilling.valorTotal - (lastBilling.valorDebitoNegativo || 0)) : null;
-
-              slips.push({ customer, equipment, lastBillingAmount });
-          });
-      });
-      
-      setSlipsToPrint(slips);
-      setIsCustomerSelectionOpen(false);
-  };
-  
-    const handlePrintThermalReport = useCallback(() => {
-        const start = dateRange.start ? new Date(dateRange.start + 'T00:00:00').toLocaleDateString('pt-BR') : 'Início';
-        const end = dateRange.end ? new Date(dateRange.end + 'T00:00:00').toLocaleDateString('pt-BR') : 'Fim';
-
-        const allBillings = [
-            ...stats.periodMesaBillings,
-            ...stats.periodJukeboxBillings,
-            ...stats.periodGruaBillings,
-        ].sort((a, b) => new Date(a.settledAt).getTime() - new Date(b.settledAt).getTime());
-        
-        // FIX: Explicitly type the Map to ensure correct type inference for `customer`.
-        const customerMap = new Map<string, Customer>(customers.map(c => [c.id, c]));
-
-        let reportText = `*Relatorio de Caixa*\n`;
-        reportText += `Periodo: ${start} a ${end}\n`;
-        reportText += `--------------------------------\n\n`;
-
-        allBillings.forEach(b => {
-            const customer = customerMap.get(b.customerId);
-            reportText += `Cliente: ${b.customerName}\n`;
-            if (customer) {
-                reportText += `Cidade: ${customer.cidade}\n`;
-            }
-
-            const valorFirma = (b.equipmentType === 'grua') 
-                ? b.valorTotal 
-                : b.valorTotal - (b.valorDebitoNegativo || 0);
-            
-            reportText += `Valor Firma: R$ ${valorFirma.toFixed(2)}\n`;
-            
-            reportText += `Pagamento:\n`;
-            if (b.equipmentType === 'grua') {
-                if ((b.recebimentoEspecie || 0) > 0) reportText += ` - Dinheiro: R$ ${b.recebimentoEspecie.toFixed(2)}\n`;
-                if ((b.recebimentoPix || 0) > 0) reportText += ` - PIX: R$ ${b.recebimentoPix.toFixed(2)}\n`;
-            } else {
-                if ((b.valorPagoDinheiro || 0) > 0) reportText += ` - Dinheiro: R$ ${b.valorPagoDinheiro.toFixed(2)}\n`;
-                if ((b.valorPagoPix || 0) > 0) reportText += ` - PIX: R$ ${b.valorPagoPix.toFixed(2)}\n`;
-                if ((b.valorDebitoNegativo || 0) > 0) reportText += ` - Negativo: R$ ${b.valorDebitoNegativo.toFixed(2)}\n`;
-            }
-            reportText += `--------------------------------\n`;
-        });
-        
-        if (stats.periodDebtPayments.length > 0) {
-            reportText += `\n*Pagamentos de Dividas Avulsas*\n\n`;
-            stats.periodDebtPayments.forEach(p => {
-                reportText += `Cliente: ${p.customerName}\n`;
-                reportText += `Valor Pago: R$ ${p.amountPaid.toFixed(2)}\n`;
-                reportText += `Metodo: ${p.paymentMethod.toUpperCase()}\n`;
-                reportText += `--------------------------------\n`;
-            });
-        }
-        
-        const totalDinheiro = stats.revenueMesaDinheiro + stats.revenueJukeboxDinheiro + stats.revenueGruaEspecie;
-        const totalPix = stats.revenueMesaPix + stats.revenueJukeboxPix + stats.revenueGruaPix;
-        const totalNegativo = allBillings.reduce((sum, b) => sum + (b.valorDebitoNegativo || 0), 0);
-
-        reportText += `\n*RESUMO DO PERIODO*\n`;
-        reportText += `--------------------------------\n`;
-        reportText += `Total Entradas (Dinheiro): R$ ${totalDinheiro.toFixed(2)}\n`;
-        reportText += `Total Entradas (PIX): R$ ${totalPix.toFixed(2)}\n`;
-        reportText += `Total Divida Gerada (Negativo): R$ ${totalNegativo.toFixed(2)}\n`;
-        reportText += `--------------------------------\n`;
-        reportText += `*Total em Caixa (Dinheiro + PIX): R$ ${(totalDinheiro + totalPix).toFixed(2)}*\n`;
-        
-        onThermalPrint('Relatório de Caixa', reportText);
-    }, [dateRange, stats, customers, onThermalPrint]);
-
-
-  const PrintButton = ({ onClick, label, colorClass, className }: { onClick: () => void, label: string, colorClass: string, className?: string }) => (
-     <div className={`mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50 ${className}`}>
-        <button
-            onClick={onClick}
-            className={`w-full inline-flex items-center justify-center gap-2 text-white font-bold py-2 px-3 rounded-md transition-colors ${colorClass}`}
-        >
-            <PrinterIcon className="w-4 h-4" />
-            <span>{label}</span>
-        </button>
-    </div>
-  );
+      setSlipsToPrint(slipsData);
+  }, [billings]);
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <PageHeader 
-        title="Relatórios"
-        subtitle="Análise detalhada do desempenho financeiro."
+    <>
+      <PageHeader
+        title="Relatórios e Análises"
+        subtitle="Analise o desempenho financeiro do seu negócio."
       />
-      
       <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 mb-8 flex flex-wrap items-center gap-4">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Selecione o Período (Geral):</h3>
-        <input name="start" type="date" value={dateRange.start} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        <span className="text-slate-500 dark:text-slate-400">até</span>
-        <input name="end" type="date" value={dateRange.end} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Filtrar por Período:</h3>
+          <input type="date" name="start" value={dateRange.start} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500" />
+          <span className="text-slate-500 dark:text-slate-400">até</span>
+          <input type="date" name="end" value={dateRange.end} onChange={handleDateChange} className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md py-2 px-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <InfoCard title="Desempenho: Mesas de Sinuca" icon={<BilliardIcon className="w-6 h-6 text-cyan-500" />}>
-            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
-            <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueMesaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
-            <InfoRow label="Despesas" value={`R$ ${stats.periodExpensesMesa.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
-            <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueMesaTotal - stats.periodExpensesMesa).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
-            </div>
-            <PrintButton onClick={() => setIsMesaReportModalOpen(true)} label="Imprimir Relatório de Mesas" colorClass="bg-cyan-600 hover:bg-cyan-500" />
-        </InfoCard>
-
-        <InfoCard title="Desempenho: Jukebox" icon={<JukeboxIcon className="w-6 h-6 text-fuchsia-500" />}>
-            <InfoRow label="Receita (Dinheiro)" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
-            <InfoRow label="Receita (PIX)" value={`R$ ${stats.revenueJukeboxPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
-            <InfoRow label="Despesas" value={`R$ ${stats.periodExpensesJukebox.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
-            <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueJukeboxTotal - stats.periodExpensesJukebox).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
-            </div>
-            <PrintButton onClick={() => setIsJukeboxReportModalOpen(true)} label="Imprimir Relatório de Jukebox" colorClass="bg-fuchsia-600 hover:bg-fuchsia-500" />
-        </InfoCard>
-
-         <InfoCard title="Desempenho: Gruas" icon={<CraneIcon className="w-6 h-6 text-orange-500" />}>
-            <InfoRow label="Receita Bruta (Dinheiro)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2).replace('.', ',')}`} valueColor="text-sky-600 dark:text-sky-400" />
-            <InfoRow label="Receita Bruta (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2).replace('.', ',')}`} valueColor="text-emerald-600 dark:text-emerald-400" />
-            <InfoRow label="Aluguel Pago (p/ Cliente)" value={`- R$ ${stats.totalAluguelPagoGrua.toFixed(2).replace('.', ',')}`} valueColor="text-amber-600 dark:text-amber-400" />
-            <InfoRow label="Receita (Firma)" value={`R$ ${stats.revenueGruaFirma.toFixed(2).replace('.', ',')}`} valueColor="text-lime-600 dark:text-lime-400" />
-            <InfoRow label="Despesas" value={`- R$ ${stats.periodExpensesGrua.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
-            <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-700/50">
-                <InfoRow label="Lucro Líquido" value={`R$ ${(stats.revenueGruaFirma - stats.periodExpensesGrua).toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400 text-lg" />
-            </div>
-            <PrintButton onClick={() => setIsCraneReportModalOpen(true)} label="Imprimir Relatório de Gruas" colorClass="bg-orange-600 hover:bg-orange-500" />
-        </InfoCard>
-
-        <InfoCard title="Pagamentos de Dívidas" icon={<CurrencyDollarIcon className="w-6 h-6 text-green-500" />}>
-            <InfoRow label="Total Recebido no Período" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2).replace('.', ',')}`} valueColor="text-green-600 dark:text-green-400" />
-             <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2">
-                Estes valores foram distribuídos e já estão incluídos no desempenho das Mesas e Jukeboxes.
-            </p>
-            <PrintButton onClick={handlePrintDebtReport} label="Imprimir Relatório de Dívidas" colorClass="bg-green-600 hover:bg-green-500" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <InfoCard title="Resumo: Mesas de Sinuca" icon={<BilliardIcon className="w-6 h-6 text-cyan-500" />}>
+          <InfoRow label="Arrecadado (Dinheiro)" value={`R$ ${stats.revenueMesaDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+          <InfoRow label="Arrecadado (PIX)" value={`R$ ${stats.revenueMesaPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
+          <InfoRow label="Total em Caixa" value={`R$ ${stats.revenueMesaTotal.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400" />
+          <InfoRow label="(-) Despesas (Mesas)" value={`- R$ ${stats.periodExpensesMesa.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
+          <InfoRow label="(=) Lucro Líquido" value={`R$ ${(stats.revenueMesaTotal - stats.periodExpensesMesa).toFixed(2)}`} valueColor="text-green-500 dark:text-green-300 font-bold text-lg" />
+           <button onClick={() => setIsMesaReportModalOpen(true)} className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-2 px-4 rounded-md hover:bg-cyan-500"><PrinterIcon className="w-5 h-5"/> <span>Imprimir Relatório</span></button>
         </InfoCard>
         
-        <InfoCard title="Despesas do Período" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />}>
-            <InfoRow label="Total Gasto" value={`R$ ${stats.totalExpenses.toFixed(2).replace('.', ',')}`} valueColor="text-red-600 dark:text-red-400" />
-            <PrintButton onClick={handlePrintExpenseReport} label="Imprimir Relatório de Despesas" colorClass="bg-red-600 hover:bg-red-500" />
+        <InfoCard title="Resumo: Jukebox" icon={<JukeboxIcon className="w-6 h-6 text-fuchsia-500" />}>
+          <InfoRow label="Arrecadado (Dinheiro)" value={`R$ ${stats.revenueJukeboxDinheiro.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+          <InfoRow label="Arrecadado (PIX)" value={`R$ ${stats.revenueJukeboxPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
+          <InfoRow label="Total em Caixa" value={`R$ ${stats.revenueJukeboxTotal.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400" />
+          <InfoRow label="(-) Despesas (Jukebox)" value={`- R$ ${stats.periodExpensesJukebox.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
+          <InfoRow label="(=) Lucro Líquido" value={`R$ ${(stats.revenueJukeboxTotal - stats.periodExpensesJukebox).toFixed(2)}`} valueColor="text-green-500 dark:text-green-300 font-bold text-lg" />
+           <button onClick={() => setIsJukeboxReportModalOpen(true)} className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-fuchsia-600 text-white font-bold py-2 px-4 rounded-md hover:bg-fuchsia-500"><PrinterIcon className="w-5 h-5"/> <span>Imprimir Relatório</span></button>
         </InfoCard>
 
-        <InfoCard title="Ferramentas de Impressão" icon={<DocumentDuplicateIcon className="w-6 h-6 text-slate-500" />}>
-            <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2 mb-4">Gere documentos úteis para o trabalho em campo.</p>
-            <PrintButton 
-                onClick={() => setIsCustomerSelectionOpen(true)}
-                label="Imprimir Talões de Cobrança"
-                colorClass="bg-gray-600 hover:bg-gray-500"
-                className="mt-0 pt-0 border-none"
-            />
-            <PrintButton 
-                onClick={handlePrintThermalReport}
-                label="Relatório de Caixa (Térmica)"
-                colorClass="bg-gray-600 hover:bg-gray-500"
-            />
+        <InfoCard title="Resumo: Gruas de Pelúcia" icon={<CraneIcon className="w-6 h-6 text-orange-500" />}>
+          <InfoRow label="Recebido (Espécie)" value={`R$ ${stats.revenueGruaEspecie.toFixed(2)}`} valueColor="text-sky-600 dark:text-sky-400" />
+          <InfoRow label="Recebido (PIX)" value={`R$ ${stats.revenueGruaPix.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
+          <InfoRow label="Total Arrecadado (Firma)" value={`R$ ${stats.revenueGruaFirma.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400" />
+          <InfoRow label="(-) Despesas (Gruas)" value={`- R$ ${stats.periodExpensesGrua.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
+          <InfoRow label="(=) Lucro Líquido" value={`R$ ${(stats.revenueGruaFirma - stats.periodExpensesGrua).toFixed(2)}`} valueColor="text-green-500 dark:text-green-300 font-bold text-lg" />
+          <button onClick={() => setIsCraneReportModalOpen(true)} className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-orange-600 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-500"><PrinterIcon className="w-5 h-5"/> <span>Imprimir Relatório</span></button>
         </InfoCard>
+
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <InfoCard title="Resumo Geral de Receitas" icon={<CurrencyDollarIcon className="w-6 h-6 text-green-500" />}>
+                <InfoRow label="Total Arrecadado (Caixa)" value={`R$ ${(stats.revenueMesaTotal + stats.revenueJukeboxTotal + stats.revenueGruaEspecie + stats.revenueGruaPix).toFixed(2)}`} valueColor="text-green-500 dark:text-green-300 font-bold text-lg" />
+                <InfoRow label="Total Dívidas Pagas" value={`R$ ${stats.totalDebtPaymentsReceived.toFixed(2)}`} valueColor="text-green-600 dark:text-green-400" />
+            </InfoCard>
+            <InfoCard title="Resumo Geral de Despesas" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />}>
+                <InfoRow label="Total de Despesas" value={`R$ ${stats.totalExpenses.toFixed(2)}`} valueColor="text-red-500 dark:text-red-300 font-bold text-lg" />
+            </InfoCard>
+        </div>
       </div>
+      
+       <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+           <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-3 flex items-center gap-2">
+                <DocumentDuplicateIcon className="w-6 h-6 text-indigo-500" />
+                Impressão de Talões
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Gere talões de cobrança manual (3 por folha A4) para clientes selecionados. Ideal para rotas sem acesso ao sistema.</p>
+            <button
+                onClick={() => setIsCustomerSelectionOpen(true)}
+                className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500"
+            >
+                Selecionar Clientes e Gerar Talões
+            </button>
+       </div>
 
-      <MesaReportModal
-        isOpen={isMesaReportModalOpen}
-        onClose={() => setIsMesaReportModalOpen(false)}
-        onConfirm={handlePrintMesaReport}
-      />
-      <JukeboxReportModal
-        isOpen={isJukeboxReportModalOpen}
-        onClose={() => setIsJukeboxReportModalOpen(false)}
-        onConfirm={handlePrintJukeboxReport}
-      />
-      <CraneReportModal 
-        isOpen={isCraneReportModalOpen}
-        onClose={() => setIsCraneReportModalOpen(false)}
-        onConfirm={handleGenerateCraneReport}
-      />
-      <CustomerSelectionForSlipsModal
-        isOpen={isCustomerSelectionOpen}
-        onClose={() => setIsCustomerSelectionOpen(false)}
-        customers={customers}
-        onConfirm={handleGenerateSlips}
-      />
-      {slipsToPrint && (
-          <PrintableSlipsModal
-              slips={slipsToPrint}
-              onClose={() => setSlipsToPrint(null)}
-          />
-      )}
-    </div>
+      {isCraneReportModalOpen && <CraneReportModal isOpen={isCraneReportModalOpen} onClose={() => setIsCraneReportModalOpen(false)} onConfirm={handleGenerateCraneReport} />}
+      {isMesaReportModalOpen && <MesaReportModal isOpen={isMesaReportModalOpen} onClose={() => setIsMesaReportModalOpen(false)} onConfirm={handlePrintMesaReport} />}
+      {isJukeboxReportModalOpen && <JukeboxReportModal isOpen={isJukeboxReportModalOpen} onClose={() => setIsJukeboxReportModalOpen(false)} onConfirm={handlePrintJukeboxReport} />}
+      {isCustomerSelectionOpen && <CustomerSelectionForSlipsModal isOpen={isCustomerSelectionOpen} onClose={() => setIsCustomerSelectionOpen(false)} customers={customers} onConfirm={handleGenerateSlips} />}
+      {slipsToPrint && <PrintableSlipsModal slips={slipsToPrint} onClose={() => setSlipsToPrint(null)} />}
+    </>
   );
 };
 

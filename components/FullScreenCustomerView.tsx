@@ -28,6 +28,7 @@ interface FullScreenCustomerViewProps {
   onPayDebt: (customer: Customer) => void;
   onHistory: (customer: Customer) => void;
   onShare: (customer: Customer) => void;
+  onLocationActions: (customer: Customer) => void;
   billings: Billing[];
   debtPayments: DebtPayment[];
 }
@@ -64,10 +65,11 @@ const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'debito_nega
 });
 
 
-const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, disabled?: boolean, isPrimary?: boolean}> = ({onClick, icon, label, colorClass, disabled, isPrimary}) => (
+const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, disabled?: boolean, isPrimary?: boolean, title?: string}> = ({onClick, icon, label, colorClass, disabled, isPrimary, title}) => (
     <button
         onClick={onClick}
         disabled={disabled}
+        title={title}
         className={`flex-1 w-full flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${
             disabled 
             ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed' 
@@ -81,7 +83,7 @@ const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label:
     </button>
 );
 
-const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, billings, debtPayments }) => {
+const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, billings, debtPayments }) => {
   if (!customer) return null;
   
   const hasDebt = customer.debtAmount > 0;
@@ -212,10 +214,10 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                             <WhatsAppIcon className="w-6 h-6" />
                             <span className="mt-1.5">WhatsApp</span>
                         </a>
-                        <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}`}>
+                        <button onClick={() => onLocationActions(customer)} disabled={!customer.latitude} className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}`}>
                             <LocationArrowIcon className="w-6 h-6" />
                             <span className="mt-1.5">Localização</span>
-                        </a>
+                        </button>
                     </div>
                 </div>
                 <div className="bg-slate-900/50 p-4 rounded-xl">
@@ -229,9 +231,9 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
             {/* Right Column: Equipment & History */}
             <div className="lg:col-span-2 space-y-6 overflow-y-auto pr-2">
                 <div className="bg-slate-900/50 p-4 rounded-xl">
-                    <h3 className="text-lg font-bold text-slate-300 mb-3">Equipamentos ({customer.equipment.length})</h3>
+                    <h3 className="text-lg font-bold text-slate-300 mb-3">Equipamentos ({(customer.equipment || []).length})</h3>
                     <div className="space-y-3">
-                        {customer.equipment.length > 0 ? customer.equipment.map((equip) => (
+                        {(customer.equipment || []).length > 0 ? (customer.equipment || []).map((equip) => (
                             <div key={equip.id} className="flex justify-between items-center text-sm p-3 bg-slate-800/60 rounded-lg border border-slate-700">
                                 <div className="flex items-center gap-3">
                                     <EquipmentIcon type={equip.type} />

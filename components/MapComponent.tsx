@@ -4,17 +4,20 @@ import ReactDOMServer from 'react-dom/server';
 import { VisitedIcon } from './icons/VisitedIcon';
 import { NotVisitedIcon } from './icons/NotVisitedIcon';
 
+type GeocodedCustomer = Customer & { latitude: number; longitude: number; };
 
 interface MapComponentProps {
-  customers: (Customer & { latitude: number; longitude: number; })[];
+  customers: GeocodedCustomer[];
   selectedCustomerId: string | null;
   onMarkerClick: (customerId: string) => void;
+  optimizedRoute?: GeocodedCustomer[] | null;
 }
 
-const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomerId, onMarkerClick }) => {
+const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomerId, onMarkerClick, optimizedRoute }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any | null>(null); // L.Map
   const markersLayer = useRef<any | null>(null); // L.MarkerClusterGroup
+  const routeLayer = useRef<any | null>(null); // L.LayerGroup for polylines
   const markerRefs = useRef<Record<string, any>>({}); // Record<string, L.Marker>
 
   const L = (window as any).L;
@@ -32,7 +35,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
       zoom: 4,
       minZoom: 4,
       maxBounds: brazilBounds,
-      maxBoundsViscosity: 1.0, // Prevents user from dragging outside bounds
+      maxBoundsViscosity: 1.0,
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -44,10 +47,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
         chunkedLoading: true,
         maxClusterRadius: 50
     });
+    routeLayer.current = L.layerGroup();
     mapInstance.current.addLayer(markersLayer.current);
+    mapInstance.current.addLayer(routeLayer.current);
     markerRefs.current = {};
 
-    // Fix for map rendering issues: monitor container resize and invalidate map size
     const resizeObserver = new ResizeObserver(() => {
       if (mapInstance.current) {
         mapInstance.current.invalidateSize();
@@ -55,12 +59,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
     });
     resizeObserver.observe(mapRef.current);
 
-    // Initial invalidation to ensure correct rendering on mount
     setTimeout(() => {
         mapInstance.current?.invalidateSize();
     }, 250);
 
-    // Cleanup function
     return () => {
       resizeObserver.disconnect();
       if (mapInstance.current) {
@@ -120,9 +122,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
             markerRefs.current[customer.id] = marker;
         });
 
-        if (!selectedCustomerId) {
-            // Only fit bounds if we are not focusing on a specific customer
-            // And only if the map isn't already zoomed/positioned by user interaction (simple check)
+        if (!selectedCustomerId && !optimizedRoute) {
             try {
                const bounds = markersLayer.current.getBounds();
                if (bounds.isValid()) {
@@ -135,14 +135,24 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
     } else {
         mapInstance.current.setView([-14.235, -51.9253], 4);
     }
-  }, [customers, L, onMarkerClick, selectedCustomerId]);
+  }, [customers, L, onMarkerClick, selectedCustomerId, optimizedRoute]);
+
+  useEffect(() => {
+      if (!routeLayer.current || !mapInstance.current || !L) return;
+      routeLayer.current.clearLayers();
+
+      if (optimizedRoute && optimizedRoute.length > 1) {
+          const latLngs = optimizedRoute.map(c => [c.latitude, c.longitude]);
+          const polyline = L.polyline(latLngs, { color: '#fb923c', weight: 5, opacity: 0.8 });
+          routeLayer.current.addLayer(polyline);
+          mapInstance.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+      }
+  }, [optimizedRoute, L]);
 
 
-  // Effect to handle selection changes
   useEffect(() => {
     if (!mapInstance.current || !L) return;
 
-    // Deselect all markers first
     Object.values(markerRefs.current).forEach((m: any) => {
         const element = m.getElement();
         if (element) {
@@ -160,10 +170,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ customers, selectedCustomer
             selectedMarker.setZIndexOffset(1000);
         }
 
-        // Ensure map layer is visible for the cluster if it's clustered
         markersLayer.current.zoomToShowLayer(selectedMarker, () => {
              mapInstance.current.panTo(selectedMarker.getLatLng());
-             // Add a small delay for popup to ensure animation is smooth
              setTimeout(() => {
                  selectedMarker.openPopup();
              }, 100);

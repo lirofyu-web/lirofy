@@ -42,8 +42,8 @@ const EquipmentSelectionModal: React.FC<EquipmentSelectionModalProps> = ({
           <p className="text-slate-400">Escolha um equipamento de {customer.name} para faturar.</p>
         </div>
         <div className="p-4 space-y-3 overflow-y-auto">
-          {customer.equipment.length > 0 ? (
-            customer.equipment.map(equip => (
+          {(customer.equipment || []).length > 0 ? (
+            (customer.equipment || []).map(equip => (
               <button
                 key={equip.id}
                 onClick={() => onSelect(equip)}

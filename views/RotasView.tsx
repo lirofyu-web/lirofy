@@ -10,6 +10,7 @@ import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { ListBulletIcon } from '../components/icons/ListBulletIcon';
+import { XIcon } from '../components/icons/XIcon';
 
 
 interface RotasViewProps {
@@ -17,6 +18,7 @@ interface RotasViewProps {
 }
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
+type GeocodedCustomer = Customer & { latitude: number; longitude: number; };
 
 const FilterCard: React.FC<{
     title: string;
@@ -46,8 +48,9 @@ const FilterCard: React.FC<{
 const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [distances, setDistances] = useState<Record<string, number | null>>({});
-  const [isCalculating, setIsCalculating] = useState(false);
+  const [isProcessingRoute, setIsProcessingRoute] = useState(false);
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
+  const [optimizedRoute, setOptimizedRoute] = useState<GeocodedCustomer[] | null>(null);
   const customerRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -59,19 +62,23 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   }, [customers, equipmentFilter]);
 
   const geocodedCustomers = useMemo(() => {
-    return filteredCustomersForRoute.filter(c => c.latitude != null && c.longitude != null).sort((a, b) => a.name.localeCompare(b.name)) as (Customer & { latitude: number; longitude: number; })[];
+    return filteredCustomersForRoute.filter(c => c.latitude != null && c.longitude != null).sort((a, b) => a.name.localeCompare(b.name)) as GeocodedCustomer[];
   }, [filteredCustomersForRoute]);
+  
+  const displayedCustomers = useMemo(() => {
+      return optimizedRoute || geocodedCustomers;
+  }, [optimizedRoute, geocodedCustomers]);
 
   const customersByCity = useMemo(() => {
-    return geocodedCustomers.reduce((acc, customer) => {
+    return displayedCustomers.reduce((acc, customer) => {
         const city = customer.cidade.trim() || 'Sem Cidade';
         if (!acc[city]) {
             acc[city] = [];
         }
         acc[city].push(customer);
         return acc;
-    }, {} as Record<string, (Customer & { latitude: number; longitude: number; })[]>);
-  }, [geocodedCustomers]);
+    }, {} as Record<string, GeocodedCustomer[]>);
+  }, [displayedCustomers]);
   
   const equipmentCounts = useMemo(() => ({
     all: customers.length,
@@ -80,7 +87,10 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     grua: customers.filter(c => c.equipment?.some(e => e.type === 'grua')).length,
   }), [customers]);
 
-  const sortedCities = useMemo(() => Object.keys(customersByCity).sort((a, b) => a.localeCompare(b)), [customersByCity]);
+  const sortedCities = useMemo(() => {
+      if (optimizedRoute) return ['Rota Otimizada'];
+      return Object.keys(customersByCity).sort((a, b) => a.localeCompare(b));
+  }, [customersByCity, optimizedRoute]);
 
   useEffect(() => {
     if (selectedCustomerId && customerRefs.current[selectedCustomerId]) {
@@ -90,6 +100,11 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
       });
     }
   }, [selectedCustomerId]);
+  
+  const handleFilterChange = (filter: EquipmentFilter) => {
+      setEquipmentFilter(filter);
+      setOptimizedRoute(null); // Reset route on filter change
+  };
 
   const handleMarkerClick = useCallback((customerId: string) => {
     setSelectedCustomerId(customerId);
@@ -97,8 +112,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   
   const handleCustomerSelect = useCallback((customerId: string) => {
     setSelectedCustomerId(customerId);
-    // On mobile, scroll up to the map when a customer is selected from the list.
-    if (window.innerWidth < 768) { // Corresponds to Tailwind's 'md' breakpoint
+    if (window.innerWidth < 768) {
       mapContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, []);
@@ -111,37 +125,64 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
-
-  const handleCalculateDistances = useCallback(() => {
+  
+  const handleOptimizeRoute = useCallback(() => {
     if (!navigator.geolocation) {
       alert("Geolocalização não é suportada.");
       return;
     }
-    setIsCalculating(true);
+    setIsProcessingRoute(true);
+    setOptimizedRoute(null);
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        const newDistances: Record<string, number | null> = {};
-        customers.forEach(customer => {
-          if (customer.latitude && customer.longitude) {
-            newDistances[customer.id] = calculateDistance(latitude, longitude, customer.latitude, customer.longitude);
-          } else {
-            newDistances[customer.id] = null;
-          }
-        });
-        setDistances(newDistances);
-        setIsCalculating(false);
+        let currentLocation = { lat: latitude, lon: longitude };
+        
+        let remainingCustomers = [...geocodedCustomers];
+        const route: GeocodedCustomer[] = [];
+        
+        while(remainingCustomers.length > 0) {
+            let closestCustomer: GeocodedCustomer | null = null;
+            let minDistance = Infinity;
+            let closestIndex = -1;
+            
+            remainingCustomers.forEach((customer, index) => {
+                const distance = calculateDistance(currentLocation.lat, currentLocation.lon, customer.latitude, customer.longitude);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCustomer = customer;
+                    closestIndex = index;
+                }
+            });
+            
+            if(closestCustomer) {
+                route.push(closestCustomer);
+                currentLocation = { lat: closestCustomer.latitude, lon: closestCustomer.longitude };
+                remainingCustomers.splice(closestIndex, 1);
+            } else {
+                break; // Should not happen
+            }
+        }
+        
+        setOptimizedRoute(route);
+        setIsProcessingRoute(false);
       },
       (error) => {
-        alert("Não foi possível obter a localização.");
+        alert("Não foi possível obter a localização para otimizar a rota.");
         console.error(error);
-        setIsCalculating(false);
+        setIsProcessingRoute(false);
       }
     );
-  }, [customers]);
+  }, [geocodedCustomers]);
+
+  const handleResetRoute = () => {
+      setOptimizedRoute(null);
+      setSelectedCustomerId(null);
+  };
   
   const handlePrintRoute = useCallback(() => {
-    const customersToPrint = filteredCustomersForRoute;
+    const customersToPrint = displayedCustomers;
     const customersByCity = customersToPrint
       .sort((a, b) => a.cidade.localeCompare(b.cidade) || a.name.localeCompare(b.name))
       .reduce((acc, customer) => {
@@ -176,12 +217,12 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
             } else {
                 const customer = item.data;
                 const equipamentos = [];
-                if (customer.equipment?.some(e => e.type === 'mesa')) equipamentos.push('Mesa');
-                if (customer.equipment?.some(e => e.type === 'jukebox')) equipamentos.push('Jukebox');
-                if (customer.equipment?.some(e => e.type === 'grua')) equipamentos.push('Grua');
+                if ((customer.equipment || []).some(e => e.type === 'mesa')) equipamentos.push('Mesa');
+                if ((customer.equipment || []).some(e => e.type === 'jukebox')) equipamentos.push('Jukebox');
+                if ((customer.equipment || []).some(e => e.type === 'grua')) equipamentos.push('Grua');
 
                 const lastVisitDate = customer.lastVisitedAt ? new Date(customer.lastVisitedAt).toLocaleDateString('pt-BR') : '---';
-                const clockReadings = customer.equipment
+                const clockReadings = (customer.equipment || [])
                     .filter(e => e.type === 'mesa' || e.type === 'jukebox' || e.type === 'grua')
                     .map(e => {
                         const typePrefix = e.type === 'mesa' ? 'M' : e.type === 'jukebox' ? 'J' : 'G';
@@ -254,7 +295,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         printWindow.focus();
         printWindow.print();
     }
-  }, [filteredCustomersForRoute]);
+  }, [displayedCustomers]);
 
   return (
     <div className="h-full flex flex-col">
@@ -269,28 +310,28 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
               title="Todas as Rotas"
               count={equipmentCounts.all}
               icon={<ListBulletIcon className="w-6 h-6" />}
-              onClick={() => setEquipmentFilter('all')}
+              onClick={() => handleFilterChange('all')}
               isActive={equipmentFilter === 'all'}
           />
           <FilterCard 
               title="Rotas (Mesas)"
               count={equipmentCounts.mesa}
               icon={<BilliardIcon className="w-6 h-6" />}
-              onClick={() => setEquipmentFilter('mesa')}
+              onClick={() => handleFilterChange('mesa')}
               isActive={equipmentFilter === 'mesa'}
           />
           <FilterCard 
               title="Rotas (Jukebox)"
               count={equipmentCounts.jukebox}
               icon={<JukeboxIcon className="w-6 h-6" />}
-              onClick={() => setEquipmentFilter('jukebox')}
+              onClick={() => handleFilterChange('jukebox')}
               isActive={equipmentFilter === 'jukebox'}
           />
           <FilterCard 
               title="Rotas (Gruas)"
               count={equipmentCounts.grua}
               icon={<CraneIcon className="w-6 h-6" />}
-              onClick={() => setEquipmentFilter('grua')}
+              onClick={() => handleFilterChange('grua')}
               isActive={equipmentFilter === 'grua'}
           />
       </div>
@@ -304,17 +345,23 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
             customers={geocodedCustomers}
             selectedCustomerId={selectedCustomerId}
             onMarkerClick={handleMarkerClick}
+            optimizedRoute={optimizedRoute}
           />
         </div>
 
         {/* Customer List Panel */}
         <div className="flex-grow min-h-0 w-full md:w-1/3 lg:w-1/4 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes ({geocodedCustomers.length})</h3>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes ({displayedCustomers.length})</h3>
             <div className="flex gap-2">
-               <button onClick={handleCalculateDistances} title="Calcular Distâncias" disabled={isCalculating} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:text-slate-400 dark:disabled:text-slate-600">
-                 <RulerIcon className="w-5 h-5"/>
+               <button onClick={handleOptimizeRoute} title="Otimizar Rota" disabled={isProcessingRoute} className="p-2 text-slate-500 dark:text-slate-400 hover:text-lime-500 dark:hover:text-lime-400 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-wait">
+                 {isProcessingRoute ? <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <RulerIcon className="w-5 h-5"/>}
                </button>
+               {optimizedRoute && (
+                 <button onClick={handleResetRoute} title="Resetar Rota" className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300">
+                    <XIcon className="w-5 h-5" />
+                 </button>
+               )}
                <button onClick={handlePrintRoute} title="Imprimir Rota" className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
                  <PrinterIcon className="w-5 h-5"/>
                </button>
@@ -324,11 +371,11 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
             {sortedCities.length > 0 ? sortedCities.map(city => (
               <div key={city} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg">
                 <h4 className="text-md font-semibold text-lime-600 dark:text-lime-400 p-3 border-b border-slate-200 dark:border-slate-700 capitalize flex items-center gap-2">
-                    <LocationMarkerIcon className="w-5 h-5" />
+                    {optimizedRoute ? <RulerIcon className="w-5 h-5" /> : <LocationMarkerIcon className="w-5 h-5" />}
                     {city}
                 </h4>
                 <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {customersByCity[city].map(customer => {
+                    {customersByCity[city].map((customer, index) => {
                       const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
                       const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
                       const hasDebt = customer.debtAmount > 0;
@@ -342,6 +389,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                               }`}
                             >
                               <div className="flex items-center gap-2 mb-1">
+                                {optimizedRoute && <span className="font-bold text-lime-500 text-lg w-6 text-center">{index + 1}.</span>}
                                 <div className="flex-shrink-0 flex items-center gap-1.5">
                                     {visitIsPending ? (
                                         <span title="Visita Pendente" className="block w-2.5 h-2.5 bg-red-500 rounded-full"></span>
@@ -354,8 +402,8 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                                 </div>
                                 <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-lime-600 dark:text-lime-400' : 'text-slate-900 dark:text-white'}`}>{customer.name}</p>
                               </div>
-                              <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{customer.endereco}</p>
-                              {distances[customer.id] != null && <p className="text-xs text-sky-500 dark:text-sky-400 mt-1">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}
+                              <p className="text-sm text-slate-500 dark:text-slate-400 truncate pl-6">{customer.endereco}</p>
+                              {distances[customer.id] != null && <p className="text-xs text-sky-500 dark:text-sky-400 mt-1 pl-6">Aprox. {distances[customer.id]?.toFixed(1)} km</p>}
                             </button>
                         </li>
                       );

@@ -4,6 +4,7 @@ import { Customer, Equipment, Billing } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertIcon } from './icons/AlertIcon';
 import { safeParseFloat } from '../utils';
+import { XIcon } from './icons/XIcon';
 
 type FormState = {
   relogioAtual: string;
@@ -24,6 +25,7 @@ type PaymentState = {
   dinheiro: string;
   pix: string;
   negativo: string;
+  bonus: string;
 };
 
 interface BillingModalProps {
@@ -87,7 +89,7 @@ const PaymentField: React.FC<{
 
 const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm, customer, equipment, onTriggerProvisionalReceiptAction }) => {
   const [formState, setFormState] = useState<FormState>({} as FormState);
-  const [paymentValues, setPaymentValues] = useState<PaymentState>({ dinheiro: '', pix: '', negativo: ''});
+  const [paymentValues, setPaymentValues] = useState<PaymentState>({ dinheiro: '', pix: '', negativo: '', bonus: ''});
   const [error, setError] = useState<string | null>(null);
   const [mesaStep, setMesaStep] = useState(1);
   const [jukeboxStep, setJukeboxStep] = useState(1);
@@ -117,7 +119,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         recebimentoPix: '',
       };
       setFormState(initialState);
-      setPaymentValues({ dinheiro: '', pix: '', negativo: ''});
+      setPaymentValues({ dinheiro: '', pix: '', negativo: '', bonus: ''});
       setError(null);
       setGruaStep(1);
       setMesaStep(1);
@@ -202,17 +204,19 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [formState, equipment]);
   
   const valorTotalParaFirma = useMemo(() => calculation.valorTotal || 0, [calculation]);
+  const valorBonus = useMemo(() => safeParseFloat(paymentValues.bonus), [paymentValues.bonus]);
   const valorNegativo = useMemo(() => safeParseFloat(paymentValues.negativo), [paymentValues.negativo]);
-  const liquidoAReceber = useMemo(() => Math.max(0, valorTotalParaFirma - valorNegativo), [valorTotalParaFirma, valorNegativo]);
+  const liquidoAReceber = useMemo(() => Math.max(0, valorTotalParaFirma - valorNegativo - valorBonus), [valorTotalParaFirma, valorNegativo, valorBonus]);
   const valorDinheiro = useMemo(() => safeParseFloat(paymentValues.dinheiro), [paymentValues.dinheiro]);
   const valorPix = useMemo(() => safeParseFloat(paymentValues.pix), [paymentValues.pix]);
   const totalPagoEmCaixa = useMemo(() => valorDinheiro + valorPix, [valorDinheiro, valorPix]);
   const remainingAmountLiquido = useMemo(() => liquidoAReceber - totalPagoEmCaixa, [liquidoAReceber, totalPagoEmCaixa]);
+  const valorFinalFirma = useMemo(() => valorTotalParaFirma - valorBonus, [valorTotalParaFirma, valorBonus]);
 
   useEffect(() => {
     if ((mesaStep === 2 || jukeboxStep === 2) && equipment.type !== 'grua') {
       const initialTotal = calculation.valorTotal || 0;
-      setPaymentValues({ dinheiro: initialTotal > 0 ? initialTotal.toFixed(2).replace('.', ',') : '', pix: '', negativo: '' });
+      setPaymentValues({ dinheiro: initialTotal > 0 ? initialTotal.toFixed(2).replace('.', ',') : '', pix: '', negativo: '', bonus: '' });
     }
   }, [mesaStep, jukeboxStep, equipment.type, calculation.valorTotal]);
   
@@ -249,17 +253,51 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [equipment]);
 
   const handlePaymentChange = useCallback((field: keyof PaymentState, value: string) => {
-    setPaymentValues(prev => ({ ...prev, [field]: value }));
-  }, []);
+    setPaymentValues(prev => {
+        const newValues = { ...prev, [field]: value };
+
+        // Auto-calculate 'dinheiro' field for Mesa/Jukebox payment screen
+        if (equipment.type === 'mesa' || equipment.type === 'jukebox') {
+            // Recalculate if bonus, negativo, or pix are changed by the user
+            if (field === 'pix' || field === 'bonus' || field === 'negativo') {
+                const newBonus = safeParseFloat(newValues.bonus);
+                const newNegativo = safeParseFloat(newValues.negativo);
+                const newPix = safeParseFloat(newValues.pix);
+                
+                const liquido = valorTotalParaFirma - newBonus - newNegativo;
+                const newDinheiro = liquido - newPix;
+                
+                // Update 'dinheiro' field automatically. Use a small threshold for float issues.
+                newValues.dinheiro = newDinheiro > 0.001 ? newDinheiro.toFixed(2).replace('.', ',') : '';
+            }
+        }
+        
+        return newValues;
+    });
+  }, [valorTotalParaFirma, equipment.type]);
 
   const generateBillingObject = useCallback((): Billing | null => {
     const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
 
     if (equipment.type !== 'jukebox' && relogioAtual < equipment.relogioAnterior) {
-        return null; // Safeguard for non-jukebox
+      return null; // Safeguard for non-jukebox
     }
+    // FIX: Refactored to explicitly build the final Billing object, ensuring type safety and correct property assignment for all equipment types.
+    const baseBillingData = {
+        id: uuidv4(),
+        customerId: customer.id,
+        customerName: customer.name,
+        equipmentId: equipment.id,
+        equipmentType: equipment.type,
+        equipmentNumero: equipment.numero,
+        relogioAnterior: equipment.relogioAnterior,
+        relogioAtual: relogioAtual,
+        settledAt: new Date(),
+        ...calculation,
+        valorTotal: calculation.valorTotal || 0,
+        partidasJogadas: calculation.partidasJogadas || 0,
+    };
 
-    let billingData: Partial<Billing>;
     if (equipment.type === 'grua') {
         const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
         const recebimentoPix = safeParseFloat(formState.recebimentoPix);
@@ -269,21 +307,24 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         } else if (recebimentoPix > 0) {
             paymentMethod = 'pix';
         }
-        billingData = {
-          paymentMethod,
-          recebimentoEspecie: recebimentoEspecie,
-          recebimentoPix: recebimentoPix,
+        const finalBilling: Billing = {
+            ...baseBillingData,
+            paymentMethod,
+            recebimentoEspecie,
+            recebimentoPix,
         };
+        return finalBilling;
     } else {
         const valorPagoDinheiro = safeParseFloat(paymentValues.dinheiro);
         const valorPagoPix = safeParseFloat(paymentValues.pix);
         const valorDebitoNegativo = safeParseFloat(paymentValues.negativo);
+        const valorBonus = safeParseFloat(paymentValues.bonus);
 
         const methodsUsed: ('dinheiro' | 'pix' | 'debito_negativo')[] = [];
         if (valorPagoDinheiro > 0) methodsUsed.push('dinheiro');
         if (valorPagoPix > 0) methodsUsed.push('pix');
         if (valorDebitoNegativo > 0) methodsUsed.push('debito_negativo');
-        
+
         let paymentMethod: Billing['paymentMethod'] = 'dinheiro'; // Default
         if (methodsUsed.length > 1) {
             paymentMethod = 'misto';
@@ -291,30 +332,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             paymentMethod = methodsUsed[0];
         }
 
-        // FIX: Constrói o objeto de dados de pagamento condicionalmente para evitar
-        // a inclusão de campos com valor 'undefined', que o Firestore rejeita.
-        const data: Partial<Billing> = { paymentMethod };
-        if (valorPagoDinheiro > 0) data.valorPagoDinheiro = valorPagoDinheiro;
-        if (valorPagoPix > 0) data.valorPagoPix = valorPagoPix;
-        if (valorDebitoNegativo > 0) data.valorDebitoNegativo = valorDebitoNegativo;
-        billingData = data;
+        const finalBilling: Billing = {
+            ...baseBillingData,
+            paymentMethod,
+            valorPagoDinheiro: valorPagoDinheiro > 0 ? valorPagoDinheiro : undefined,
+            valorPagoPix: valorPagoPix > 0 ? valorPagoPix : undefined,
+            valorDebitoNegativo: valorDebitoNegativo > 0 ? valorDebitoNegativo : undefined,
+            valorBonus: valorBonus > 0 ? valorBonus : undefined,
+        };
+        return finalBilling;
     }
-
-    return {
-      id: uuidv4(),
-      customerId: customer.id,
-      customerName: customer.name,
-      equipmentId: equipment.id,
-      equipmentType: equipment.type,
-      equipmentNumero: equipment.numero,
-      relogioAnterior: equipment.relogioAnterior,
-      relogioAtual: relogioAtual,
-      settledAt: new Date(),
-      ...calculation,
-      ...billingData,
-      valorTotal: calculation.valorTotal || 0,
-      partidasJogadas: calculation.partidasJogadas || 0,
-    };
   }, [formState, calculation, equipment, customer, paymentValues]);
 
   const validateAndProceed = useCallback(() => {
@@ -396,7 +423,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             return;
         }
     } else if (Math.round(remainingAmountLiquido * 100) !== 0) {
-      setError("A soma dos pagamentos (Dinheiro, PIX, Negativo) deve ser igual ao valor total para a firma.");
+      setError("A soma dos pagamentos (Dinheiro, PIX, Negativo, Bônus) deve ser igual ao valor total para a firma.");
       return;
     }
 
@@ -538,16 +565,21 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-lg shadow-2xl w-full max-w-md border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <h2 className="text-2xl font-bold text-white">
-            Faturamento: <span className={`${colorMap[equipment.type]} capitalize`}>{equipment.type}</span> {equipment.numero}
-          </h2>
-          <p className="text-slate-400 break-words">Cliente: {customer.name}</p>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 md:p-4">
+      <div className="bg-slate-800 w-full h-full animate-fade-in-up flex flex-col md:max-w-md md:h-auto md:max-h-[90vh] md:rounded-lg md:shadow-2xl md:border md:border-slate-700">
+        <div className="p-6 border-b border-slate-700 flex-shrink-0 flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-white">
+              Faturamento: <span className={`${colorMap[equipment.type]} capitalize`}>{equipment.type}</span> {equipment.numero}
+            </h2>
+            <p className="text-slate-400 break-words">Cliente: {customer.name}</p>
+          </div>
+           <button onClick={onClose} className="p-2 -mr-2 text-slate-400 hover:text-white">
+            <XIcon className="w-6 h-6" />
+          </button>
         </div>
         
-        <div className="p-6 space-y-6 overflow-y-auto">
+        <div className="p-6 space-y-6 overflow-y-auto flex-grow">
           {isGrua ? (
             <>
               {gruaStep === 1 && renderGruaStep1()}
@@ -594,16 +626,17 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               ) : (
                 <div className="space-y-4 animate-fade-in">
                   <h4 className="block text-md font-bold text-lime-400 mb-2">Observações e Pagamento Dividido</h4>
+                  <PaymentField label="Desconto / Bônus (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
                   <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
                   
-                  {valorNegativo > 0 && (
+                  {(valorNegativo > 0 || valorBonus > 0) && (
                     <div className="text-right py-2 border-t border-b border-slate-700">
                         <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toFixed(2).replace('.', ',')}</span></p>
                     </div>
                   )}
 
-                  <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
+                  <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
                   
                   {Math.round(remainingAmountLiquido * 100) !== 0 && (
                       <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
@@ -622,11 +655,18 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           )}
         </div>
 
-        <div className="p-6 mt-auto bg-slate-800/50 rounded-b-lg flex flex-col gap-4 border-t border-slate-700">
+        <div className="p-6 mt-auto bg-slate-800/50 flex flex-col gap-4 border-t border-slate-700 flex-shrink-0 md:rounded-b-lg">
            <div className="text-right">
-                <p className="text-slate-400">Total para a Firma: <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorTotalParaFirma.toFixed(2).replace('.', ',')}</span></p>
+                <p className="text-slate-400">Total para a Firma:
+                  {valorBonus > 0 && (
+                    <span className="font-mono text-base text-slate-400 block">
+                      (R$ {valorTotalParaFirma.toFixed(2).replace('.', ',')} - R$ {valorBonus.toFixed(2).replace('.', ',')})
+                    </span>
+                  )}
+                  <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorFinalFirma.toFixed(2).replace('.', ',')}</span>
+                </p>
             </div>
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
               
               {isGrua ? (
@@ -639,7 +679,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               ) : isJukebox ? (
                  <>
                     {jukeboxStep === 1 && (
-                      <button onClick={handleJukeboxNextStep} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
+                      <button onClick={handleJukeboxNextStep} className="flex-1 inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
                           Ir para Pagamento &rarr;
                       </button>
                     )}
@@ -649,7 +689,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                         <button 
                           onClick={handleFinalize} 
                           disabled={!!error || Math.round(remainingAmountLiquido * 100) !== 0}
-                          className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
+                          className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                         >
                           Finalizar Cobrança
                         </button>
@@ -659,10 +699,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
               ) : (
                  mesaStep === 1 ? (
                   <>
-                    <button onClick={handleProvisionalAction} className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500">
+                    <button onClick={handleProvisionalAction} className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500">
                         Imprimir Via Cliente
                     </button>
-                    <button onClick={handleGoToPayment} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
+                    <button onClick={handleGoToPayment} className="flex-1 inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
                         Ir para Pagamento &rarr;
                     </button>
                   </>
@@ -672,7 +712,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                     <button 
                       onClick={handleFinalize} 
                       disabled={Math.round(remainingAmountLiquido * 100) !== 0}
-                      className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
+                      className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                     >
                       Finalizar Cobrança
                     </button>
