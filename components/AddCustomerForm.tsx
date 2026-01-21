@@ -36,7 +36,21 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
         return { ...base, porcentagemJukeboxFirma: Number(eq.porcentagemJukeboxFirma) || 0, porcentagemJukeboxCliente: Number(eq.porcentagemJukeboxCliente) || 0 };
       }
       if (eq.type === 'grua') {
-        return { ...base, aluguelPercentual: eq.aluguelPercentual != null ? Number(eq.aluguelPercentual) : undefined, aluguelValor: eq.aluguelValor != null ? Number(eq.aluguelValor) : undefined, saldo: Number(eq.saldo) || 0, quantidadePelucia: Number(eq.quantidadePelucia) || 0, reposicaoPelucia: Number(eq.reposicaoPelucia) || 0, recebimentoEspecie: Number(eq.recebimentoEspecie) || 0, recebimentoPix: Number(eq.recebimentoPix) || 0 };
+        const gruaData: Partial<Equipment> = {
+          ...base,
+          saldo: Number(eq.saldo) || 0,
+          quantidadePelucia: Number(eq.quantidadePelucia) || 0,
+          reposicaoPelucia: Number(eq.reposicaoPelucia) || 0,
+          recebimentoEspecie: Number(eq.recebimentoEspecie) || 0,
+          recebimentoPix: Number(eq.recebimentoPix) || 0,
+        };
+        if (eq.aluguelPercentual != null) {
+          gruaData.aluguelPercentual = Number(eq.aluguelPercentual);
+        }
+        if (eq.aluguelValor != null) {
+          gruaData.aluguelValor = Number(eq.aluguelValor);
+        }
+        return gruaData as Equipment;
       }
       return base as Equipment;
     });

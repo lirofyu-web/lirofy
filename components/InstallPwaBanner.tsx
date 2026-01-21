@@ -11,7 +11,7 @@ interface InstallPwaBannerProps {
 
 const InstallPwaBanner: React.FC<InstallPwaBannerProps> = ({ onInstall, onDismiss }) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 no-print animate-fade-in-up" role="dialog" aria-labelledby="install-banner-title">
+    <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 p-4 no-print animate-fade-in-up" role="dialog" aria-labelledby="install-banner-title">
       <div className="max-w-4xl mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4">
         <button
           onClick={onDismiss}

@@ -10,6 +10,7 @@ import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
 import { InstallIcon } from '../components/icons/InstallIcon';
 import { applyThemeColors, defaultColors, AppThemeColors } from '../utils/theme';
+import { TrashIcon } from '../components/icons/TrashIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
@@ -19,6 +20,7 @@ interface ConfiguracoesViewProps {
   showNotification: (message: string, type?: 'success' | 'error') => void;
   deferredPrompt: any;
   onInstallPrompt: () => void;
+  onDeleteAllData: () => void;
 }
 
 const ColorPicker: React.FC<{ label: string, color: string, onChange: (color: string) => void }> = ({ label, color, onChange }) => (
@@ -45,6 +47,7 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   showNotification,
   deferredPrompt,
   onInstallPrompt,
+  onDeleteAllData,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,7 +94,7 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   const handleThemeChange = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
-  
+
   const handleLogout = async () => {
     try {
         await signOut(auth);
@@ -229,6 +232,24 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
                   className="hidden"
                 />
               </div>
+            </div>
+        </section>
+
+         {/* Danger Zone Section */}
+        <section>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Zona de Perigo</h2>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border-2 border-red-500 dark:border-red-700">
+              <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Apagar Todos os Dados</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Esta ação é <strong className="font-bold">permanente e irreversível</strong>. Todos os seus clientes, cobranças, despesas e históricos serão excluídos da sua conta.
+              </p>
+              <button
+                onClick={onDeleteAllData}
+                className="inline-flex items-center gap-2 bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
+              >
+                <TrashIcon className="w-5 h-5" />
+                <span>Apagar Tudo Permanentemente</span>
+              </button>
             </div>
         </section>
       </div>

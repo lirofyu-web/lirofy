@@ -238,7 +238,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                         <td class="date-cell">${lastVisitDate}</td>
                         <td class="clocks-cell">${clockReadings || 'N/A'}</td>
                         <td class="${customer.debtAmount > 0 ? 'negativo-cell' : 'no-negativo-cell'}">
-                            ${customer.debtAmount > 0 ? `R$ ${customer.debtAmount.toFixed(2)}` : '-'}
+                            ${customer.debtAmount > 0 ? `R$ ${customer.debtAmount.toFixed(2).replace('.', ',')}` : '-'}
                         </td>
                     </tr>
                 `;
@@ -397,7 +397,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
                                         <span title={`Visitado em ${new Date(customer.lastVisitedAt!).toLocaleDateString('pt-BR')}`} className="block w-2.5 h-2.5 bg-green-500 rounded-full"></span>
                                     )}
                                     {hasDebt && (
-                                        <span title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="block w-2.5 h-2.5 bg-amber-400 rounded-full"></span>
+                                        <span title={`Dívida: R$ ${customer.debtAmount.toFixed(2).replace('.',',')}`} className="block w-2.5 h-2.5 bg-amber-400 rounded-full"></span>
                                     )}
                                 </div>
                                 <p className={`font-semibold truncate ${selectedCustomerId === customer.id ? 'text-lime-600 dark:text-lime-400' : 'text-slate-900 dark:text-white'}`}>{customer.name}</p>

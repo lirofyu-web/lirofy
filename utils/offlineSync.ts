@@ -56,14 +56,27 @@ const processPayloadForFirestore = (data: any): any => {
     // It's an object, process its properties.
     const newObj: { [key: string]: any } = {};
     for (const key in data) {
-        const value = data[key];
-        // Skip properties that are undefined.
-        if (value !== undefined) {
-            newObj[key] = processPayloadForFirestore(value);
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            // Skip properties that are undefined.
+            if (value !== undefined) {
+                newObj[key] = processPayloadForFirestore(value);
+            }
         }
     }
     return newObj;
 }
+
+export const clearOfflineQueue = async (): Promise<void> => {
+  const dbInstance = await getDb();
+  const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+  await new Promise<void>((resolve, reject) => {
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = (e) => reject((e.target as any).error);
+  });
+};
 
 export const processSyncQueue = async (userId: string | null): Promise<number> => {
   if (!userId) return 0;
@@ -86,12 +99,22 @@ export const processSyncQueue = async (userId: string | null): Promise<number> =
       const collectionPath = `users/${userId}/${mutation.collectionPath}`;
       let docRef;
       
-      // Recursively clean and process the payload to remove undefined values and convert dates.
       const cleanPayload = processPayloadForFirestore(mutation.payload);
 
       if (mutation.action === 'add') {
-        docRef = doc(collection(db, collectionPath));
-        batch.set(docRef, cleanPayload);
+        const docId = cleanPayload.id;
+        // CRITICAL FIX: Always use the client-generated ID if it exists.
+        // This ensures that subsequent updates/deletes for an item created offline
+        // can find the correct document in Firestore.
+        if (docId && typeof docId === 'string') {
+            docRef = doc(db, collectionPath, docId);
+            batch.set(docRef, cleanPayload);
+        } else {
+            // Fallback for mutations that don't generate a client-side ID.
+            // Note: This path can still cause issues if an update/delete is queued for it.
+            docRef = doc(collection(db, collectionPath));
+            batch.set(docRef, cleanPayload);
+        }
       } else if (mutation.action === 'update' && mutation.docId) {
         docRef = doc(db, collectionPath, mutation.docId);
         batch.update(docRef, cleanPayload);
@@ -103,8 +126,8 @@ export const processSyncQueue = async (userId: string | null): Promise<number> =
 
     await batch.commit();
 
-    const clearTransaction = dbInstance.transaction(STORE_NAME, 'readwrite');
-    await clearTransaction.objectStore(STORE_NAME).clear();
+    // If commit is successful, clear the queue.
+    await clearOfflineQueue();
     
     return mutations.length;
   } catch (error) {

@@ -69,7 +69,7 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
                 {equipment.type === 'mesa' && equipment.billingType === 'monthly' && (
                     <FilledField 
                         label="Mensalidade Fixa" 
-                        value={`R$ ${(equipment.monthlyFeeValue ?? 0).toFixed(2)}`}
+                        value={`R$ ${(equipment.monthlyFeeValue ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         className="col-span-2"
                         valueClassName="text-base"
                     />
@@ -77,7 +77,7 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
 
                 {equipment.type === 'mesa' && equipment.billingType !== 'monthly' && (
                     <>
-                        <FilledField label="Vlr Ficha" value={`R$ ${(equipment.valorFicha ?? 0).toFixed(2)}`} />
+                        <FilledField label="Vlr Ficha" value={`R$ ${(equipment.valorFicha ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                         <div />
                         <FilledField label="Firma" value={`${equipment.parteFirma ?? 0}%`} />
                         <FilledField label="Cliente" value={`${equipment.parteCliente ?? 0}%`} />
@@ -105,7 +105,7 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
                     {equipment.type === 'mesa' && equipment.billingType === 'monthly' ? (
                         <div className="flex justify-between items-baseline text-lg font-bold text-sm">
                             <label className="text-gray-500 whitespace-nowrap font-semibold">R$ TOTAL A PAGAR:</label>
-                            <p className="font-bold text-black text-lg">{`R$ ${(equipment.monthlyFeeValue ?? 0).toFixed(2)}`}</p>
+                            <p className="font-bold text-black text-lg">{`R$ ${(equipment.monthlyFeeValue ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
                         </div>
                     ) : (
                         <DottedField label="R$ TOTAL A PAGAR" className="text-lg font-bold" />
@@ -122,9 +122,9 @@ const BillingSlipSheet: React.FC<BillingSlipSheetProps> = ({ customer, equipment
                     <CheckboxField label="Negativo" />
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 pt-2 border-t border-gray-200">
-                    <FilledField label="Última Cobrança" value={lastBillingAmount !== null ? `R$ ${lastBillingAmount.toFixed(2)}` : 'N/A'} />
+                    <FilledField label="Última Cobrança" value={lastBillingAmount !== null ? `R$ ${lastBillingAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'N/A'} />
                     {customer.debtAmount > 0 && (
-                        <FilledField label="Saldo Devedor" value={`R$ ${customer.debtAmount.toFixed(2)}`} valueClassName="text-red-600" />
+                        <FilledField label="Saldo Devedor" value={`R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueClassName="text-red-600" />
                     )}
                 </div>
             </footer>

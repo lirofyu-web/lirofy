@@ -1,8 +1,7 @@
 // components/LabelGenerationModal.tsx
 import React, { useState, useMemo } from 'react';
-import { Customer } from '../types';
-// FIX: Corrected import path for EquipmentWithCustomer.
-import { EquipmentWithCustomer } from '../types';
+// FIX: Combined imports from the same module ('../types') into a single statement.
+import { Customer, EquipmentWithCustomer } from '../types';
 import { SearchIcon } from './icons/SearchIcon';
 import { PrinterIcon } from './icons/PrinterIcon';
 

@@ -31,6 +31,7 @@ interface ClientesViewProps {
   onShareCustomer: (customer: Customer) => void;
   onOpenScanner: () => void;
   onLocationActions: (customer: Customer) => void;
+  onWhatsAppActions: (customer: Customer) => void;
 }
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
@@ -50,6 +51,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onShareCustomer,
     onOpenScanner,
     onLocationActions,
+    onWhatsAppActions,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
@@ -260,8 +262,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                       >
                            <div className="flex items-start gap-3">
                                <LocationMarkerIcon className={`w-6 h-6 flex-shrink-0 mt-1 ${isNeutralCard ? 'text-slate-300' : 'opacity-80'}`} />
-                               <div className="flex-grow truncate">
-                                   <h3 className="font-bold text-base leading-tight truncate">{cityName}</h3>
+                               <div className="flex-grow min-w-0">
+                                   <h3 className="font-bold text-base leading-tight break-words">{cityName}</h3>
                                    {stateAbbr && <p className={`text-xs font-semibold ${isNeutralCard ? 'opacity-80 text-slate-400' : 'opacity-70'}`}>{stateAbbr}</p>}
                                </div>
                            </div>
@@ -304,6 +306,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                 onHistory={onHistoryCustomer}
                                 onShare={onShareCustomer}
                                 onLocationActions={onLocationActions}
+                                onWhatsAppActions={onWhatsAppActions}
                                 hasActiveWarning={hasActiveWarning}
                                 showNotification={showNotification}
                                 onFocusCustomer={onFocusCustomer}
@@ -334,6 +337,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             showNotification={showNotification}
             onFocusCustomer={onFocusCustomer}
             onLocationActions={onLocationActions}
+            onWhatsAppActions={onWhatsAppActions}
         />
       )}
     </>

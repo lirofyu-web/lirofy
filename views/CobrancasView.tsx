@@ -20,7 +20,6 @@ interface CobrancasViewProps {
     onShowActions: (billing: Billing) => void;
     onEditBilling: (billing: Billing) => void;
     onDeleteBilling: (billingId: string) => void;
-    onViewDetails: (billing: Billing) => void;
 }
 
 type SortKey = 'settledAt' | 'customerName' | 'valorTotal' | 'paidAt' | 'amountPaid';
@@ -65,13 +64,140 @@ const TabButton: React.FC<{label: string, active: boolean, onClick: () => void}>
     </button>
 );
 
+// --- Sub-components for each tab ---
+
+const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, totalBilled, handleSort, renderSortArrow, getNetBilledAmount }) => (
+    <>
+        {/* Mobile View: Cards */}
+        <div className="md:hidden space-y-4 mb-10">
+            {billings.length > 0 ? billings.map((billing: Billing) => (
+                <div key={billing.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p 
+                                className="font-bold text-slate-900 dark:text-white break-words"
+                            >
+                                {billing.customerName}
+                            </p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {getNetBilledAmount(billing).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
+                                <p className="font-mono text-sm text-red-500 dark:text-red-400">
+                                    (- R$ {billing.valorDebitoNegativo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                </p>
+                            )}
+                            <PaymentMethodDisplay method={billing.paymentMethod} />
+                        </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                        <span className="flex items-center gap-2 text-sm">
+                            {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
+                             billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
+                             <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
+                            <span className="text-slate-600 dark:text-slate-300">
+                                {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
+                                 billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
+                                 `Grua ${billing.equipmentNumero}`}
+                            </span>
+                        </span>
+                        <div className="flex gap-4">
+                            <button onClick={() => onShowActions(billing)} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Ações</button>
+                            <button onClick={() => onEdit(billing)} className="p-1 text-sky-500 dark:text-sky-400" title='Editar Cobrança'><PencilIcon className="w-5 h-5" /></button>
+                            <button onClick={() => onDelete(billing)} className="p-1 text-red-500 dark:text-red-400" title='Excluir Cobrança'><TrashIcon className="w-5 h-5" /></button>
+                        </div>
+                    </div>
+                </div>
+            )) : <p className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada.</p>}
+            {billings.length > 0 && <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex justify-between font-bold text-lg"><span >TOTAL</span><span className="font-mono text-lime-600 dark:text-lime-400">R$ {totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
+        </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden md:block bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-10">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
+                        <tr>
+                            <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('settledAt')}>Data {renderSortArrow('settledAt')}</th>
+                            <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('customerName')}>Cliente {renderSortArrow('customerName')}</th>
+                            <th scope="col" className="px-6 py-3">Equipamento</th>
+                            <th scope="col" className="px-6 py-3">Pagamento</th>
+                            <th scope="col" className="px-6 py-3 text-right cursor-pointer" onClick={() => handleSort('valorTotal')}>Valor (Arrecadado) {renderSortArrow('valorTotal')}</th>
+                            <th scope="col" className="px-6 py-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {billings.length > 0 ? billings.map((billing: Billing) => (
+                            <tr key={billing.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                <td className="px-6 py-4">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
+                                <td 
+                                    className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap"
+                                >
+                                    {billing.customerName}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className="flex items-center gap-2">
+                                        {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
+                                         billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
+                                         <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
+                                        {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
+                                         billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
+                                         `Grua ${billing.equipmentNumero}`}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
+                                <td className="px-6 py-4 text-right font-mono font-bold">
+                                    <span className="text-lime-600 dark:text-lime-400">R$ {getNetBilledAmount(billing).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
+                                        <span className="block text-xs text-red-500 dark:text-red-400">
+                                            (- R$ {billing.valorDebitoNegativo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="flex justify-center items-center gap-4">
+                                        <button onClick={() => onShowActions(billing)} className="text-slate-500 hover:text-indigo-500" title="Mais Ações">Ações</button>
+                                        <button onClick={() => onEdit(billing)} className="text-slate-500 hover:text-sky-500" title='Editar Cobrança'><PencilIcon className="w-5 h-5" /></button>
+                                        <button onClick={() => onDelete(billing)} className="text-slate-500 hover:text-red-500" title='Excluir Cobrança'><TrashIcon className="w-5 h-5" /></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        )) : (
+                           <tr><td colSpan={6} className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada.</td></tr>
+                        )}
+                    </tbody>
+                    <tfoot className="bg-slate-100 dark:bg-slate-700/50 font-bold text-slate-900 dark:text-white">
+                        <tr>
+                            <td colSpan={4} className="text-right px-6 py-3 uppercase">Total Arrecadado (Filtrado)</td>
+                            <td className="text-right px-6 py-3 font-mono text-lg text-lime-600 dark:text-lime-400">R$ {totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </>
+);
+
+const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, billings, onPrint }) => (
+    <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores (Negativo)</h3>
+            <button onClick={onPrint} className="inline-flex items-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
+                <PrinterIcon className="w-5 h-5" />
+                <span>Imprimir Lista</span>
+            </button>
+        </div>
+    </div>
+);
+
 const CobrancasView: React.FC<CobrancasViewProps> = ({ 
     billings, 
     customers, 
     onShowActions,
     onEditBilling,
     onDeleteBilling,
-    onViewDetails,
 }) => {
     const [activeTab, setActiveTab] = useState<MainTab>('billings');
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
@@ -182,14 +308,14 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                                     <td>${customer.name}</td>
                                     <td>${customer.cidade}</td>
                                     <td>${Array.from(debtOrigins.get(customer.id) || []).join(', ') || 'Pagamento Avulso'}</td>
-                                    <td class="currency">R$ ${customer.debtAmount.toFixed(2)}</td>
+                                    <td class="currency">R$ ${customer.debtAmount.toFixed(2).replace('.', ',')}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                         <tfoot>
                             <tr class="total-row">
                                 <td colspan="3">Total Geral de Dívidas</td>
-                                <td class="currency">R$ ${totalDebt.toFixed(2)}</td>
+                                <td class="currency">R$ ${totalDebt.toFixed(2).replace('.', ',')}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -256,220 +382,12 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                 )}
             </div>
 
-            {activeTab === 'billings' && <BillingsList billings={filteredAndSortedData as Billing[]} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} onViewDetails={onViewDetails} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} getNetBilledAmount={getNetBilledAmount} />}
+            {activeTab === 'billings' && <BillingsList billings={filteredAndSortedData as Billing[]} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} getNetBilledAmount={getNetBilledAmount} />}
             {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} billings={billings} onPrint={handlePrintDebtors} />}
             
-            {deletingBilling && <ActionModal isOpen={!!deletingBilling} onClose={() => setDeletingBilling(null)} onConfirm={handleConfirmDelete} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toFixed(2)}</strong>?</p><p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p></ActionModal>}
+            {deletingBilling && <ActionModal isOpen={!!deletingBilling} onClose={() => setDeletingBilling(null)} onConfirm={handleConfirmDelete} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>?</p><p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p></ActionModal>}
         </>
     );
 };
-
-// --- Sub-components for each tab ---
-
-const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, onViewDetails, totalBilled, handleSort, renderSortArrow, getNetBilledAmount }) => (
-    <>
-        {/* Mobile View: Cards */}
-        <div className="md:hidden space-y-4 mb-10">
-            {billings.length > 0 ? billings.map((billing: Billing) => (
-                <div key={billing.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p 
-                                className="font-bold text-slate-900 dark:text-white break-words cursor-pointer hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
-                                onClick={() => onViewDetails(billing)}
-                                title="Ver detalhes da cobrança"
-                            >
-                                {billing.customerName}
-                            </p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">R$ {getNetBilledAmount(billing).toFixed(2).replace('.', ',')}</p>
-                            {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
-                                <p className="font-mono text-sm text-red-500 dark:text-red-400">
-                                    (- R$ {billing.valorDebitoNegativo.toFixed(2).replace('.', ',')})
-                                </p>
-                            )}
-                            <PaymentMethodDisplay method={billing.paymentMethod} />
-                        </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                        <span className="flex items-center gap-2 text-sm">
-                            {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
-                             billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
-                             <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
-                            <span className="text-slate-600 dark:text-slate-300">
-                                {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
-                                 billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
-                                 `Grua ${billing.equipmentNumero}`}
-                            </span>
-                        </span>
-                        <div className="flex gap-4">
-                            <button onClick={() => onShowActions(billing)} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Ações</button>
-                            <button onClick={() => onEdit(billing)} className="p-1 text-sky-500 dark:text-sky-400" title='Editar Cobrança'><PencilIcon className="w-5 h-5" /></button>
-                            <button onClick={() => onDelete(billing)} className="p-1 text-red-500 dark:text-red-400" title='Excluir Cobrança'><TrashIcon className="w-5 h-5" /></button>
-                        </div>
-                    </div>
-                </div>
-            )) : <p className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada.</p>}
-            {billings.length > 0 && <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex justify-between font-bold text-lg"><span >TOTAL</span><span className="font-mono text-lime-600 dark:text-lime-400">R$ {totalBilled.toFixed(2)}</span></div>}
-        </div>
-
-        {/* Desktop View: Table */}
-        <div className="hidden md:block bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-10">
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('settledAt')}>Data {renderSortArrow('settledAt')}</th>
-                            <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('customerName')}>Cliente {renderSortArrow('customerName')}</th>
-                            <th scope="col" className="px-6 py-3">Equipamento</th>
-                            <th scope="col" className="px-6 py-3">Pagamento</th>
-                            <th scope="col" className="px-6 py-3 text-right cursor-pointer" onClick={() => handleSort('valorTotal')}>Valor (Arrecadado) {renderSortArrow('valorTotal')}</th>
-                            <th scope="col" className="px-6 py-3 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {billings.length > 0 ? billings.map((billing: Billing) => (
-                            <tr key={billing.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                <td className="px-6 py-4">{new Date(billing.settledAt).toLocaleDateString('pt-BR')}</td>
-                                <td 
-                                    className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap cursor-pointer hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
-                                    onClick={() => onViewDetails(billing)}
-                                    title="Ver detalhes da cobrança"
-                                >
-                                    {billing.customerName}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className="flex items-center gap-2">
-                                        {billing.equipmentType === 'mesa' ? <BilliardIcon className="w-4 h-4 text-cyan-500 dark:text-cyan-400" /> : 
-                                         billing.equipmentType === 'jukebox' ? <JukeboxIcon className="w-4 h-4 text-fuchsia-500 dark:text-fuchsia-400" /> :
-                                         <CraneIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
-                                        {billing.equipmentType === 'mesa' ? `Mesa ${billing.equipmentNumero}` : 
-                                         billing.equipmentType === 'jukebox' ? `Jukebox ${billing.equipmentNumero}` :
-                                         `Grua ${billing.equipmentNumero}`}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4"><PaymentMethodDisplay method={billing.paymentMethod} /></td>
-                                <td className="px-6 py-4 text-right font-mono font-bold">
-                                    <span className="text-lime-600 dark:text-lime-400">R$ {getNetBilledAmount(billing).toFixed(2).replace('.', ',')}</span>
-                                    {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
-                                        <span className="block text-xs text-red-500 dark:text-red-400">
-                                            (- R$ {billing.valorDebitoNegativo.toFixed(2).replace('.', ',')})
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                    <div className="flex justify-center items-center gap-4">
-                                        <button onClick={() => onShowActions(billing)} className="text-slate-500 hover:text-indigo-500" title="Mais Ações">Ações</button>
-                                        <button onClick={() => onEdit(billing)} className="text-slate-500 hover:text-sky-500" title='Editar Cobrança'><PencilIcon className="w-5 h-5" /></button>
-                                        <button onClick={() => onDelete(billing)} className="text-slate-500 hover:text-red-500" title='Excluir Cobrança'><TrashIcon className="w-5 h-5" /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        )) : (
-                           <tr><td colSpan={6} className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada.</td></tr>
-                        )}
-                    </tbody>
-                    <tfoot className="bg-slate-100 dark:bg-slate-700/50 font-bold text-slate-900 dark:text-white">
-                        <tr>
-                            <td colSpan={5} className="text-right px-6 py-3 uppercase">Total Arrecadado (Filtrado)</td>
-                            <td className="text-right px-6 py-3 font-mono text-lg text-lime-600 dark:text-lime-400">R$ {totalBilled.toFixed(2)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-    </>
-);
-
-const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, billings, onPrint }) => (
-    <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores (Negativo)</h3>
-            <button onClick={onPrint} className="inline-flex items-center gap-2 bg-cyan-600 text-white font-bold py-1.5 px-3 rounded-md hover:bg-cyan-500 text-sm"><PrinterIcon className="w-4 h-4" /><span>Imprimir Lista</span></button>
-        </div>
-        
-        {/* Mobile View: Debtor Cards */}
-        <div className="md:hidden">
-            <div className="p-4 space-y-3">
-                {debtorCustomers.length > 0 ? debtorCustomers.map((customer: Customer) => {
-                    const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
-                    const debtItems = billings
-                        .filter((b: Billing) => b.customerId === customer.id && b.valorDebitoNegativo && b.valorDebitoNegativo > 0)
-                        .map((b: Billing) => typeMap[b.equipmentType] || b.equipmentType);
-                    const uniqueItems = [...new Set(debtItems)].join(', ');
-
-                    return (
-                        <div key={customer.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-bold text-slate-900 dark:text-white break-words">{customer.name}</p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 break-words">{customer.cidade}</p>
-                                </div>
-                                <p className="font-mono font-bold text-lg text-red-500 dark:text-red-400 whitespace-nowrap">
-                                    R$ {customer.debtAmount.toFixed(2)}
-                                </p>
-                            </div>
-                            {uniqueItems && (
-                                <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">Origem: {uniqueItems}</p>
-                                </div>
-                            )}
-                        </div>
-                    )
-                }) : (
-                    <p className="text-center py-10 text-slate-500 dark:text-slate-400 italic">Nenhum cliente com dívidas.</p>
-                )}
-            </div>
-             <div className="p-4 bg-slate-100 dark:bg-slate-700/50 flex justify-between items-center font-bold text-slate-900 dark:text-white">
-                <span className="text-lg uppercase">Total Geral de Dívidas</span>
-                <span className="font-mono text-xl">R$ {totalDebt.toFixed(2)}</span>
-            </div>
-        </div>
-
-        {/* Desktop View: Debtor Table */}
-        <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
-                <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-700/50">
-                    <tr>
-                        <th scope="col" className="px-6 py-3">Cliente</th>
-                        <th scope="col" className="px-6 py-3">Cidade</th>
-                        <th scope="col" className="px-6 py-3">Itens (Origem da Dívida)</th>
-                        <th scope="col" className="px-6 py-3 text-right">Valor da Dívida</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {debtorCustomers.length > 0 ? debtorCustomers.map((customer: Customer) => {
-                        const typeMap: Record<string, string> = { mesa: 'M. Sinuca', jukebox: 'Jukebox', grua: 'Grua' };
-                        const debtItems = billings
-                            .filter((b: Billing) => b.customerId === customer.id && b.valorDebitoNegativo && b.valorDebitoNegativo > 0)
-                            .map((b: Billing) => typeMap[b.equipmentType] || b.equipmentType);
-                        const uniqueItems = [...new Set(debtItems)].join(', ');
-
-                        return (
-                            <tr key={customer.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{customer.name}</td>
-                                <td className="px-6 py-4">{customer.cidade}</td>
-                                <td className="px-6 py-4">{uniqueItems || 'N/A'}</td>
-                                <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400 font-bold">R$ {customer.debtAmount.toFixed(2)}</td>
-                            </tr>
-                        )
-                    }) : (
-                        <tr>
-                            <td colSpan={4} className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhum cliente com dívidas.</td>
-                        </tr>
-                    )}
-                </tbody>
-                 <tfoot className="bg-slate-100 dark:bg-slate-700/50">
-                    <tr className="font-bold text-slate-900 dark:text-white">
-                        <td colSpan={3} className="text-right px-6 py-3 uppercase">Total Geral de Dívidas</td>
-                        <td className="text-right px-6 py-3 font-mono text-lg">R$ {totalDebt.toFixed(2)}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-);
 
 export default CobrancasView;

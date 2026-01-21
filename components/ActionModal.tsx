@@ -7,9 +7,10 @@ interface ActionModalProps {
   title: string;
   confirmText?: string;
   children: React.ReactNode;
+  isConfirming?: boolean;
 }
 
-const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, title, confirmText = 'Confirmar', children }) => {
+const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, title, confirmText = 'Confirmar', children, isConfirming = false }) => {
   if (!isOpen) return null;
 
   return (
@@ -33,9 +34,10 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, onConfirm, t
           </button>
           <button
             onClick={onConfirm}
-            className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 focus:ring-lime-500 transition-colors duration-200"
+            disabled={isConfirming}
+            className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 focus:ring-lime-500 transition-colors duration-200 disabled:bg-slate-500 disabled:cursor-wait"
           >
-            {confirmText}
+            {isConfirming ? 'Salvando...' : confirmText}
           </button>
         </div>
       </div>

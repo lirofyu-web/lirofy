@@ -27,6 +27,7 @@ interface CustomerCardProps {
   onHistory: (customer: Customer) => void;
   onShare: (customer: Customer) => void;
   onLocationActions: (customer: Customer) => void;
+  onWhatsAppActions: (customer: Customer) => void;
   hasActiveWarning: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
@@ -59,7 +60,7 @@ const EquipmentDetailRow: React.FC<{ label: string; value: string | number | und
 };
 
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, hasActiveWarning, showNotification, onFocusCustomer }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const hasDebt = customer.debtAmount > 0;
@@ -120,9 +121,9 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                                 </div>
                             )}
                             {hasDebt && (
-                                <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
+                                <div title={`Dívida: R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
                                 <YellowBilliardBallIcon className="w-4 h-4 text-amber-500 pulse-indicator" />
-                                <span>R$ {customer.debtAmount.toFixed(2)}</span>
+                                <span>R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                             )}
                         </div>
@@ -137,11 +138,11 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2 text-white">
-                        <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'}`}>
+                        <button onClick={() => onWhatsAppActions(customer)} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600' : 'bg-slate-600 hover:bg-slate-500'}`}>
                             <WhatsAppIcon className="w-5 h-5" />
                             <span className="mt-1">WhatsApp</span>
-                        </a>
-                         <button onClick={() => onLocationActions(customer)} disabled={!customer.latitude} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-slate-400 dark:bg-slate-700 text-slate-500 cursor-not-allowed'}`}>
+                        </button>
+                         <button onClick={() => onLocationActions(customer)} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-md text-xs font-medium transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-slate-600 hover:bg-slate-500 text-white'}`}>
                             <LocationArrowIcon className="w-5 h-5" />
                             <span className="mt-1">Localização</span>
                         </button>
@@ -172,10 +173,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                                             <EquipmentDetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
                                             {equip.type === 'mesa' && (
                                                 equip.billingType === 'monthly' ? (
-                                                    <EquipmentDetailRow label="Mensalidade" value={`R$ ${(equip.monthlyFeeValue || 0).toFixed(2)}`} />
+                                                    <EquipmentDetailRow label="Mensalidade" value={`R$ ${(equip.monthlyFeeValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                                                 ) : (
                                                     <>
-                                                        <EquipmentDetailRow label="Vlr. Ficha" value={`R$ ${(equip.valorFicha || 0).toFixed(2)}`} />
+                                                        <EquipmentDetailRow label="Vlr. Ficha" value={`R$ ${(equip.valorFicha || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                                                         <EquipmentDetailRow label="Parte Firma" value={`${equip.parteFirma || 0}%`} />
                                                     </>
                                                 )
@@ -186,7 +187,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                                             {equip.type === 'grua' && (
                                                 <>
                                                     {equip.aluguelPercentual != null && <EquipmentDetailRow label="Aluguel" value={`${equip.aluguelPercentual}%`} />}
-                                                    {equip.aluguelValor != null && <EquipmentDetailRow label="Aluguel" value={`R$ ${equip.aluguelValor.toFixed(2)}`} />}
+                                                    {equip.aluguelValor != null && <EquipmentDetailRow label="Aluguel" value={`R$ ${(equip.aluguelValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />}
                                                     <EquipmentDetailRow label="Capacidade Pelúcias" value={equip.quantidadePelucia} />
                                                 </>
                                             )}

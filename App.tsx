@@ -1,13 +1,13 @@
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { User, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-import { collection, query, onSnapshot, Timestamp, getDocs, deleteDoc, doc, setDoc, addDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import { collection, query, onSnapshot, Timestamp, getDocs, deleteDoc, doc, setDoc, addDoc, updateDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'qrcode';
 import { auth, db, processFirestoreDoc } from './firebase';
 
-import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, EquipmentWithCustomer, UserProfile } from './types';
-import { queueMutation, processSyncQueue } from './utils/offlineSync';
+import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile } from './types';
+import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
 import { v4 as uuidv4 } from 'uuid';
 
 import Sidebar from './components/Sidebar';
@@ -28,8 +28,10 @@ import { PrinterIcon } from './components/icons/PrinterIcon';
 import { generateBillingText, generateDebtText } from './utils/receiptGenerator';
 import { applyThemeColors, defaultColors } from './utils/theme';
 import FullScreenCustomerView from './components/FullScreenCustomerView';
-import { sunmiPrinterService } from './utils/sunmiPrinter';
 import LoginView from './views/LoginView';
+import ReceiptSheet from './components/ReceiptSheet';
+import DebtReceiptSheet from './components/DebtReceiptSheet';
+
 
 // Modals
 import BillingModal from './components/BillingModal';
@@ -41,17 +43,12 @@ import EquipmentSelectionModal from './components/EquipmentSelectionModal';
 import ReceiptActionsModal from './components/ReceiptActionsModal';
 import DebtReceiptActionsModal from './components/DebtReceiptActionsModal';
 import ShareCustomerModal from './components/ShareCustomerModal';
-import ReceiptModal from './components/ReceiptModal';
-import DebtReceiptModal from './components/DebtReceiptModal';
-import PrintableReceiptModal from './components/PrintableReceiptModal';
 import LabelGenerationModal from './components/LabelGenerationModal';
 import EditBillingModal from './components/EditBillingModal';
-import ReceiptSheet from './components/ReceiptSheet';
-import DebtReceiptSheet from './components/DebtReceiptSheet';
 import QrScannerModal from './components/QrScannerModal';
 import ThermalPrintActionsModal from './components/ThermalPrintActionsModal';
 import LocationActionsModal from './components/LocationActionsModal';
-import EquipmentLabel from './components/EquipmentLabel';
+import AddPhoneModal from './components/AddPhoneModal';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
 
 
@@ -104,46 +101,66 @@ const App: React.FC = () => {
     
     const [notification, setNotification] = useState<NotificationState>(null);
     const [isSharing, setIsSharing] = useState(false);
-    const [isImporting, setIsImporting] = useState(false);
-    const [importFile, setImportFile] = useState<File | null>(null);
-    const [lastBackupTimestamp, setLastBackupTimestamp] = useState<string | null>(null);
+    const [lastBackupTimestamp, setLastBackupTimestamp] = useState<string | null>(localStorage.getItem('lastBackupTimestamp'));
 
     // Sync & Offline State
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'offline'>('idle');
     const isSyncing = useRef(false);
-
+    
     // Theme and PWA states
     const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isInstallBannerVisible, setIsInstallBannerVisible] = useState(true);
-
+    
     // Modal States
-    const [billingModalState, setBillingModalState] = useState<{ customer: Customer; equipment: Equipment } | null>(null);
-    const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
-    const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
-    const [payingDebtCustomer, setPayingDebtCustomer] = useState<Customer | null>(null);
-    const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
-    const [sharingCustomer, setSharingCustomer] = useState<Customer | null>(null);
-    const [receiptActionsModalState, setReceiptActionsModalState] = useState<{ billing: Billing; isProvisional: boolean } | null>(null);
-    const [debtReceiptActionsModalState, setDebtReceiptActionsModalState] = useState<{ debtPayment: DebtPayment, customer: Customer } | null>(null);
-    const [receiptModalState, setReceiptModalState] = useState<{ billing: Billing, isProvisional: boolean } | null>(null);
-    const [debtReceiptModalState, setDebtReceiptModalState] = useState<DebtPayment | null>(null);
-    const [screenshotReceipt, setScreenshotReceipt] = useState<{ type: 'billing' | 'debt', data: Billing | DebtPayment, isProvisional?: boolean } | null>(null);
-    const [equipmentSelectionCustomer, setEquipmentSelectionCustomer] = useState<Customer | null>(null);
+    const [billingModalState, setBillingModalState] = useState<{ isOpen: boolean; customer: Customer | null; equipment: Equipment | null; }>({ isOpen: false, customer: null, equipment: null });
+    const [editCustomerModalState, setEditCustomerModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [debtPaymentModalState, setDebtPaymentModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [historyModalState, setHistoryModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [equipmentSelectionModalState, setEquipmentSelectionModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [receiptActionsModalState, setReceiptActionsModalState] = useState<{ isOpen: boolean; billing: Billing | null; isProvisional: boolean; }>({ isOpen: false, billing: null, isProvisional: false });
+    const [debtReceiptActionsModalState, setDebtReceiptActionsModalState] = useState<{ isOpen: boolean; debtPayment: DebtPayment | null; customer: Customer | null }>({ isOpen: false, debtPayment: null, customer: null });
+    const [shareCustomerModalState, setShareCustomerModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [labelGenerationModalState, setLabelGenerationModalState] = useState<{ isOpen: boolean; }>({ isOpen: false });
+    const [editBillingModalState, setEditBillingModalState] = useState<{ isOpen: boolean; billing: Billing | null; }>({ isOpen: false, billing: null });
+    const [qrScannerModalOpen, setQrScannerModalOpen] = useState(false);
+    const [thermalPrintModalState, setThermalPrintModalState] = useState<{ isOpen: boolean; title: string; content: string; }>({ isOpen: false, title: '', content: '' });
+    const [locationActionsModalState, setLocationActionsModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [saveLocationModalState, setSaveLocationModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [addPhoneModalState, setAddPhoneModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [isDeleteAllDataModalOpen, setIsDeleteAllDataModalOpen] = useState(false);
+    const [fileToMerge, setFileToMerge] = useState<File | null>(null);
+    const [isGeolocating, setIsGeolocating] = useState(false);
+    
     const [focusedCustomer, setFocusedCustomer] = useState<Customer | null>(null);
-    const [printingCustomer, setPrintingCustomer] = useState<Customer | null>(null);
-    const [isLabelGenerationModalOpen, setIsLabelGenerationModalOpen] = useState(false);
-    const [editingBilling, setEditingBilling] = useState<Billing | null>(null);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const [thermalPrintModalState, setThermalPrintModalState] = useState<{ title: string; content: string } | null>(null);
-    const [locationActionsCustomer, setLocationActionsCustomer] = useState<Customer | null>(null);
+    const [customerToPrint, setCustomerToPrint] = useState<Customer | null>(null);
+    
+    // Saving state for UI feedback
+    const [isSaving, setIsSaving] = useState(false);
+    
+    // --- Service Worker Registration ---
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swUrl = new URL('sw.js', window.location.origin);
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    }, []);
 
     // --- Handlers ---
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
         setNotification({ message, type });
     }, []);
-
+    
     // --- Offline & Sync Logic ---
     const syncData = useCallback(async () => {
         if (!isOnline || isSyncing.current) return;
@@ -194,7 +211,7 @@ const App: React.FC = () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [isOnline, syncData]);
+    }, [isOnline, syncData, showNotification]);
 
 
     // --- Firebase Auth & Data Sync Effects ---
@@ -208,33 +225,67 @@ const App: React.FC = () => {
         });
         return unsubscribe;
     }, []);
-
+    
     useEffect(() => {
         if (user && !userProfile) { // Busca o perfil apenas se o usuário existir e o perfil ainda não estiver carregado
             const fetchProfile = async () => {
                 try {
-                    const profileDoc = await getDoc(doc(db, "user_profiles", user.uid));
+                    const profileDoc = await getDoc(doc(db, "users", user.uid));
                     if (profileDoc.exists()) {
                         setUserProfile(processFirestoreDoc(profileDoc) as UserProfile);
                     } else {
                         console.warn("User profile not found. Creating a default one.");
                         const defaultProfile: UserProfile = { id: user.uid, email: user.email!, createdAt: new Date() };
-                        await setDoc(doc(db, "user_profiles", user.uid), { email: user.email, createdAt: Timestamp.now() });
+                        await setDoc(doc(db, "users", user.uid), { email: user.email, createdAt: Timestamp.now() });
                         setUserProfile(defaultProfile);
                     }
                 } catch (error) {
                     console.error("Error fetching user profile:", error);
-                    setUserProfile({ id: user.uid, email: user.email!, createdAt: new Date() });
+                    showNotification("Erro ao carregar perfil do usuário.", "error");
                 }
             };
             fetchProfile();
-        } else if (!user) {
-            setUserProfile(null);
         }
-    }, [user, userProfile]);
-
+    }, [user, userProfile, showNotification]);
+    
+    // PWA Install Prompt
+    useEffect(() => {
+        const handler = (e: Event) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+            setIsInstallBannerVisible(true);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+    
+    // Set Theme
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+    
+    // Apply custom colors on load
+    useEffect(() => {
+        try {
+            const savedColors = localStorage.getItem('appThemeColors');
+            const colors = savedColors ? JSON.parse(savedColors) : defaultColors;
+            applyThemeColors(colors);
+        } catch(e) {
+            console.error("Error applying saved theme:", e);
+            applyThemeColors(defaultColors);
+        }
+    }, []);
+    
+    // Fetch data from Firestore
     useEffect(() => {
         if (!user) {
+            // Limpa os dados locais ao fazer logout
             setCustomers([]);
             setBillings([]);
             setExpenses([]);
@@ -242,640 +293,911 @@ const App: React.FC = () => {
             setWarnings([]);
             return;
         }
-
-        const createCollectionSubscription = (collectionName: string, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
-            const q = query(collection(db, `users/${user.uid}/${collectionName}`));
-            return onSnapshot(q, (querySnapshot) => {
-                const items = querySnapshot.docs.map(doc => processFirestoreDoc(doc));
-                setter(items as any);
-            }, (error) => {
-                console.error(`Error fetching ${collectionName}: `, error);
-                showNotification(`Erro ao carregar ${collectionName}.`, 'error');
-            });
+    
+        const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+        const setters: Record<string, React.Dispatch<React.SetStateAction<any[]>>> = {
+            customers: setCustomers,
+            billings: setBillings,
+            expenses: setExpenses,
+            debtPayments: setDebtPayments,
+            warnings: setWarnings,
         };
-
-        const unsubscribers = [
-            createCollectionSubscription('customers', setCustomers),
-            createCollectionSubscription('billings', setBillings),
-            createCollectionSubscription('expenses', setExpenses),
-            createCollectionSubscription('debtPayments', setDebtPayments),
-            createCollectionSubscription('warnings', setWarnings),
-        ];
-
+    
+        const unsubscribers = collections.map(col => {
+            const q = query(collection(db, `users/${user.uid}/${col}`));
+            return onSnapshot(q, (querySnapshot) => {
+                const data = querySnapshot.docs.map(processFirestoreDoc);
+                setters[col](data as any);
+            }, (error) => {
+                console.error(`Error fetching ${col}:`, error);
+                showNotification(`Erro ao buscar dados de ${col}.`, 'error');
+            });
+        });
+    
         return () => unsubscribers.forEach(unsub => unsub());
     }, [user, showNotification]);
 
+    const processPayloadForFirestore = (data: any): any => {
+        if (data === null || typeof data !== 'object') {
+            return data;
+        }
+        if (data instanceof Date) {
+            return Timestamp.fromDate(data);
+        }
+        if (Array.isArray(data)) {
+            return data.map(item => processPayloadForFirestore(item));
+        }
     
-    // --- UI & PWA Effects ---
-    useEffect(() => {
-        const savedColors = localStorage.getItem('appThemeColors');
-        applyThemeColors(savedColors ? JSON.parse(savedColors) : defaultColors);
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('lastActiveView', currentView);
-        document.title = `${viewTitles[currentView]} - Montanha Bilhar`;
-    }, [currentView]);
-
-    useEffect(() => {
-        const handler = (e: Event) => {
-            e.preventDefault();
-            setDeferredPrompt(e);
+        const newObj: { [key: string]: any } = {};
+        for (const key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key)) {
+                const value = data[key];
+                if (value !== undefined) {
+                    newObj[key] = processPayloadForFirestore(value);
+                }
+            }
+        }
+        return newObj;
+    }
+    
+    // --- Data Handlers (Add, Update, Delete) ---
+    
+    const handleAddCustomer = async (customerData: Omit<Customer, 'id' | 'debtAmount' | 'lastVisitedAt'>) => {
+        setIsSaving(true);
+        const customerWithId: Customer = {
+            id: uuidv4(),
+            ...customerData,
+            createdAt: new Date(),
+            debtAmount: 0,
+            lastVisitedAt: null,
         };
-        window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
-    }, []);
     
-    const isAnyModalOpen = useMemo(() => {
-      return !!(
-        billingModalState || editCustomer || deleteCustomer || payingDebtCustomer ||
-        historyCustomer || sharingCustomer || receiptActionsModalState ||
-        debtReceiptActionsModalState || receiptModalState || debtReceiptModalState ||
-        screenshotReceipt || equipmentSelectionCustomer || focusedCustomer ||
-        printingCustomer || isLabelGenerationModalOpen || editingBilling ||
-        isScannerOpen || thermalPrintModalState || importFile || isImporting ||
-        locationActionsCustomer
-      );
-    }, [
-      billingModalState, editCustomer, deleteCustomer, payingDebtCustomer,
-      historyCustomer, sharingCustomer, receiptActionsModalState,
-      debtReceiptActionsModalState, receiptModalState, debtReceiptModalState,
-      screenshotReceipt, equipmentSelectionCustomer, focusedCustomer,
-      printingCustomer, isLabelGenerationModalOpen, editingBilling,
-      isScannerOpen, thermalPrintModalState, importFile, isImporting,
-      locationActionsCustomer
-    ]);
+        // Optimistic update
+        const originalCustomers = customers;
+        setCustomers(prev => [...prev, customerWithId].sort((a,b) => a.name.localeCompare(b.name)));
     
-    useEffect(() => {
-        if (isAnyModalOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, [isAnyModalOpen]);
-
-    const setTheme = useCallback((newTheme: Theme) => {
-        setThemeState(newTheme);
-        localStorage.setItem('theme', newTheme);
-        document.documentElement.classList.toggle('dark', newTheme === 'dark');
-    }, []);
-
-    // --- Printing & Sharing Handlers ---
-    const handleShareText = async (text: string, title: string) => {
-        if (isSharing) return;
-        setIsSharing(true);
         try {
-            const shareData = { title, text };
-            if (navigator.share && navigator.canShare(shareData)) {
-                await navigator.share(shareData);
+            const { id, ...payload } = customerWithId;
+            const firestorePayload = processPayloadForFirestore(payload);
+            if(isOnline && user) {
+                await setDoc(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
             } else {
-                await navigator.clipboard.writeText(text);
-                showNotification('Recibo copiado! O compartilhamento não é suportado.', 'success');
+                await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
             }
+            showNotification('Cliente adicionado com sucesso!');
         } catch (error) {
-            if ((error as DOMException).name !== 'AbortError') {
-                console.error('Share API error:', error);
-                showNotification(`Falha ao compartilhar: ${(error as Error).message}`, 'error');
-            }
+            showNotification('Erro ao adicionar cliente. Alteração desfeita.', 'error');
+            setCustomers(originalCustomers); // Rollback
+            console.error(error);
         } finally {
-            setIsSharing(false);
-        }
-    };
-
-    const handlePrintRawBt = async (text: string) => {
-        if (isSharing) return;
-        setIsSharing(true);
-        try {
-            const shareData = { title: 'Imprimir Recibo via RawBT', text };
-            if (navigator.share && navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-                showNotification('Pronto para imprimir no RawBT!', 'success');
-            } else {
-                showNotification('Seu navegador não suporta compartilhamento para impressão.', 'error');
-            }
-        } catch (error) {
-            if ((error as DOMException).name !== 'AbortError') {
-                console.error('Share API error for RawBT:', error);
-                showNotification(`Falha ao compartilhar para impressão: ${(error as Error).message}`, 'error');
-            }
-        } finally {
-            setIsSharing(false);
+            setIsSaving(false);
         }
     };
     
-    const handlePrintPdf = useCallback(async (title: string, contentComponent: React.ReactElement) => {
-        const pixPayload = "00020126360014BR.GOV.BCB.PIX0114+55439995819935204000053039865802BR5915BILHAR MONTANHA6012Jaguapita-PR62070503***6304F96E";
-        const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, { width: 150, margin: 1, errorCorrectionLevel: 'M' });
-        
-        const componentWithQr = React.cloneElement(contentComponent as React.ReactElement<{ qrCodeDataUrl?: string }>, { qrCodeDataUrl });
-        const content = ReactDOMServer.renderToString(componentWithQr);
-        
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(`<html><head><title>${title}</title><style>body { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #000; width: 58mm; margin: 0; padding: 2mm; font-size: 11pt; } @page { size: 58mm 200mm; margin: 0; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } } * { font-weight: bold !important; } .header { text-align: center; margin-bottom: 8px; } .header h3 { margin: 0; font-size: 12pt; } .header p { margin: 2px 0; font-size: 10pt; } .flex { display: flex; } .justify-between { justify-content: space-between; } hr.dashed, .border-t { border: 0; border-top: 1px dashed #000; margin: 6px 0; }</style></head><body>${content}</body></html>`);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => printWindow.print(), 500);
-        } else {
-            showNotification("Por favor, habilite pop-ups para impressão.", "error");
-        }
-    }, [showNotification]);
-
-    const handleDirectPrintBillingReceipt = (billing: Billing, isProvisional: boolean) => {
-        setReceiptActionsModalState(null);
-        handlePrintPdf(`${isProvisional ? 'Demonstrativo' : 'Recibo'} - ${billing.customerName}`, <ReceiptSheet billing={billing} isProvisional={isProvisional} />);
-    };
-
-    const handleDirectPrintDebtReceipt = (debtPayment: DebtPayment) => {
-        setDebtReceiptActionsModalState(null);
-        handlePrintPdf(`Comprovante de Dívida - ${debtPayment.customerName}`, <DebtReceiptSheet debtPayment={debtPayment} />);
-    };
-
-    const handlePrintSunmiBillingReceipt = async (billing: Billing, isProvisional: boolean) => {
-        await handlePrintSunmiText(generateBillingText(billing, isProvisional));
-        setReceiptActionsModalState(null);
-    };
-
-    const handlePrintSunmiDebtReceipt = async (debtPayment: DebtPayment) => {
-        await handlePrintSunmiText(generateDebtText(debtPayment));
-        setDebtReceiptActionsModalState(null);
-    };
-
-    const handlePrintSunmiText = async (text: string) => {
-        if (isSharing) return;
-        setIsSharing(true);
+    const handleUpdateCustomer = async (customer: Customer) => {
+        setIsSaving(true);
+        const originalCustomers = customers;
+    
+        // Optimistic Update
+        setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
+        setEditCustomerModalState({ isOpen: false, customer: null });
+    
+        const { id, ...customerData } = customer;
         try {
-            await sunmiPrinterService.printReceipt(text);
-            showNotification('Impresso com sucesso!', 'success');
+            if (isOnline && user) {
+                const docRef = doc(db, `users/${user.uid}/customers`, id);
+                await updateDoc(docRef, processPayloadForFirestore(customerData));
+            } else {
+                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
+            }
+            showNotification('Cliente atualizado com sucesso!');
         } catch (error) {
-            showNotification(error instanceof Error ? error.message : 'Falha na impressão', 'error');
+            showNotification('Erro ao atualizar cliente. Alteração desfeita.', 'error');
+            setCustomers(originalCustomers); // Rollback
+            console.error(error);
         } finally {
-            setIsSharing(false);
-            setThermalPrintModalState(null);
+            setIsSaving(false);
         }
     };
-
-
-    // --- Data Handlers with Offline Support ---
-
-    const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => {
-        const newCustomer: Omit<Customer, 'id'> = { ...customerData, createdAt: new Date(), debtAmount: 0, lastVisitedAt: null };
-        const tempId = uuidv4();
-        setCustomers(prev => [...prev, { ...newCustomer, id: tempId }]);
-        queueMutation({ action: 'add', collectionPath: 'customers', payload: newCustomer });
-        
-        if (!isOnline) {
-            showNotification('Offline: Cliente salvo localmente.', 'success');
-        } else {
-            syncData();
-        }
-    }, [isOnline, syncData, showNotification]);
-
-    const handleUpdateCustomer = useCallback(async (updatedCustomer: Customer) => {
-        const { id, ...customerData } = updatedCustomer;
-        setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c));
-        queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
-        setEditCustomer(null);
-
-        if (!isOnline) {
-            showNotification('Offline: Alterações salvas localmente.', 'success');
-        } else {
-            syncData();
-        }
-    }, [isOnline, syncData, showNotification]);
-
-    const handleConfirmDeleteCustomer = useCallback(async () => {
-        if (!deleteCustomer) return;
-        const customerId = deleteCustomer.id;
-        const customerName = deleteCustomer.name;
-        
+    
+    const handleDeleteCustomer = async (customerId: string) => {
+        setIsSaving(true);
+        const originalCustomers = customers;
+        const customerToDelete = originalCustomers.find(c => c.id === customerId);
+        if (!customerToDelete) return;
+    
+        // Optimistic update
         setCustomers(prev => prev.filter(c => c.id !== customerId));
-        queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {} });
-        
-        setDeleteCustomer(null);
-
-        if (!isOnline) {
-            showNotification('Offline: Cliente será excluído ao sincronizar.', 'success');
-        } else {
-            showNotification(`Cliente "${customerName}" excluído.`, 'success');
-            syncData();
-        }
-    }, [deleteCustomer, isOnline, syncData, showNotification]);
-
-    const handleAddBilling = useCallback(async (billingData: Billing) => {
-        const customerToUpdate = customers.find(c => c.id === billingData.customerId);
-        if (!customerToUpdate) return;
-
-        const updatedDebt = customerToUpdate.debtAmount + (billingData.valorDebitoNegativo || 0);
-        const updatedEquipment = (customerToUpdate.equipment || []).map(e => e.id === billingData.equipmentId ? { ...e, relogioAnterior: billingData.relogioAtual } : e);
-        
-        setBillings(prev => [...prev, billingData]);
-        setCustomers(prev => prev.map(c => c.id === billingData.customerId ? { ...c, debtAmount: updatedDebt, lastVisitedAt: new Date(), equipment: updatedEquipment } : c));
-        
-        const { id, ...billingPayload } = billingData;
-        queueMutation({ action: 'add', collectionPath: 'billings', payload: billingPayload });
-        queueMutation({ action: 'update', collectionPath: 'customers', docId: billingData.customerId, payload: { debtAmount: updatedDebt, lastVisitedAt: new Date(), equipment: updatedEquipment } });
-        
-        setBillingModalState(null);
-
-        if (!isOnline) {
-            showNotification('Offline: Cobrança salva localmente.', 'success');
-        } else {
-            syncData();
-        }
-        setReceiptActionsModalState({ billing: billingData, isProvisional: false });
-
-    }, [customers, isOnline, syncData, showNotification]);
+        setDeleteModalState({ isOpen: false, customer: null });
     
-    const handleUpdateBilling = useCallback(async (updatedBilling: Billing) => {
-        const { id, ...billingData } = updatedBilling;
-        const originalBilling = billings.find(b => b.id === id);
-        if (!originalBilling) return;
-        
-        setBillings(prev => prev.map(b => b.id === id ? updatedBilling : b));
-        queueMutation({ action: 'update', collectionPath: 'billings', docId: id, payload: billingData });
-        
-        const debtDifference = (updatedBilling.valorDebitoNegativo || 0) - (originalBilling.valorDebitoNegativo || 0);
-        if (debtDifference !== 0) {
-            const customerToUpdate = customers.find(c => c.id === updatedBilling.customerId);
-            if (customerToUpdate) {
-                const newDebt = Math.max(0, customerToUpdate.debtAmount + debtDifference);
-                setCustomers(prev => prev.map(c => c.id === customerToUpdate.id ? {...c, debtAmount: newDebt} : c));
-                queueMutation({ action: 'update', collectionPath: 'customers', docId: customerToUpdate.id, payload: { debtAmount: newDebt } });
+        try {
+            if(isOnline && user) {
+                await deleteDoc(doc(db, `users/${user.uid}/customers`, customerId));
+            } else {
+                await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {} });
             }
+            showNotification('Cliente excluído com sucesso!');
+        } catch (error) {
+            showNotification('Erro ao excluir cliente. Alteração desfeita.', 'error');
+            setCustomers(originalCustomers); // Rollback
+            console.error(error);
+        } finally {
+            setIsSaving(false);
         }
-        
-        setEditingBilling(null);
+    };
 
-        if (!isOnline) {
-            showNotification('Offline: Alteração na cobrança salva localmente.', 'success');
-        } else {
-            showNotification("Cobrança atualizada com sucesso!", 'success');
-            syncData();
-        }
-    }, [billings, customers, isOnline, syncData, showNotification]);
+    const handleAddBilling = async (billing: Billing) => {
+        setIsSaving(true);
+        const originalCustomers = customers;
+        const originalBillings = billings;
     
-    const handleDeleteBilling = useCallback(async (billingId: string) => {
-        const billingToDelete = billings.find(b => b.id === billingId);
-        if (!billingToDelete) return;
-        
-        setBillings(prev => prev.filter(b => b.id !== billingId));
-        queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
-        
-        const customerToUpdate = customers.find(c => c.id === billingToDelete.customerId);
-        if (customerToUpdate) {
-            const revertedDebt = Math.max(0, customerToUpdate.debtAmount - (billingToDelete.valorDebitoNegativo || 0));
-            const revertedEquipment = (customerToUpdate.equipment || []).map(e => e.id === billingToDelete.equipmentId ? { ...e, relogioAnterior: billingToDelete.relogioAnterior } : e);
-            setCustomers(prev => prev.map(c => c.id === customerToUpdate.id ? {...c, debtAmount: revertedDebt, equipment: revertedEquipment} : c));
-            queueMutation({ action: 'update', collectionPath: 'customers', docId: customerToUpdate.id, payload: { debtAmount: revertedDebt, equipment: revertedEquipment } });
-        }
-        
-        if (!isOnline) {
-            showNotification('Offline: Exclusão de cobrança salva localmente.', 'success');
-        } else {
-            showNotification("Cobrança excluída e dados revertidos.");
-            syncData();
-        }
-    }, [billings, customers, isOnline, syncData, showNotification]);
-
-    const handleAddDebtPayment = useCallback(async (amount: number, paymentMethod: 'pix' | 'dinheiro') => {
-        if (!payingDebtCustomer) return;
-        const newPayment: Omit<DebtPayment, 'id'> = { customerId: payingDebtCustomer.id, customerName: payingDebtCustomer.name, amountPaid: amount, paidAt: new Date(), paymentMethod };
-        const newDebt = Math.max(0, payingDebtCustomer.debtAmount - amount);
-        const tempId = uuidv4();
-
-        setDebtPayments(prev => [...prev, {id: tempId, ...newPayment}]);
-        setCustomers(prev => prev.map(c => c.id === payingDebtCustomer.id ? {...c, debtAmount: newDebt} : c));
-        
-        queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: newPayment });
-        queueMutation({ action: 'update', collectionPath: 'customers', docId: payingDebtCustomer.id, payload: { debtAmount: newDebt } });
-        
-        const customer = payingDebtCustomer;
-        setPayingDebtCustomer(null);
-
-        if(!isOnline) {
-            showNotification('Offline: Pagamento salvo localmente.', 'success');
-        } else {
-            syncData();
-        }
-        setDebtReceiptActionsModalState({ debtPayment: {id: tempId, ...newPayment}, customer: customer });
-
-    }, [payingDebtCustomer, isOnline, syncData, showNotification]);
-
-    const handleAddExpense = useCallback(async (description: string, amount: number, category: Expense['category']) => {
-        const newExpense: Omit<Expense, 'id'> = { description, amount, date: new Date(), category };
-        setExpenses(prev => [...prev, {id: uuidv4(), ...newExpense}]);
-        queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
-
-        if (!isOnline) {
-            showNotification('Offline: Despesa salva localmente.', 'success');
-        } else {
-            showNotification("Despesa adicionada.");
-            syncData();
-        }
-    }, [isOnline, syncData, showNotification]);
-    
-    const handleDeleteExpense = useCallback(async (expenseId: string) => {
-        setExpenses(prev => prev.filter(e => e.id !== expenseId));
-        queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
-
-        if (!isOnline) {
-            showNotification('Offline: Exclusão de despesa salva localmente.', 'success');
-        } else {
-            showNotification("Despesa excluída.");
-            syncData();
-        }
-    }, [isOnline, syncData, showNotification]);
-    
-    const handleAddWarning = useCallback(async (customerId: string, message: string) => {
-        const customer = customers.find(c => c.id === customerId);
-        if (!customer) return;
-        const newWarning: Omit<Warning, 'id'> = { customerId, customerName: customer.name, message, createdAt: new Date(), isResolved: false };
-        setWarnings(prev => [...prev, {id: uuidv4(), ...newWarning}]);
-        queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
-        
-        if (!isOnline) {
-            showNotification('Offline: Aviso salvo localmente.', 'success');
-        } else {
-            showNotification(`Aviso adicionado para ${customer.name}.`);
-            syncData();
-        }
-    }, [customers, isOnline, syncData, showNotification]);
-
-    const handleResolveWarning = useCallback(async (warningId: string) => {
-        setWarnings(prev => prev.map(w => w.id === warningId ? {...w, isResolved: true} : w));
-        queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload: { isResolved: true } });
-        
-        if (!isOnline) {
-            showNotification('Offline: Aviso salvo localmente.', 'success');
-        } else {
-            showNotification("Aviso marcado como resolvido.");
-            syncData();
-        }
-    }, [isOnline, syncData, showNotification]);
-    
-    const handleDeleteWarning = useCallback(async (warningId: string) => {
-        setWarnings(prev => prev.filter(w => w.id !== warningId));
-        queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
-
-        if (!isOnline) {
-            showNotification('Offline: Exclusão de aviso salva localmente.', 'success');
-        } else {
-            showNotification("Aviso excluído.");
-            syncData();
-        }
-    }, [isOnline, syncData, showNotification]);
-
-    // --- Other handlers ---
-
-    const handleSelectEquipmentForBilling = useCallback((customer: Customer) => {
-        if (customer.equipment.length === 1) {
-            setBillingModalState({ customer, equipment: customer.equipment[0] });
-        } else {
-            setEquipmentSelectionCustomer(customer);
-        }
-    }, []);
-
-    const handleTriggerProvisionalReceipt = useCallback((billing: Billing, onComplete: () => void) => {
-        setReceiptActionsModalState({ billing, isProvisional: true });
-        onComplete();
-    }, []);
-
-    // Data Management Handlers
-    const handleExportData = useCallback((isAutomatic = false) => {
-        const data = { customers, billings, expenses, debtPayments, warnings, version: 2, exportDate: new Date().toISOString() };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const date = new Date().toISOString().slice(0, 10);
-        a.download = `backup-${isAutomatic ? 'automatico-' : ''}montanha-bilhar-${date}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        if (!isAutomatic) {
-            showNotification("Backup exportado com sucesso!");
-        }
-    }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
-
-    useEffect(() => {
-        if (customers.length === 0 || !user) {
+        const customerToUpdate = originalCustomers.find(c => c.id === billing.customerId);
+        if (!customerToUpdate) {
+            showNotification('Cliente não encontrado para faturamento.', 'error');
+            setIsSaving(false);
             return;
         }
-
-        const LAST_BACKUP_KEY = 'lastAutomaticBackupTimestamp';
-        const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
-        setLastBackupTimestamp(lastBackup);
-
-        const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
-        const now = new Date().getTime();
-        const shouldBackup = !lastBackup || (now - parseInt(lastBackup, 10)) > SEVEN_DAYS_IN_MS;
-
-        if (shouldBackup) {
-            showNotification('Iniciando backup automático semanal...', 'success');
-            
-            setTimeout(() => {
-                handleExportData(true);
-                const nowStr = String(now);
-                localStorage.setItem(LAST_BACKUP_KEY, nowStr);
-                setLastBackupTimestamp(nowStr);
-                showNotification("Backup automático semanal concluído!");
-            }, 2000);
-        }
-    }, [customers, user, handleExportData, showNotification]);
-
-    const handleImportData = useCallback((file: File) => {
-        if (file && file.type === 'application/json') {
-            setImportFile(file); // Abre o modal de confirmação
-        } else {
-            showNotification('Por favor, selecione um arquivo JSON de backup válido.', 'error');
-        }
-    }, [showNotification]);
-
-    const handleConfirmImport = useCallback(async () => {
-        if (!importFile || !user) return;
-        
-        const originalFile = importFile;
-        setImportFile(null); // Fecha o modal de confirmação
-        setIsImporting(true);
-
-        try {
-            const fileContent = await originalFile.text();
-            const data = JSON.parse(fileContent);
-
-            const requiredCollections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
-            if (!requiredCollections.every(key => Array.isArray(data[key]))) {
-                throw new Error("Arquivo de backup inválido ou corrompido.");
-            }
-
-            // Deleta todos os dados existentes
-            for (const collectionName of requiredCollections) {
-                const collectionRef = collection(db, `users/${user.uid}/${collectionName}`);
-                const snapshot = await getDocs(collectionRef);
-                const deletePromises = snapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
-                await Promise.all(deletePromises);
-            }
-            
-            // Adiciona os novos dados do arquivo de backup
-            for (const collectionName of requiredCollections) {
-                const itemsToImport = data[collectionName];
-                const collectionRef = collection(db, `users/${user.uid}/${collectionName}`);
-                const addPromises = itemsToImport.map((item: any) => {
-                    if (!item.id) {
-                        console.warn(`Item em ${collectionName} sem ID, pulando.`, item);
-                        return Promise.resolve();
-                    }
-                    const { id, ...itemData } = item;
-                    Object.keys(itemData).forEach(key => {
-                        if (['createdAt', 'settledAt', 'paidAt', 'date', 'lastVisitedAt'].includes(key) && itemData[key] && typeof itemData[key] === 'string') {
-                            const date = new Date(itemData[key]);
-                            if (!isNaN(date.getTime())) itemData[key] = Timestamp.fromDate(date);
-                            else delete itemData[key];
-                        }
-                    });
-                    return setDoc(doc(collectionRef, id), itemData);
-                });
-                await Promise.all(addPromises);
-            }
-            showNotification('Importação de dados concluída com sucesso!', 'success');
-        } catch (e) {
-            console.error("Falha na importação:", e);
-            showNotification(e instanceof Error ? e.message : "Erro ao importar dados.", 'error');
-        } finally {
-            setIsImporting(false);
-        }
-    }, [importFile, user, showNotification]);
-
-    const handleGenerateLabels = useCallback(async (equipments: EquipmentWithCustomer[]) => {
-        setIsLabelGenerationModalOpen(false);
-        showNotification('Gerando etiquetas em nova aba...', 'success');
+    
+        const updatedEquipment = customerToUpdate.equipment.map(e =>
+            e.id === billing.equipmentId ? { ...e, relogioAnterior: billing.relogioAtual } : e
+        );
+        const updatedCustomerData = {
+            equipment: updatedEquipment,
+            lastVisitedAt: new Date(),
+            debtAmount: (customerToUpdate.debtAmount || 0) + (billing.valorDebitoNegativo || 0)
+        };
+        const updatedCustomer = { ...customerToUpdate, ...updatedCustomerData };
+    
+        // Optimistic update
+        setBillings(prev => [...prev, billing]);
+        setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+        setBillingModalState({ isOpen: false, customer: null, equipment: null });
     
         try {
-            const labelHtmlPromises = equipments.map(async (equipment) => {
-                const qrData = JSON.stringify({ type: 'equipment', id: equipment.id });
-                const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
-                    width: 200,
-                    margin: 1,
-                    errorCorrectionLevel: 'H',
-                    color: { dark: '#000000', light: '#FFFFFF' }
-                });
-    
-                const labelComponentHtml = ReactDOMServer.renderToString(
-                    <EquipmentLabel equipment={equipment} qrCodeDataUrl={qrCodeDataUrl} />
-                );
-    
-                return `<div class="label-item">${labelComponentHtml}</div>`;
-            });
-    
-            const allLabelsHtml = (await Promise.all(labelHtmlPromises)).join('');
-            
-            const fullHtml = `
-                <html>
-                    <head>
-                        <title>Etiquetas de Equipamento</title>
-                        <script src="https://cdn.tailwindcss.com"></script>
-                        <style>
-                            @page {
-                                size: 58mm auto; /* Thermal printer paper size */
-                                margin: 0;
-                            }
-                            body {
-                                font-family: 'Courier New', Courier, monospace;
-                                color: #000;
-                                margin: 0;
-                                padding: 0;
-                                background-color: #fff;
-                            }
-                            .label-item {
-                                padding: 2mm;
-                                page-break-after: always;
-                                border-bottom: 1px dashed #ccc;
-                            }
-                            .label-item:last-child {
-                                page-break-after: auto;
-                                border-bottom: none;
-                            }
-                            @media screen {
-                                body {
-                                    background-color: #334155; /* slate-700 */
-                                    display: flex;
-                                    justify-content: center;
-                                    padding: 1rem 0;
-                                }
-                                .thermal-roll-preview {
-                                    width: 58mm;
-                                    background-color: #fff;
-                                    box-shadow: 0 0 15px rgba(0,0,0,0.5);
-                                }
-                            }
-                        </style>
-                    </head>
-                    <body class="bg-slate-700">
-                        <div class="thermal-roll-preview">
-                            ${allLabelsHtml}
-                        </div>
-                    </body>
-                </html>
-            `;
-    
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write(fullHtml);
-                printWindow.document.close();
+            if (isOnline && user) {
+                const batch = writeBatch(db);
+                const billingRef = doc(db, `users/${user.uid}/billings`, billing.id);
+                batch.set(billingRef, processPayloadForFirestore(billing));
+                
+                const customerRef = doc(db, `users/${user.uid}/customers`, customerToUpdate.id);
+                batch.update(customerRef, processPayloadForFirestore(updatedCustomerData));
+                
+                await batch.commit();
             } else {
-                showNotification("Por favor, habilite pop-ups para gerar as etiquetas.", "error");
+                await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerToUpdate.id, payload: updatedCustomerData });
             }
+            
+            showNotification('Faturamento registrado com sucesso!');
+            handleOpenReceiptActions(billing, false);
     
         } catch (error) {
-            console.error("Erro ao gerar etiquetas:", error);
-            showNotification(error instanceof Error ? error.message : "Ocorreu um erro ao gerar as etiquetas.", "error");
+            showNotification('Erro ao registrar faturamento. Alterações desfeitas.', 'error');
+            setBillings(originalBillings); // Rollback
+            setCustomers(originalCustomers); // Rollback
+            console.error(error);
+        } finally {
+            setIsSaving(false);
         }
-    }, [showNotification]);
+    };
+    
+    const handleUpdateBilling = async (updatedBilling: Billing) => {
+        setIsSaving(true);
+    
+        const originalBilling = billings.find(b => b.id === updatedBilling.id);
+        const originalCustomer = customers.find(c => c.id === updatedBilling.customerId);
+    
+        if (!originalBilling || !originalCustomer) {
+            showNotification('Dados originais da cobrança ou cliente não encontrados.', 'error');
+            setIsSaving(false);
+            return;
+        }
+        
+        // --- Optimistic Update Logic ---
+        const originalBillingsState = billings;
+        const originalCustomersState = customers;
 
+        const debtChange = (updatedBilling.valorDebitoNegativo || 0) - (originalBilling.valorDebitoNegativo || 0);
+        const newDebtAmount = (originalCustomer.debtAmount || 0) + debtChange;
 
-    const handleInstallPrompt = () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult: { outcome: string }) => {
-            if (choiceResult.outcome === 'accepted') {
-                showNotification('App instalado com sucesso!');
+        // Check if this is the most recent billing for the equipment
+        const isMostRecent = !billings.some(b => 
+            b.equipmentId === updatedBilling.equipmentId && 
+            b.id !== updatedBilling.id && 
+            new Date(b.settledAt) > new Date(updatedBilling.settledAt)
+        );
+
+        const updatedCustomerData: Partial<Customer> = { debtAmount: newDebtAmount };
+        if (isMostRecent) {
+            updatedCustomerData.equipment = originalCustomer.equipment.map(e => 
+                e.id === updatedBilling.equipmentId 
+                ? { ...e, relogioAnterior: updatedBilling.relogioAtual } 
+                : e
+            );
+        }
+        
+        // Apply optimistic updates to state
+        setBillings(prev => prev.map(b => b.id === updatedBilling.id ? updatedBilling : b));
+        setCustomers(prev => prev.map(c => c.id === originalCustomer.id ? { ...c, ...updatedCustomerData } : c));
+        setEditBillingModalState({ isOpen: false, billing: null });
+        
+        // --- Persistence Logic ---
+        try {
+            const { id, ...billingData } = updatedBilling;
+            const customerPayload = { debtAmount: newDebtAmount };
+            if (isMostRecent && updatedCustomerData.equipment) {
+                (customerPayload as any).equipment = updatedCustomerData.equipment;
             }
-            setDeferredPrompt(null);
-            setIsInstallBannerVisible(false);
-        });
+
+            if (isOnline && user) {
+                const batch = writeBatch(db);
+                const billingRef = doc(db, `users/${user.uid}/billings`, updatedBilling.id);
+                batch.update(billingRef, processPayloadForFirestore(billingData));
+
+                const customerRef = doc(db, `users/${user.uid}/customers`, originalCustomer.id);
+                batch.update(customerRef, processPayloadForFirestore(customerPayload));
+                
+                await batch.commit();
+            } else {
+                await queueMutation({ action: 'update', collectionPath: 'billings', docId: id, payload: billingData });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: originalCustomer.id, payload: customerPayload });
+            }
+            showNotification('Cobrança atualizada com sucesso!');
+        } catch (error) {
+            showNotification('Erro ao atualizar cobrança. Restaurando dados.', 'error');
+            console.error(error);
+            // Rollback optimistic updates on failure
+            setBillings(originalBillingsState);
+            setCustomers(originalCustomersState);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const handleOpenScanner = useCallback(() => setIsScannerOpen(true), []);
-
-    const handleScanSuccess = useCallback((decodedText: string) => {
-        setIsScannerOpen(false);
-        try {
-            const data = JSON.parse(decodedText);
-            if (data.type === 'equipment' && data.id) {
-                const customerWithEquipment = customers.find(c => (c.equipment || []).some(e => e.id === data.id));
-                if (customerWithEquipment) {
-                    showNotification(`Equipamento encontrado para ${customerWithEquipment.name}!`, 'success');
-                    handleSelectEquipmentForBilling(customerWithEquipment);
-                } else {
-                    showNotification("Equipamento não encontrado ou não associado a um cliente.", "error");
-                }
-                return;
+    const handleDeleteBilling = async (billingId: string) => {
+        setIsSaving(true);
+        const originalBillings = billings;
+        const originalCustomers = customers;
+    
+        const billingToDelete = originalBillings.find(b => b.id === billingId);
+        if (!billingToDelete) { showNotification('Cobrança não encontrada.', 'error'); setIsSaving(false); return; }
+    
+        const customerToUpdate = originalCustomers.find(c => c.id === billingToDelete.customerId);
+        if (!customerToUpdate) { showNotification('Cliente não encontrado.', 'error'); setIsSaving(false); return; }
+    
+        const newDebtAmount = (customerToUpdate.debtAmount || 0) - (billingToDelete.valorDebitoNegativo || 0);
+        const updatedEquipment = customerToUpdate.equipment.map(e => {
+            if (e.id === billingToDelete.equipmentId) {
+                const isMostRecent = !originalBillings.some(b => b.equipmentId === e.id && b.id !== billingId && new Date(b.settledAt) > new Date(billingToDelete.settledAt));
+                if (isMostRecent) return { ...e, relogioAnterior: billingToDelete.relogioAnterior };
             }
-        } catch (e) {
-            const customer = customers.find(c => c.id === decodedText);
-            if (customer) {
-                showNotification(`Cliente ${customer.name} encontrado!`, 'success');
-                handleSelectEquipmentForBilling(customer);
+            return e;
+        });
+        const updatedCustomerData = { debtAmount: newDebtAmount, equipment: updatedEquipment };
+    
+        // Optimistic update
+        setBillings(prev => prev.filter(b => b.id !== billingId));
+        setCustomers(prev => prev.map(c => c.id === customerToUpdate.id ? { ...c, ...updatedCustomerData } : c));
+    
+        try {
+            if (isOnline && user) {
+                const batch = writeBatch(db);
+                batch.delete(doc(db, `users/${user.uid}/billings`, billingId));
+                batch.update(doc(db, `users/${user.uid}/customers`, customerToUpdate.id), processPayloadForFirestore(updatedCustomerData));
+                await batch.commit();
             } else {
-                showNotification("QR Code inválido. Não corresponde a um cliente ou equipamento conhecido.", "error");
+                await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerToUpdate.id, payload: updatedCustomerData });
+            }
+            showNotification('Cobrança excluída com sucesso!');
+        } catch (error) {
+            showNotification('Erro ao excluir cobrança. Restaurando dados.', 'error');
+            console.error(error);
+            setBillings(originalBillings); // Rollback
+            setCustomers(originalCustomers); // Rollback
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleAddExpense = async (description: string, amount: number, category: Expense['category']) => {
+        setIsSaving(true);
+        const expenseWithId: Expense = { id: uuidv4(), description, amount, category, date: new Date() };
+        
+        const originalExpenses = expenses;
+        setExpenses(prev => [...prev, expenseWithId].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    
+        try {
+            const { id, ...payload } = expenseWithId;
+            const firestorePayload = processPayloadForFirestore(payload);
+            if (isOnline && user) {
+                await setDoc(doc(db, `users/${user.uid}/expenses`, id), firestorePayload);
+            } else {
+                await queueMutation({ action: 'add', collectionPath: 'expenses', payload: expenseWithId });
+            }
+            showNotification('Despesa adicionada com sucesso!');
+        } catch (e) {
+            showNotification('Erro ao adicionar despesa. Alteração desfeita.', 'error');
+            setExpenses(originalExpenses); // Rollback
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleDeleteExpense = async (expenseId: string) => {
+        setIsSaving(true);
+        const originalExpenses = expenses;
+        const expenseToDelete = originalExpenses.find(e => e.id === expenseId);
+        if(!expenseToDelete) return;
+    
+        setExpenses(prev => prev.filter(e => e.id !== expenseId));
+    
+        try {
+            if(isOnline && user) {
+                await deleteDoc(doc(db, `users/${user.uid}/expenses`, expenseId));
+            } else {
+                await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
+            }
+            showNotification('Despesa excluída com sucesso!');
+        } catch (e) {
+            showNotification('Erro ao excluir despesa. Alteração desfeita.', 'error');
+            setExpenses(originalExpenses); // Rollback
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handlePayDebt = async (amount: number, paymentMethod: 'pix' | 'dinheiro') => {
+        if (!debtPaymentModalState.customer) return;
+        setIsSaving(true);
+        
+        const originalCustomers = customers;
+        const originalDebtPayments = debtPayments;
+        
+        const customer = debtPaymentModalState.customer;
+        const newDebtAmount = Math.max(0, customer.debtAmount - amount);
+        const newPayment: DebtPayment = {
+            id: uuidv4(),
+            customerId: customer.id,
+            customerName: customer.name,
+            amountPaid: amount,
+            paidAt: new Date(),
+            paymentMethod
+        };
+        const updatedCustomer = { ...customer, debtAmount: newDebtAmount };
+    
+        // Optimistic update
+        setDebtPayments(prev => [...prev, newPayment]);
+        setCustomers(prev => prev.map(c => c.id === customer.id ? updatedCustomer : c));
+        setDebtPaymentModalState({ isOpen: false, customer: null });
+        
+        try {
+            const { id, ...payload } = newPayment;
+            if(isOnline && user) {
+                const batch = writeBatch(db);
+                batch.set(doc(db, `users/${user.uid}/debtPayments`, id), processPayloadForFirestore(payload));
+                batch.update(doc(db, `users/${user.uid}/customers`, customer.id), { debtAmount: newDebtAmount });
+                await batch.commit();
+            } else {
+                 await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: newPayment });
+                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload: { debtAmount: newDebtAmount }});
+            }
+            
+            handleOpenDebtReceiptActions(newPayment, updatedCustomer);
+            showNotification('Pagamento de dívida registrado!');
+    
+        } catch(e) {
+            showNotification('Erro ao registrar pagamento. Alteração desfeita.', 'error');
+            setCustomers(originalCustomers); // Rollback
+            setDebtPayments(originalDebtPayments); // Rollback
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteAllData = async () => {
+        if (!user) return;
+        setIsSaving(true);
+        setIsDeleteAllDataModalOpen(false);
+
+        try {
+            // Step 1: Clear local offline queue to prevent old data from resyncing
+            await clearOfflineQueue();
+            showNotification('Fila offline limpa...', 'success');
+
+            // Step 2: Delete all Firestore data in a batch
+            const collectionsToDelete = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+            const batch = writeBatch(db);
+
+            for (const collectionName of collectionsToDelete) {
+                const collectionPath = `users/${user.uid}/${collectionName}`;
+                const q = query(collection(db, collectionPath));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+            }
+
+            await batch.commit();
+            showNotification('Dados na nuvem excluídos...', 'success');
+
+            // Step 3: Clear local state (already handled by onSnapshot, but good practice to be explicit)
+            setCustomers([]);
+            setBillings([]);
+            setExpenses([]);
+            setDebtPayments([]);
+            setWarnings([]);
+
+            showNotification('Todos os dados foram apagados com sucesso!', 'success');
+        } catch (error) {
+            console.error("Error deleting all data:", error);
+            showNotification('Ocorreu um erro ao apagar os dados.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSetView = useCallback((view: View) => {
+        setCurrentView(view);
+        localStorage.setItem('lastActiveView', view);
+    }, []);
+    
+    // --- Modal Handlers ---
+    
+    const handleOpenBillModal = useCallback((customer: Customer) => {
+        if (customer.equipment && customer.equipment.length === 1) {
+            setBillingModalState({ isOpen: true, customer, equipment: customer.equipment[0] });
+        } else {
+            setEquipmentSelectionModalState({ isOpen: true, customer });
+        }
+    }, []);
+    
+    const handleEquipmentSelectForBilling = (equipment: Equipment) => {
+        setEquipmentSelectionModalState(prev => ({ ...prev, isOpen: false }));
+        setBillingModalState({ isOpen: true, customer: equipmentSelectionModalState.customer, equipment });
+    };
+
+    const handleOpenReceiptActions = (billing: Billing, isProvisional: boolean) => {
+        setReceiptActionsModalState({ isOpen: true, billing, isProvisional });
+    };
+
+    const handleOpenDebtReceiptActions = (debtPayment: DebtPayment, customer: Customer) => {
+        setDebtReceiptActionsModalState({ isOpen: true, debtPayment, customer });
+    };
+
+    const handleLocationActions = useCallback((customer: Customer) => {
+        if (customer.latitude && customer.longitude) {
+            setLocationActionsModalState({ isOpen: true, customer });
+        } else {
+            setSaveLocationModalState({ isOpen: true, customer });
+        }
+    }, []);
+    
+    const handleWhatsAppActions = useCallback((customer: Customer) => {
+        if (customer.telefone) {
+            window.open(`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`, '_blank', 'noopener,noreferrer');
+        } else {
+            setAddPhoneModalState({ isOpen: true, customer });
+        }
+    }, []);
+
+    const saveCustomerProperty = useCallback(async (customer: Customer, propertyUpdate: Partial<Customer>) => {
+        const originalCustomers = customers;
+        const updatedCustomer = { ...customer, ...propertyUpdate };
+        
+        // Optimistic update
+        setCustomers(prev => prev.map(c => c.id === customer.id ? updatedCustomer : c));
+        
+        try {
+            if (isOnline && user) {
+                const docRef = doc(db, `users/${user.uid}/customers`, customer.id);
+                await updateDoc(docRef, processPayloadForFirestore(propertyUpdate));
+            } else {
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload: propertyUpdate });
+            }
+            showNotification('Cliente atualizado com sucesso!', 'success');
+        } catch (error) {
+            showNotification('Erro ao salvar. Alteração desfeita.', 'error');
+            setCustomers(originalCustomers); // Rollback
+            console.error(error);
+        }
+    }, [customers, isOnline, user, showNotification]);
+
+    const handleConfirmSaveLocation = useCallback(async () => {
+        if (!saveLocationModalState.customer) return;
+        const customer = saveLocationModalState.customer;
+        setIsGeolocating(true);
+        setSaveLocationModalState({ isOpen: false, customer: null });
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                saveCustomerProperty(customer, { latitude, longitude });
+                setIsGeolocating(false);
+            },
+            (error) => {
+                let message = 'Não foi possível obter a localização.';
+                if (error.code === 1) message = 'Permissão de localização foi negada.';
+                showNotification(message, 'error');
+                setIsGeolocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }, [saveLocationModalState.customer, saveCustomerProperty, showNotification]);
+
+    const handleSavePhoneNumber = useCallback(async (phone: string) => {
+        if (!addPhoneModalState.customer) return;
+        await saveCustomerProperty(addPhoneModalState.customer, { telefone: phone });
+        setAddPhoneModalState({ isOpen: false, customer: null });
+    }, [addPhoneModalState.customer, saveCustomerProperty]);
+
+    // --- Receipt and Sharing ---
+    const handleShareReceipt = async () => {
+        if (!receiptActionsModalState.billing) return;
+        setIsSharing(true);
+        const text = generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional);
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: `Comprovante - ${receiptActionsModalState.billing.customerName}`,
+                    text: text,
+                });
+            } else {
+                await navigator.clipboard.writeText(text);
+                showNotification('Comprovante copiado para a área de transferência!');
+            }
+        } catch (error: any) {
+             if (error.name !== 'AbortError') {
+                showNotification('Erro ao compartilhar comprovante.', 'error');
+            }
+        } finally {
+            setIsSharing(false);
+        }
+    };
+    
+    const handleShareDebtReceipt = async () => {
+        if (!debtReceiptActionsModalState.debtPayment) return;
+        setIsSharing(true);
+        const text = generateDebtText(debtReceiptActionsModalState.debtPayment);
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: `Comprovante de Dívida - ${debtReceiptActionsModalState.debtPayment.customerName}`,
+                    text: text,
+                });
+            } else {
+                await navigator.clipboard.writeText(text);
+                showNotification('Comprovante copiado para a área de transferência!');
+            }
+        } catch (error: any) {
+             if (error.name !== 'AbortError') {
+                showNotification('Erro ao compartilhar comprovante.', 'error');
+            }
+        } finally {
+            setIsSharing(false);
+        }
+    };
+    
+    const generatePrintableHtml = (title: string, content: string): string => {
+        return `
+            <html><head><title>${title}</title><style>
+              body { 
+                font-family: 'Courier New', Courier, monospace;
+                width: 72mm;
+                font-size: 10pt;
+                color: #000;
+                margin: 0 auto;
+                padding: 3mm;
+              }
+              .header { text-align: center; margin-bottom: 15px; }
+              .header h3 { margin: 0; font-size: 14px; }
+              .header p { margin: 2px 0; }
+              .flex { display: flex; }
+              .justify-between { justify-content: space-between; }
+              hr { border-top: 1px dashed #000; margin: 10px 0; border-bottom: 0; }
+              .font-bold { font-weight: bold; }
+              .text-center { text-align: center; }
+              .mt-1 { margin-top: 0.25rem; } .mt-2 { margin-top: 0.5rem; } .mt-4 { margin-top: 1rem; }
+              .my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+              .pt-1 { padding-top: 0.25rem; } .pt-2 { padding-top: 0.5rem; }
+              .border-t { border-top-width: 1px; } .border-b { border-bottom-width: 1px; }
+              .border-dashed { border-style: dashed; } .border-black { border-color: #000; }
+              .text-base { font-size: 1rem; line-height: 1.5rem; }
+              .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+              .text-xs { font-size: 0.75rem; line-height: 1rem; }
+              .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
+              img { display: block; margin: 8px auto; border: 4px solid black; }
+              @page { size: auto; margin: 3mm; }
+            </style></head><body>${content}</body></html>
+        `;
+    };
+
+    const pixPayload = "00020126360014BR.GOV.BCB.PIX0114+55439995819935204000053039865802BR5915BILHAR MONTANHA6012Jaguapita-PR62070503***6304F96E";
+
+    const handlePrintBilling = async (billing: Billing, isProvisional: boolean) => {
+        if (!billing) return;
+        const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, {
+            width: 150,
+            margin: 1,
+            errorCorrectionLevel: 'M',
+        });
+        const printContent = ReactDOMServer.renderToString(
+            React.createElement(ReceiptSheet, { billing, isProvisional, qrCodeDataUrl })
+        );
+        const title = isProvisional ? 'Demonstrativo' : 'Recibo';
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(generatePrintableHtml(title, printContent));
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }
+    };
+    
+    const handlePrintDebt = async (debtPayment: DebtPayment) => {
+        if (!debtPayment) return;
+        const qrCodeDataUrl = await QRCode.toDataURL(pixPayload, {
+            width: 150,
+            margin: 1,
+            errorCorrectionLevel: 'M',
+        });
+        const printContent = ReactDOMServer.renderToString(
+            React.createElement(DebtReceiptSheet, { debtPayment, qrCodeDataUrl })
+        );
+        const title = 'Comprovante de Pagamento de Dívida';
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(generatePrintableHtml(title, printContent));
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }
+    };
+
+    // --- PWA Installation ---
+    const handleInstallPrompt = () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult: any) => {
+                if (choiceResult.outcome === 'accepted') {
+                    showNotification('Aplicativo instalado com sucesso!');
+                }
+                setDeferredPrompt(null);
+                setIsInstallBannerVisible(false);
+            });
+        }
+    };
+
+    const handleExportData = () => {
+        try {
+            const dataToExport = {
+                customers,
+                billings,
+                expenses,
+                debtPayments,
+                warnings,
+            };
+
+            const jsonString = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.href = url;
+            a.download = `montanha-gestao-backup-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const backupTimestamp = new Date().toISOString();
+            localStorage.setItem('lastBackupTimestamp', backupTimestamp);
+            setLastBackupTimestamp(backupTimestamp);
+
+            showNotification('Backup exportado com sucesso!', 'success');
+        } catch (error) {
+            console.error("Erro ao exportar dados:", error);
+            showNotification('Falha ao exportar o backup.', 'error');
+        }
+    };
+
+    const parseDatesInObject = (obj: any): any => {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(parseDatesInObject);
+
+        const newObj: { [key: string]: any } = {};
+        for (const key in obj) {
+            const value = obj[key];
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/.test(value)) {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    newObj[key] = date;
+                } else {
+                    newObj[key] = value;
+                }
+            } else if (typeof value === 'object') {
+                newObj[key] = parseDatesInObject(value);
+            } else {
+                newObj[key] = value;
             }
         }
-    }, [customers, showNotification, handleSelectEquipmentForBilling]);
+        return newObj;
+    };
 
-    if (isLoadingAuth || (user && !userProfile)) {
-        return <div className="flex items-center justify-center h-screen bg-slate-900 text-white">Carregando...</div>;
+
+    const handleConfirmMergeData = async () => {
+        if (!fileToMerge || !user) return;
+        setIsSaving(true);
+        setFileToMerge(null); // Close modal
+    
+        // Helper function to execute writes in batches to avoid Firestore's 500-operation limit.
+        const executeBatchedWrites = async (operations: { type: 'delete' | 'set', ref: any, data?: any }[]) => {
+            const batchSize = 499; // Use a slightly smaller size for safety
+            for (let i = 0; i < operations.length; i += batchSize) {
+                const batch = writeBatch(db);
+                const chunk = operations.slice(i, i + batchSize);
+                chunk.forEach(op => {
+                    if (op.type === 'delete') {
+                        batch.delete(op.ref);
+                    } else if (op.type === 'set' && op.data) {
+                        batch.set(op.ref, op.data);
+                    }
+                });
+                await batch.commit();
+            }
+        };
+    
+        try {
+            const fileContent = await fileToMerge.text();
+            const dataToImport = parseDatesInObject(JSON.parse(fileContent));
+    
+            if (!dataToImport.customers || !dataToImport.billings) {
+                throw new Error("Arquivo de backup inválido ou corrompido.");
+            }
+    
+            await clearOfflineQueue();
+    
+            const collectionsToProcess = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+            
+            // --- Deletion Phase ---
+            showNotification('Limpando dados antigos...', 'success');
+            const deleteOps: { type: 'delete', ref: any }[] = [];
+            for (const collectionName of collectionsToProcess) {
+                const collectionPath = `users/${user.uid}/${collectionName}`;
+                const q = query(collection(db, collectionPath));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach((doc) => {
+                    deleteOps.push({ type: 'delete', ref: doc.ref });
+                });
+            }
+            if (deleteOps.length > 0) {
+                await executeBatchedWrites(deleteOps);
+            }
+            showNotification('Dados antigos removidos.', 'success');
+    
+            // --- Import Phase ---
+            showNotification('Importando novos dados...', 'success');
+            const setOps: { type: 'set', ref: any, data: any }[] = [];
+            for (const collectionName of collectionsToProcess) {
+                if (dataToImport[collectionName] && Array.isArray(dataToImport[collectionName])) {
+                    const collectionPath = `users/${user.uid}/${collectionName}`;
+                    for (const item of dataToImport[collectionName]) {
+                        if (!item.id) continue; // Skip items without an ID
+                        const { id, ...payload } = item;
+                        const firestorePayload = processPayloadForFirestore(payload);
+                        const docRef = doc(db, collectionPath, id);
+                        setOps.push({ type: 'set', ref: docRef, data: firestorePayload });
+                    }
+                }
+            }
+            if (setOps.length > 0) {
+                await executeBatchedWrites(setOps);
+            }
+    
+            showNotification('Dados importados com sucesso! O aplicativo será recarregado.', 'success');
+            setTimeout(() => window.location.reload(), 2000);
+    
+        } catch (error: any) {
+            console.error("Erro ao importar dados:", error);
+            showNotification(`Falha na importação: ${error.message}`, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleMergeData = (file: File) => {
+        if (!isOnline) {
+            showNotification('A importação de dados só pode ser feita online.', 'error');
+            return;
+        }
+        setFileToMerge(file);
+    };
+
+
+    const renderView = () => {
+        switch (currentView) {
+            case 'DASHBOARD':
+                return <DashboardView 
+                            billings={billings} 
+                            expenses={expenses} 
+                            customers={customers} 
+                            debtPayments={debtPayments}
+                            warnings={warnings}
+                            onAddWarning={() => {}}
+                            onResolveWarning={() => {}}
+                            onDeleteWarning={() => {}}
+                            lastBackupDate={lastBackupTimestamp}
+                            onNavigateToSettings={() => handleSetView('CONFIGURACOES')}
+                        />;
+            case 'CLIENTES':
+                return <ClientesView 
+                            customers={customers} 
+                            warnings={warnings}
+                            onAddCustomer={handleAddCustomer}
+                            isSaving={isSaving}
+                            showNotification={showNotification}
+                            onFocusCustomer={setFocusedCustomer}
+                            onBillCustomer={handleOpenBillModal}
+                            onEditCustomer={(c) => setEditCustomerModalState({ isOpen: true, customer: c })}
+                            onDeleteCustomer={(c) => setDeleteModalState({ isOpen: true, customer: c})}
+                            onPayDebtCustomer={(c) => setDebtPaymentModalState({ isOpen: true, customer: c})}
+                            onHistoryCustomer={(c) => setHistoryModalState({ isOpen: true, customer: c })}
+                            onShareCustomer={(c) => setShareCustomerModalState({ isOpen: true, customer: c })}
+                            onOpenScanner={() => setQrScannerModalOpen(true)}
+                            onLocationActions={handleLocationActions}
+                            onWhatsAppActions={handleWhatsAppActions}
+                        />;
+            case 'COBRANCAS':
+                return <CobrancasView 
+                            billings={billings} 
+                            customers={customers}
+                            onShowActions={(b) => handleOpenReceiptActions(b, false)}
+                            onEditBilling={(b) => setEditBillingModalState({ isOpen: true, billing: b })}
+                            onDeleteBilling={handleDeleteBilling}
+                        />;
+            case 'DESPESAS':
+                return <DespesasView 
+                            expenses={expenses} 
+                            onAddExpense={handleAddExpense} 
+                            onDeleteExpense={handleDeleteExpense} 
+                        />;
+            case 'EQUIPAMENTOS':
+                return <EquipamentosView 
+                            customers={customers} 
+                            billings={billings}
+                            showNotification={showNotification}
+                            onOpenLabelGenerator={() => setLabelGenerationModalState({ isOpen: true })}
+                            onGenerateLabels={() => {}}
+                        />;
+            case 'ROTAS':
+                return <RotasView customers={customers} />;
+            case 'RELATORIOS':
+                return <RelatoriosView 
+                            customers={customers}
+                            billings={billings}
+                            expenses={expenses}
+                            debtPayments={debtPayments}
+                            onThermalPrint={(title, content) => setThermalPrintModalState({ isOpen: true, title, content })}
+                        />;
+            case 'CONFIGURACOES':
+                return <ConfiguracoesView
+                            onExportData={handleExportData}
+                            onMergeData={handleMergeData}
+                            theme={theme}
+                            setTheme={setThemeState}
+                            showNotification={showNotification}
+                            deferredPrompt={deferredPrompt}
+                            onInstallPrompt={handleInstallPrompt}
+                            onDeleteAllData={() => setIsDeleteAllDataModalOpen(true)}
+                        />;
+            default:
+                return null;
+        }
+    };
+    
+    // RENDER LOGIC
+    if (isLoadingAuth) {
+        return <div className="flex items-center justify-center h-screen bg-slate-900"><div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-500"></div></div>;
     }
 
     if (!user) {
@@ -883,76 +1205,91 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className={`flex h-full font-sans antialiased ${theme}`}>
-            <Sidebar currentView={currentView} setView={setCurrentView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} onOpenScanner={handleOpenScanner} />
-            <main className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
-                <MobileHeader
-                    title={viewTitles[currentView]}
-                    onMenuClick={() => setIsSidebarOpen(true)}
+        <div className="h-screen flex bg-slate-100 dark:bg-slate-900">
+            <Sidebar 
+                currentView={currentView} 
+                setView={handleSetView} 
+                isOpen={isSidebarOpen}
+                setIsOpen={setIsSidebarOpen}
+                onOpenScanner={() => setQrScannerModalOpen(true)}
+            />
+            <div className="flex-1 flex flex-col h-screen">
+                <MobileHeader 
+                    title={viewTitles[currentView]} 
+                    onMenuClick={() => setIsSidebarOpen(true)} 
                     deferredPrompt={deferredPrompt}
                     onInstallPrompt={handleInstallPrompt}
                 />
-                <div className="flex-grow">
-                    {currentView === 'DASHBOARD' && <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setCurrentView('CONFIGURACOES')} />}
-                    {currentView === 'CLIENTES' && <ClientesView customers={customers} warnings={warnings} onAddCustomer={handleAddCustomer} isSaving={false} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleSelectEquipmentForBilling} onEditCustomer={setEditCustomer} onDeleteCustomer={setDeleteCustomer} onPayDebtCustomer={setPayingDebtCustomer} onHistoryCustomer={setHistoryCustomer} onShareCustomer={setSharingCustomer} onOpenScanner={handleOpenScanner} onLocationActions={setLocationActionsCustomer} />}
-                    {currentView === 'COBRANCAS' && <CobrancasView billings={billings} customers={customers} onShowActions={(b) => setReceiptActionsModalState({billing: b, isProvisional: false})} onEditBilling={setEditingBilling} onDeleteBilling={handleDeleteBilling} onViewDetails={(b) => handleDirectPrintBillingReceipt(b, false)} />}
-                    {currentView === 'EQUIPAMENTOS' && <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setIsLabelGenerationModalOpen(true)} onGenerateLabels={handleGenerateLabels} />}
-                    {currentView === 'DESPESAS' && <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
-                    {currentView === 'ROTAS' && <RotasView customers={customers} />}
-                    {currentView === 'RELATORIOS' && <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} onThermalPrint={(title, content) => setThermalPrintModalState({ title, content })} />}
-                    {currentView === 'CONFIGURACOES' && <ConfiguracoesView onExportData={() => handleExportData(false)} onMergeData={handleImportData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />}
-                </div>
-            </main>
-            
-            <SyncStatusIndicator status={syncStatus} onSync={syncData} />
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
+                    {renderView()}
+                </main>
+                <SyncStatusIndicator status={syncStatus} onSync={syncData} />
+            </div>
+            <BottomNavBar currentView={currentView} setView={handleSetView} />
             <Notification notification={notification} onClose={() => setNotification(null)} />
-            <BottomNavBar currentView={currentView} setView={setCurrentView} />
-            {deferredPrompt && isInstallBannerVisible && <InstallPwaBanner onInstall={handleInstallPrompt} onDismiss={() => setIsInstallBannerVisible(false)} />}
+            {isInstallBannerVisible && deferredPrompt && <InstallPwaBanner onInstall={handleInstallPrompt} onDismiss={() => setIsInstallBannerVisible(false)} />}
             
             {/* --- Modals --- */}
-            {equipmentSelectionCustomer && <EquipmentSelectionModal isOpen={!!equipmentSelectionCustomer} onClose={() => setEquipmentSelectionCustomer(null)} customer={equipmentSelectionCustomer} onSelect={(equip) => { setBillingModalState({ customer: equipmentSelectionCustomer!, equipment: equip }); setEquipmentSelectionCustomer(null); }} />}
-            {billingModalState && <BillingModal isOpen={!!billingModalState} onClose={() => setBillingModalState(null)} onConfirm={handleAddBilling} customer={billingModalState.customer} equipment={billingModalState.equipment} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceipt} />}
-            {editCustomer && <EditCustomerModal isOpen={!!editCustomer} onClose={() => setEditCustomer(null)} onConfirm={handleUpdateCustomer} customer={editCustomer} customers={customers} isSaving={false} showNotification={showNotification} />}
-            {payingDebtCustomer && <DebtPaymentModal isOpen={!!payingDebtCustomer} onClose={() => setPayingDebtCustomer(null)} onConfirm={handleAddDebtPayment} customer={payingDebtCustomer} />}
-            {historyCustomer && <HistoryModal isOpen={!!historyCustomer} onClose={() => setHistoryCustomer(null)} customer={historyCustomer} billings={billings} debtPayments={debtPayments} />}
-            {sharingCustomer && <ShareCustomerModal isOpen={!!sharingCustomer} onClose={() => setSharingCustomer(null)} customer={sharingCustomer} showNotification={showNotification} onPrintCustomer={setPrintingCustomer} />}
-            {deleteCustomer && <ActionModal isOpen={!!deleteCustomer} onClose={() => setDeleteCustomer(null)} onConfirm={handleConfirmDeleteCustomer} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir o cliente <strong>{deleteCustomer.name}</strong>? Seus dados serão removidos. Esta ação não pode ser desfeita.</p></ActionModal>}
-            {receiptActionsModalState && <ReceiptActionsModal isOpen={!!receiptActionsModalState} isSharing={isSharing} onClose={() => setReceiptActionsModalState(null)} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} showNotification={showNotification} onShare={() => handleShareText(generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional), `Comprovante - ${receiptActionsModalState.billing.customerName}`).then(() => setReceiptActionsModalState(null))} onViewReceipt={() => handleDirectPrintBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} onPrintRawBt={() => handlePrintRawBt(generateBillingText(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)).then(() => setReceiptActionsModalState(null))} onPrintSunmi={() => handlePrintSunmiBillingReceipt(receiptActionsModalState.billing, receiptActionsModalState.isProvisional)} />}
-            {debtReceiptActionsModalState && <DebtReceiptActionsModal isOpen={!!debtReceiptActionsModalState} isSharing={isSharing} onClose={() => setDebtReceiptActionsModalState(null)} debtPayment={debtReceiptActionsModalState.debtPayment} showNotification={showNotification} onShare={() => handleShareText(generateDebtText(debtReceiptActionsModalState.debtPayment), `Comprovante - ${debtReceiptActionsModalState.debtPayment.customerName}`).then(() => setDebtReceiptActionsModalState(null))} onViewReceipt={() => handleDirectPrintDebtReceipt(debtReceiptActionsModalState.debtPayment)} onPrintRawBt={() => handlePrintRawBt(generateDebtText(debtReceiptActionsModalState.debtPayment)).then(() => setDebtReceiptActionsModalState(null))} onPrintSunmi={() => handlePrintSunmiDebtReceipt(debtReceiptActionsModalState.debtPayment)} />}
-            {receiptModalState && <ReceiptModal isOpen={!!receiptModalState} onClose={() => setReceiptModalState(null)} billing={receiptModalState.billing} isProvisional={receiptModalState.isProvisional} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'billing', data: receiptModalState.billing, isProvisional: receiptModalState.isProvisional }); setReceiptModalState(null); }} />}
-            {debtReceiptModalState && <DebtReceiptModal isOpen={!!debtReceiptModalState} onClose={() => setDebtReceiptModalState(null)} debtPayment={debtReceiptModalState} showNotification={showNotification} onOpenForScreenshot={() => { setScreenshotReceipt({ type: 'debt', data: debtReceiptModalState }); setDebtReceiptModalState(null); }} />}
-            {screenshotReceipt && <PrintableReceiptModal receipt={screenshotReceipt} onClose={() => setScreenshotReceipt(null)} />}
-            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleSelectEquipmentForBilling} onEdit={setEditCustomer} onDelete={setDeleteCustomer} onPayDebt={setPayingDebtCustomer} onHistory={setHistoryCustomer} onShare={setSharingCustomer} onLocationActions={setLocationActionsCustomer} billings={billings} debtPayments={debtPayments} />}
-            {printingCustomer && <PrintPreviewOverlay customer={printingCustomer} onCancel={() => setPrintingCustomer(null)} />}
-            {isLabelGenerationModalOpen && <LabelGenerationModal isOpen={isLabelGenerationModalOpen} onClose={() => setIsLabelGenerationModalOpen(false)} customers={customers} showNotification={showNotification} onConfirm={handleGenerateLabels} />}
-            {editingBilling && <EditBillingModal isOpen={!!editingBilling} onClose={() => setEditingBilling(null)} onConfirm={handleUpdateBilling} billing={editingBilling} />}
-            {isScannerOpen && <QrScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} onScanSuccess={handleScanSuccess} showNotification={showNotification} />}
-            {thermalPrintModalState && <ThermalPrintActionsModal isOpen={!!thermalPrintModalState} onClose={() => setThermalPrintModalState(null)} title={thermalPrintModalState.title} content={thermalPrintModalState.content} onShare={handleShareText} onPrintRawBt={handlePrintRawBt} onPrintSunmi={handlePrintSunmiText} isSharing={isSharing} />}
-            {locationActionsCustomer && <LocationActionsModal isOpen={!!locationActionsCustomer} onClose={() => setLocationActionsCustomer(null)} customer={locationActionsCustomer} />}
-            
-            {/* Import Modals */}
-            {importFile && (
+            {billingModalState.isOpen && <BillingModal {...billingModalState} onClose={() => setBillingModalState({ isOpen: false, customer: null, equipment: null })} onConfirm={handleAddBilling} onTriggerProvisionalReceiptAction={(billing, onComplete) => { handleOpenReceiptActions(billing, true); onComplete(); }} />}
+            {editCustomerModalState.isOpen && <EditCustomerModal {...editCustomerModalState} customers={customers} isSaving={isSaving} showNotification={showNotification} onClose={() => setEditCustomerModalState({ isOpen: false, customer: null })} onConfirm={handleUpdateCustomer} />}
+            {debtPaymentModalState.isOpen && <DebtPaymentModal {...debtPaymentModalState} onClose={() => setDebtPaymentModalState({isOpen: false, customer: null})} onConfirm={handlePayDebt} />}
+            {historyModalState.isOpen && <HistoryModal {...historyModalState} billings={billings} debtPayments={debtPayments} onClose={() => setHistoryModalState({isOpen: false, customer: null})} />}
+            {deleteModalState.isOpen && <ActionModal isOpen={deleteModalState.isOpen} onClose={() => setDeleteModalState({isOpen: false, customer: null})} onConfirm={() => handleDeleteCustomer(deleteModalState.customer!.id)} title="Confirmar Exclusão" confirmText='Sim, Excluir'><p>Tem certeza que deseja excluir o cliente <strong>{deleteModalState.customer?.name}</strong>? Todos os dados associados (cobranças, dívidas, etc.) serão perdidos.</p></ActionModal>}
+            {equipmentSelectionModalState.isOpen && <EquipmentSelectionModal {...equipmentSelectionModalState} onSelect={handleEquipmentSelectForBilling} onClose={() => setEquipmentSelectionModalState({isOpen: false, customer: null})} />}
+            {receiptActionsModalState.isOpen && receiptActionsModalState.billing && <ReceiptActionsModal {...receiptActionsModalState} billing={receiptActionsModalState.billing} isSharing={isSharing} showNotification={showNotification} onShare={handleShareReceipt} onPrint={async () => { await handlePrintBilling(receiptActionsModalState.billing!, receiptActionsModalState.isProvisional); setReceiptActionsModalState({ isOpen: false, billing: null, isProvisional: false }); }} onPrintRawBt={async () => {}} onPrintSunmi={async () => {}} onClose={() => setReceiptActionsModalState({isOpen: false, billing: null, isProvisional: false})} />}
+            {debtReceiptActionsModalState.isOpen && debtReceiptActionsModalState.debtPayment && <DebtReceiptActionsModal {...debtReceiptActionsModalState} debtPayment={debtReceiptActionsModalState.debtPayment} isSharing={isSharing} showNotification={showNotification} onShare={handleShareDebtReceipt} onPrint={async () => { await handlePrintDebt(debtReceiptActionsModalState.debtPayment!); setDebtReceiptActionsModalState({ isOpen: false, debtPayment: null, customer: null }); }} onPrintRawBt={async () => {}} onPrintSunmi={async () => {}} onClose={() => setDebtReceiptActionsModalState({isOpen: false, debtPayment: null, customer: null})} />}
+            {shareCustomerModalState.isOpen && <ShareCustomerModal {...shareCustomerModalState} showNotification={showNotification} onPrintCustomer={setCustomerToPrint} onClose={() => setShareCustomerModalState({isOpen: false, customer: null})} />}
+            {labelGenerationModalState.isOpen && <LabelGenerationModal {...labelGenerationModalState} customers={customers} showNotification={showNotification} onConfirm={() => {}} onClose={() => setLabelGenerationModalState({isOpen: false})} />}
+            {editBillingModalState.isOpen && editBillingModalState.billing && <EditBillingModal {...editBillingModalState} billings={billings} customers={customers} billing={editBillingModalState.billing} onConfirm={handleUpdateBilling} onClose={() => setEditBillingModalState({ isOpen: false, billing: null })} />}
+            {qrScannerModalOpen && <QrScannerModal isOpen={qrScannerModalOpen} onClose={() => setQrScannerModalOpen(false)} onScanSuccess={() => {}} showNotification={showNotification} />}
+            {thermalPrintModalState.isOpen && <ThermalPrintActionsModal {...thermalPrintModalState} isSharing={isSharing} onShare={async ()=>{}} onPrintRawBt={async ()=>{}} onPrintSunmi={async ()=>{}} onClose={() => setThermalPrintModalState({isOpen: false, title: '', content: ''})} />}
+            {locationActionsModalState.isOpen && locationActionsModalState.customer && <LocationActionsModal {...locationActionsModalState} customer={locationActionsModalState.customer} onClose={() => setLocationActionsModalState({ isOpen: false, customer: null })} />}
+            {addPhoneModalState.isOpen && addPhoneModalState.customer && <AddPhoneModal {...addPhoneModalState} customer={addPhoneModalState.customer} onClose={() => setAddPhoneModalState({isOpen: false, customer: null})} onConfirm={handleSavePhoneNumber} />}
+            {saveLocationModalState.isOpen && (
                 <ActionModal
-                    isOpen={!!importFile}
-                    onClose={() => setImportFile(null)}
-                    onConfirm={handleConfirmImport}
-                    title="Confirmar Importação de Dados"
-                    confirmText="Sim, Substituir Tudo"
+                    isOpen={saveLocationModalState.isOpen}
+                    onClose={() => setSaveLocationModalState({ isOpen: false, customer: null })}
+                    onConfirm={handleConfirmSaveLocation}
+                    title="Salvar Localização"
+                    confirmText="Sim, Salvar"
+                    isConfirming={isGeolocating}
                 >
-                    <p className="text-red-400 font-bold text-lg">ATENÇÃO: AÇÃO IRREVERSÍVEL!</p>
-                    <p className="mt-2 text-slate-300">Esta ação substituirá <strong className="text-white">TODOS</strong> os seus dados atuais (clientes, cobranças, etc.) pelos dados do arquivo de backup. Continue apenas se tiver certeza.</p>
+                    <p>O cliente <strong>{saveLocationModalState.customer?.name}</strong> não possui uma localização salva. Deseja salvar a sua localização atual para este cliente?</p>
                 </ActionModal>
             )}
-            {isImporting && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] p-4">
-                    <div className="bg-slate-800 p-8 rounded-lg flex flex-col items-center gap-4">
-                        <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p className="text-white font-semibold">Importando e substituindo dados... Por favor, aguarde.</p>
-                    </div>
-                </div>
+             {isDeleteAllDataModalOpen && (
+                <ActionModal
+                    isOpen={isDeleteAllDataModalOpen}
+                    onClose={() => setIsDeleteAllDataModalOpen(false)}
+                    onConfirm={handleDeleteAllData}
+                    title="Apagar Todos os Dados?"
+                    confirmText="Sim, Apagar Tudo"
+                    isConfirming={isSaving}
+                >
+                    <p className="text-red-400 font-bold">ATENÇÃO: AÇÃO IRREVERSÍVEL!</p>
+                    <p className="mt-2">Você tem certeza que deseja apagar permanentemente <strong className="font-bold">todos os seus dados</strong>, incluindo clientes, cobranças e despesas?</p>
+                    <p className="mt-2">Esta ação não pode ser desfeita.</p>
+                </ActionModal>
             )}
+            {fileToMerge && (
+                <ActionModal
+                    isOpen={!!fileToMerge}
+                    onClose={() => setFileToMerge(null)}
+                    onConfirm={handleConfirmMergeData}
+                    title="Confirmar Importação de Dados?"
+                    confirmText="Sim, Importar e Substituir"
+                    isConfirming={isSaving}
+                >
+                    <p className="text-red-400 font-bold">ATENÇÃO: AÇÃO DE ALTO RISCO!</p>
+                    <p className="mt-2">Você está prestes a substituir <strong className="font-bold">todos os seus dados atuais</strong> pelos dados do arquivo <strong className="font-bold">{fileToMerge.name}</strong>.</p>
+                    <p className="mt-2">Esta ação não pode ser desfeita. Faça isso apenas se tiver certeza de que o arquivo contém um backup completo e válido.</p>
+                </ActionModal>
+            )}
+
+            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillModal} onEdit={(c) => setEditCustomerModalState({ isOpen: true, customer: c })} onDelete={(c) => setDeleteModalState({ isOpen: true, customer: c })} onPayDebt={(c) => setDebtPaymentModalState({ isOpen: true, customer: c })} onHistory={(c) => setHistoryModalState({ isOpen: true, customer: c })} onShare={(c) => setShareCustomerModalState({ isOpen: true, customer: c })} onLocationActions={handleLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} />}
+            {customerToPrint && <PrintPreviewOverlay customer={customerToPrint} onCancel={() => setCustomerToPrint(null)} />}
         </div>
     );
-}
+};
 
 export default App;

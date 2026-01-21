@@ -78,7 +78,7 @@ const PaymentField: React.FC<{
             type="text"
             id={`payment-${name}`}
             value={value}
-            placeholder="0,00"
+            placeholder="0"
             inputMode="decimal"
             onChange={(e) => onChange(name, e.target.value)}
             className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-lime-500"
@@ -110,7 +110,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         totalArrecadadoJukebox: '',
         descontoPartidas: '0',
         aluguelPercentual: String(equipment.aluguelPercentual || ''),
-        aluguelValor: String(equipment.aluguelValor || '0').replace('.',','),
+        aluguelValor: String(equipment.aluguelValor || '0'),
         saldo: '',
         quantidadePelucia: String(equipment.quantidadePelucia || ''),
         sobraPelucia: '',
@@ -129,12 +129,12 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
   const calculation = useMemo(() => {
     let result: Partial<Billing> = {};
-    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
+    const relogioAtual = safeParseFloat(formState.relogioAtual);
     const relogioAnterior = equipment.relogioAnterior;
 
     const isInvalidReading = relogioAtual < relogioAnterior;
     
-    const partidasJogadas = isInvalidReading ? 0 : relogioAtual - relogioAnterior;
+    const partidasJogadas = isInvalidReading ? 0 : Math.round(relogioAtual) - Math.round(relogioAnterior);
 
     if (equipment.type === 'mesa') {
       if (equipment.billingType === 'monthly') {
@@ -143,26 +143,25 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             billingType: 'monthly',
             partidasJogadas: partidasJogadas,
             relogioAnterior: equipment.relogioAnterior,
-            relogioAtual: relogioAtual,
+            relogioAtual: Math.round(relogioAtual),
           };
       } else {
-        const descontoPartidas = parseInt(formState.descontoPartidas || '0', 10);
+        const descontoPartidas = safeParseFloat(formState.descontoPartidas);
         const partidasCobradas = Math.max(0, partidasJogadas - descontoPartidas);
         const valorFicha = equipment.valorFicha || 0;
         const valorBruto = partidasCobradas * valorFicha;
-        const parteFirma = valorBruto * ((equipment.parteFirma || 0) / 100);
-        const parteCliente = valorBruto * ((equipment.parteCliente || 0) / 100);
+        const parteFirma = Math.round((valorBruto * ((equipment.parteFirma || 0) / 100)) * 100) / 100;
+        const parteCliente = valorBruto - parteFirma;
         result = { billingType: 'perPlay', partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha, valorBruto };
       }
     } else if (equipment.type === 'jukebox') {
         const valorBruto = safeParseFloat(formState.totalArrecadadoJukebox);
-        const parteFirma = valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100);
-        const parteCliente = valorBruto * ((equipment.porcentagemJukeboxCliente || 0) / 100);
+        const parteFirma = Math.round((valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100)) * 100) / 100;
+        const parteCliente = valorBruto - parteFirma;
         
-        // This part is for record keeping and will update in step 2
-        const relogioAtualJukebox = parseInt(formState.relogioAtual, 10) || 0;
+        const relogioAtualJukebox = safeParseFloat(formState.relogioAtual);
         const partidasJogadasJukebox = (formState.relogioAtual !== '' && relogioAtualJukebox >= equipment.relogioAnterior) 
-                                ? relogioAtualJukebox - equipment.relogioAnterior 
+                                ? Math.round(relogioAtualJukebox) - Math.round(equipment.relogioAnterior)
                                 : 0;
 
         result = { 
@@ -179,7 +178,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       let aluguelValor = safeParseFloat(formState.aluguelValor);
       
       if(equipment.aluguelPercentual != null){
-          aluguelValor = saldo * (equipment.aluguelPercentual / 100);
+          aluguelValor = Math.round((saldo * (equipment.aluguelPercentual / 100)) * 100) / 100;
       }
       
       const valorTotalFirma = saldo - aluguelValor;
@@ -191,9 +190,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           valorTotal: valorTotalFirma,
           recebimentoEspecie,
           recebimentoPix,
-          sobraPelucia: parseInt(formState.sobraPelucia || '0', 10),
-          reposicaoPelucia: parseInt(formState.reposicaoPelucia || '0', 10),
-          quantidadePelucia: parseInt(formState.quantidadePelucia || '0', 10),
+          sobraPelucia: Math.round(safeParseFloat(formState.sobraPelucia)),
+          reposicaoPelucia: Math.round(safeParseFloat(formState.reposicaoPelucia)),
+          quantidadePelucia: Math.round(safeParseFloat(formState.quantidadePelucia)),
       };
     }
     
@@ -216,7 +215,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   useEffect(() => {
     if ((mesaStep === 2 || jukeboxStep === 2) && equipment.type !== 'grua') {
       const initialTotal = calculation.valorTotal || 0;
-      setPaymentValues({ dinheiro: initialTotal > 0 ? initialTotal.toFixed(2).replace('.', ',') : '', pix: '', negativo: '', bonus: '' });
+      setPaymentValues({ dinheiro: initialTotal > 0 ? String(initialTotal) : '', pix: '', negativo: '', bonus: '' });
     }
   }, [mesaStep, jukeboxStep, equipment.type, calculation.valorTotal]);
   
@@ -226,26 +225,26 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
         if (equipment.type === 'grua') {
             if (['sobraPelucia', 'quantidadePelucia'].includes(field)) {
-                const quantidadeTotal = parseInt(newState.quantidadePelucia || '0', 10);
-                const sobras = parseInt(newState.sobraPelucia || '0', 10);
+                const quantidadeTotal = Math.round(safeParseFloat(newState.quantidadePelucia));
+                const sobras = Math.round(safeParseFloat(newState.sobraPelucia));
                 newState.reposicaoPelucia = String(Math.max(0, quantidadeTotal - sobras));
             }
 
-            const relogioAtualNum = parseInt(newState.relogioAtual, 10) || 0;
+            const relogioAtualNum = safeParseFloat(newState.relogioAtual);
             const relogioAnteriorNum = equipment.relogioAnterior || 0;
             const saldoBruto = (relogioAtualNum >= relogioAnteriorNum) ? relogioAtualNum - relogioAnteriorNum : 0;
-            newState.saldo = String(saldoBruto.toFixed(2).replace('.', ','));
+            newState.saldo = String(saldoBruto);
 
             let aluguelValorNum = safeParseFloat(newState.aluguelValor);
             if (equipment.aluguelPercentual != null) {
-                aluguelValorNum = saldoBruto * (equipment.aluguelPercentual / 100);
-                newState.aluguelValor = String(aluguelValorNum.toFixed(2).replace('.', ','));
+                aluguelValorNum = Math.round((saldoBruto * (equipment.aluguelPercentual / 100)) * 100) / 100;
+                newState.aluguelValor = String(aluguelValorNum);
             }
             
             const valorTotalFirma = saldoBruto - aluguelValorNum;
             const recebimentoEspecieNum = safeParseFloat(newState.recebimentoEspecie);
             const pixCalculado = Math.max(0, valorTotalFirma - recebimentoEspecieNum);
-            newState.recebimentoPix = String(pixCalculado.toFixed(2).replace('.', ','));
+            newState.recebimentoPix = String(pixCalculado);
         }
         
         return newState;
@@ -256,9 +255,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     setPaymentValues(prev => {
         const newValues = { ...prev, [field]: value };
 
-        // Auto-calculate 'dinheiro' field for Mesa/Jukebox payment screen
         if (equipment.type === 'mesa' || equipment.type === 'jukebox') {
-            // Recalculate if bonus, negativo, or pix are changed by the user
             if (field === 'pix' || field === 'bonus' || field === 'negativo') {
                 const newBonus = safeParseFloat(newValues.bonus);
                 const newNegativo = safeParseFloat(newValues.negativo);
@@ -267,8 +264,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 const liquido = valorTotalParaFirma - newBonus - newNegativo;
                 const newDinheiro = liquido - newPix;
                 
-                // Update 'dinheiro' field automatically. Use a small threshold for float issues.
-                newValues.dinheiro = newDinheiro > 0.001 ? newDinheiro.toFixed(2).replace('.', ',') : '';
+                newValues.dinheiro = newDinheiro > 0 ? String(newDinheiro) : '';
             }
         }
         
@@ -277,12 +273,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [valorTotalParaFirma, equipment.type]);
 
   const generateBillingObject = useCallback((): Billing | null => {
-    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
+    const relogioAtual = safeParseFloat(formState.relogioAtual);
 
     if (equipment.type !== 'jukebox' && relogioAtual < equipment.relogioAnterior) {
       return null; // Safeguard for non-jukebox
     }
-    // FIX: Refactored to explicitly build the final Billing object, ensuring type safety and correct property assignment for all equipment types.
     const baseBillingData = {
         id: uuidv4(),
         customerId: customer.id,
@@ -291,7 +286,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         equipmentType: equipment.type,
         equipmentNumero: equipment.numero,
         relogioAnterior: equipment.relogioAnterior,
-        relogioAtual: relogioAtual,
+        relogioAtual: Math.round(relogioAtual),
         settledAt: new Date(),
         ...calculation,
         valorTotal: calculation.valorTotal || 0,
@@ -335,11 +330,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const finalBilling: Billing = {
             ...baseBillingData,
             paymentMethod,
-            valorPagoDinheiro: valorPagoDinheiro > 0 ? valorPagoDinheiro : undefined,
-            valorPagoPix: valorPagoPix > 0 ? valorPagoPix : undefined,
-            valorDebitoNegativo: valorDebitoNegativo > 0 ? valorDebitoNegativo : undefined,
-            valorBonus: valorBonus > 0 ? valorBonus : undefined,
         };
+        
+        if (valorPagoDinheiro > 0) finalBilling.valorPagoDinheiro = valorPagoDinheiro;
+        if (valorPagoPix > 0) finalBilling.valorPagoPix = valorPagoPix;
+        if (valorDebitoNegativo > 0) finalBilling.valorDebitoNegativo = valorDebitoNegativo;
+        if (valorBonus > 0) finalBilling.valorBonus = valorBonus;
+
         return finalBilling;
     }
   }, [formState, calculation, equipment, customer, paymentValues]);
@@ -351,7 +348,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       setError("Nenhuma leitura inserida. Preencha o campo de Leitura Atual.");
       return false;
     }
-    const relogioAtual = parseInt(formState.relogioAtual, 10) || 0;
+    const relogioAtual = safeParseFloat(formState.relogioAtual);
     if (relogioAtual < equipment.relogioAnterior) {
       setError(`Leitura atual (${relogioAtual}) não pode ser menor que a anterior (${equipment.relogioAnterior}).`);
       return false;
@@ -393,7 +390,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const handleFinalize = () => {
     if (equipment.type === 'jukebox') {
         if (!validateJukeboxStep1()) return;
-        const relogioAtual = parseInt(formState.relogioAtual, 10);
+        const relogioAtual = safeParseFloat(formState.relogioAtual);
         if (isNaN(relogioAtual) || formState.relogioAtual.trim() === '') {
             setError("Por favor, insira a Leitura Atual para confirmação.");
             return;
@@ -414,15 +411,15 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const saldo = safeParseFloat(formState.saldo);
         let aluguelValor = safeParseFloat(formState.aluguelValor);
         if (equipment.aluguelPercentual != null) {
-            aluguelValor = saldo * (equipment.aluguelPercentual / 100);
+            aluguelValor = Math.round((saldo * (equipment.aluguelPercentual / 100)) * 100) / 100;
         }
         const baseValorTotalFirma = saldo - aluguelValor;
 
-        if (Math.round(totalRecebido * 100) !== Math.round(baseValorTotalFirma * 100)) {
+        if (totalRecebido !== baseValorTotalFirma) {
             setError("O valor recebido (espécie + PIX) deve ser igual ao total calculado para a firma.");
             return;
         }
-    } else if (Math.round(remainingAmountLiquido * 100) !== 0) {
+    } else if (remainingAmountLiquido !== 0) {
       setError("A soma dos pagamentos (Dinheiro, PIX, Negativo, Bônus) deve ser igual ao valor total para a firma.");
       return;
     }
@@ -448,7 +445,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
   const isGrua = equipment.type === 'grua';
   const isJukebox = equipment.type === 'jukebox';
-  const isReadingInvalid = (parseInt(formState.relogioAtual, 10) || 0) < equipment.relogioAnterior;
+  const isReadingInvalid = (safeParseFloat(formState.relogioAtual)) < equipment.relogioAnterior;
 
   const renderJukeboxStep1 = () => (
     <div className="space-y-4">
@@ -467,16 +464,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Rateio</h4>
                 <div className="flex justify-between font-bold text-lg text-white">
                     <span>VALOR BRUTO TOTAL:</span>
-                    <span className="font-mono">R$ {(calculation.valorBruto || 0).toFixed(2).replace('.', ',')}</span>
+                    <span className="font-mono">R$ {calculation.valorBruto || 0}</span>
                 </div>
                 <hr className="border-dashed border-slate-600 my-2" />
                 <div className="flex justify-between text-slate-300">
                     <span>Parte Cliente ({equipment.porcentagemJukeboxCliente}%):</span>
-                    <span className="font-mono">R$ {(calculation.parteCliente || 0).toFixed(2).replace('.', ',')}</span>
+                    <span className="font-mono">R$ {calculation.parteCliente || 0}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lime-400">
                     <span>Parte Firma ({equipment.porcentagemJukeboxFirma}%):</span>
-                    <span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span>
+                    <span className="font-mono">R$ {calculation.parteFirma || 0}</span>
                 </div>
             </div>
         )}
@@ -491,7 +488,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   label="Leitura Atual (Confirmação)" 
                   name="relogioAtual" 
                   value={formState.relogioAtual} 
-                  type="number" 
+                  type="text" 
                   inputMode="numeric"
                   equipmentId={equipment.id}
                   isReadingInvalid={isReadingInvalid && !!formState.relogioAtual}
@@ -504,14 +501,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
           {valorNegativo > 0 && (
               <div className="text-right py-2 border-t border-b border-slate-700">
-                  <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toFixed(2).replace('.', ',')}</span></p>
+                  <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber}</span></p>
               </div>
           )}
           <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
           <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-          {Math.round(remainingAmountLiquido * 100) !== 0 && (
+          {remainingAmountLiquido !== 0 && (
               <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
-                  {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toFixed(2).replace('.', ',')}`}
+                  {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido)}`}
               </div>
           )}
       </div>
@@ -520,11 +517,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const renderGruaStep1 = () => (
     <div className="space-y-4">
       <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-      <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
+      <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="text" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
       <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
       {equipment.aluguelPercentual != null ? (
         <>
-            <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly/>
+            <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly/>
             <FormField label="Aluguel Calculado (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
         </>
       ) : (
@@ -538,16 +535,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         <h4 className="text-lg font-bold text-white mb-3 text-center">Conferência para o Cliente</h4>
         <div className="flex justify-between text-slate-300 text-base">
             <span>Saldo Bruto:</span>
-            <span className="font-mono">R$ {(calculation.saldo || 0).toFixed(2).replace('.', ',')}</span>
+            <span className="font-mono">R$ {calculation.saldo || 0}</span>
         </div>
         <div className="flex justify-between text-slate-300 text-base">
             <span>Parte da Firma:</span>
-            <span className="font-mono text-amber-400">- R$ {(calculation.valorTotal || 0).toFixed(2).replace('.', ',')}</span>
+            <span className="font-mono text-amber-400">- R$ {calculation.valorTotal || 0}</span>
         </div>
         <hr className="border-dashed border-slate-600 my-2" />
         <div className="flex justify-between font-bold text-xl text-lime-400">
             <span>TOTAL PARA O CLIENTE:</span>
-            <span className="font-mono">R$ {(calculation.aluguelValor || 0).toFixed(2).replace('.', ',')}</span>
+            <span className="font-mono">R$ {calculation.aluguelValor || 0}</span>
         </div>
     </div>
   );
@@ -558,9 +555,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
-          <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Reposição (Automático)" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
+          <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Reposição (Automático)" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
       </div>
   );
 
@@ -595,21 +592,21 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
              mesaStep === 1 ? (
                 <div className="space-y-4">
                   <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="number" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
-                  {equipment.type === 'mesa' && !isMonthlyFee && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="number" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />}
+                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="text" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
+                  {equipment.type === 'mesa' && !isMonthlyFee && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />}
                   
                   {equipment.type === 'mesa' && !isMonthlyFee && !isReadingInvalid && formState.relogioAtual && (
                     <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
                       <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Cálculo</h4>
                       <div className="flex justify-between text-slate-300"><span>Leitura Anterior:</span><span className="font-mono">{equipment.relogioAnterior}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Leitura Atual:</span><span className="font-mono">{parseInt(formState.relogioAtual, 10) || 0}</span></div>
+                      <div className="flex justify-between text-slate-300"><span>Leitura Atual:</span><span className="font-mono">{Math.round(safeParseFloat(formState.relogioAtual))}</span></div>
                       <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Total de Fichas:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
                       <div className="flex justify-between text-slate-300"><span>Desconto (Fichas):</span><span className="font-mono text-amber-400">-{calculation.descontoPartidas || 0}</span></div>
                       <div className="flex justify-between font-semibold text-white"><span>Fichas Cobradas:</span><span className="font-mono">{calculation.partidasCobradas || 0}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {(calculation.valorFicha || 0).toFixed(2).replace('.', ',')}</span></div>
-                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {(calculation.valorBruto || 0).toFixed(2).replace('.', ',')}</span></div>
-                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {(calculation.parteCliente || 0).toFixed(2).replace('.', ',')}</span></div>
-                      <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toFixed(2).replace('.', ',')}</span></div>
+                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {calculation.valorFicha || 0}</span></div>
+                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {calculation.valorBruto || 0}</span></div>
+                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {calculation.parteCliente || 0}</span></div>
+                      <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {calculation.parteFirma || 0}</span></div>
                     </div>
                   )}
 
@@ -618,7 +615,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                         <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Mês</h4>
                         <div className="flex justify-between text-slate-300"><span>Partidas Jogadas no Período:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
                         <hr className="border-dashed border-slate-600 my-2" />
-                        <div className="flex justify-between font-bold text-lg text-lime-400"><span>VALOR MENSAL FIXO:</span><span className="font-mono">R$ {(calculation.valorTotal || 0).toFixed(2).replace('.', ',')}</span></div>
+                        <div className="flex justify-between font-bold text-lg text-lime-400"><span>VALOR MENSAL FIXO:</span><span className="font-mono">R$ {calculation.valorTotal || 0}</span></div>
                     </div>
                   )}
 
@@ -631,16 +628,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   
                   {(valorNegativo > 0 || valorBonus > 0) && (
                     <div className="text-right py-2 border-t border-b border-slate-700">
-                        <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toFixed(2).replace('.', ',')}</span></p>
+                        <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber}</span></p>
                     </div>
                   )}
 
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
                   
-                  {Math.round(remainingAmountLiquido * 100) !== 0 && (
+                  {remainingAmountLiquido !== 0 && (
                       <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
-                          {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toFixed(2).replace('.', ',')}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toFixed(2).replace('.', ',')}`}
+                          {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido)}`}
                       </div>
                   )}
                 </div>
@@ -660,10 +657,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 <p className="text-slate-400">Total para a Firma:
                   {valorBonus > 0 && (
                     <span className="font-mono text-base text-slate-400 block">
-                      (R$ {valorTotalParaFirma.toFixed(2).replace('.', ',')} - R$ {valorBonus.toFixed(2).replace('.', ',')})
+                      (R$ {valorTotalParaFirma} - R$ {valorBonus})
                     </span>
                   )}
-                  <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorFinalFirma.toFixed(2).replace('.', ',')}</span>
+                  <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorFinalFirma}</span>
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -688,7 +685,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                         <button onClick={() => setJukeboxStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
                         <button 
                           onClick={handleFinalize} 
-                          disabled={!!error || Math.round(remainingAmountLiquido * 100) !== 0}
+                          disabled={!!error || remainingAmountLiquido !== 0}
                           className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                         >
                           Finalizar Cobrança
@@ -711,7 +708,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                     <button onClick={() => setMesaStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
                     <button 
                       onClick={handleFinalize} 
-                      disabled={Math.round(remainingAmountLiquido * 100) !== 0}
+                      disabled={remainingAmountLiquido !== 0}
                       className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                     >
                       Finalizar Cobrança

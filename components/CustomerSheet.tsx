@@ -56,14 +56,14 @@ const EquipmentCard: React.FC<{ equip: Equipment }> = ({ equip }) => {
                     ? ( // Monthly billing
                         <InfoRow 
                             label="Mensalidade Fixa" 
-                            value={equip.monthlyFeeValue != null ? `R$ ${Number(equip.monthlyFeeValue).toFixed(2)}` : null} 
+                            value={equip.monthlyFeeValue != null ? `R$ ${Number(equip.monthlyFeeValue)}` : null} 
                         />
                     ) 
                     : ( // Per-play billing (default)
                         <>
                             <InfoRow 
                                 label="Valor da Ficha" 
-                                value={equip.valorFicha != null ? `R$ ${Number(equip.valorFicha).toFixed(2)}` : null} 
+                                value={equip.valorFicha != null ? `R$ ${Number(equip.valorFicha)}` : null} 
                             />
                             <div /> 
                             <InfoRow 
@@ -95,7 +95,7 @@ const EquipmentCard: React.FC<{ equip: Equipment }> = ({ equip }) => {
                 {/* --- GRUA --- */}
                 {equip.type === 'grua' && (
                     <>
-                       {equip.aluguelValor && equip.aluguelValor > 0 && <InfoRow label="Aluguel (Fixo)" value={`R$ ${equip.aluguelValor.toFixed(2)}`} />}
+                       {equip.aluguelValor && equip.aluguelValor > 0 && <InfoRow label="Aluguel (Fixo)" value={`R$ ${equip.aluguelValor}`} />}
                        {equip.aluguelPercentual && equip.aluguelPercentual > 0 && <InfoRow label="Aluguel (%)" value={`${equip.aluguelPercentual}%`} />}
                        <InfoRow label="Capacidade Pelúcias" value={equip.quantidadePelucia || 0} />
                     </>

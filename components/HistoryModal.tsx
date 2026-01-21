@@ -123,7 +123,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                                                 <p className="text-sm text-slate-500 dark:text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
                                             </div>
                                             <p className={`font-mono font-bold text-lg ${style.text}`}>
-                                                R$ {item.amount.toFixed(2)}
+                                                R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>
                                         </div>
                                         {item.paymentMethod && (

@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from 'react';
 import QRCode from 'qrcode';
 
-const pixKey = "43999581993";
+const pixKey = "+5543999581993";
 const pixPayload = "00020126360014BR.GOV.BCB.PIX0114+55439995819935204000053039865802BR5915BILHAR MONTANHA6012Jaguapita-PR62070503***6304F96E";
 
 const PixQrCode: React.FC = () => {

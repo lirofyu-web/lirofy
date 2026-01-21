@@ -15,10 +15,10 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
     };
 
     return (
-        <div>
+        <div className="font-bold text-sm">
             <div className="header text-center mb-4">
-                <h3 className="font-bold text-base">MONTANHA BILHAR & JUKEBOX</h3>
-                <p>COMPROVANTE DE PAGAMENTO DE DÍVIDA</p>
+                <h3 className="font-bold text-lg">MONTANHA BILHAR & JUKEBOX</h3>
+                <p className="font-bold">COMPROVANTE DE PAGAMENTO DE DÍVIDA</p>
                 <p>--------------------------------</p>
             </div>
             
@@ -29,7 +29,7 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
                 
                 <div className="flex justify-between font-bold text-base pt-2 mt-2">
                     <span>VALOR PAGO:</span>
-                    <span>R$ {debtPayment.amountPaid.toFixed(2)}</span>
+                    <span>R$ {debtPayment.amountPaid}</span>
                 </div>
                 <div className="flex justify-between pt-1">
                     <span>Pagamento:</span>

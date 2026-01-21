@@ -45,7 +45,10 @@
       }
       body {
         font-family: 'Inter', sans-serif;
-        background-attachment: fixed;
+        background-color: #f1f5f9; /* slate-100 */
+      }
+      .dark body {
+        background-color: #0f172a; /* slate-900 */
       }
       /* Custom Marker Cluster Styles */
       .marker-cluster-small {
@@ -130,6 +133,9 @@
           background: #ffffff !important;
           padding-top: 0 !important;
         }
+        body::before {
+            display: none;
+        }
         /* Hide everything in the app's root div except the print overlay */
         body > #root > div > *:not(.print-overlay) {
             display: none !important;
@@ -165,7 +171,7 @@
 }
 </script>
   </head>
-  <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
+  <body class="transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

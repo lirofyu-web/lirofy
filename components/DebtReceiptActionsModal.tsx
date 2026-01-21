@@ -11,7 +11,7 @@ interface DebtReceiptActionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onShare: () => Promise<void>;
-  onViewReceipt: () => void;
+  onPrint: () => void;
   onPrintRawBt: () => Promise<void>;
   onPrintSunmi: () => Promise<void>;
   debtPayment: DebtPayment;
@@ -23,7 +23,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
   isOpen,
   onClose,
   onShare,
-  onViewReceipt,
+  onPrint,
   onPrintRawBt,
   onPrintSunmi,
   isSharing,
@@ -57,7 +57,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
             </button>
           )}
           <button
-            onClick={onViewReceipt}
+            onClick={onPrint}
             disabled={isSharing}
             className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-slate-500"
           >
@@ -82,7 +82,7 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
             <ShareIcon className="w-5 h-5" />
             <span>{isSharing ? 'Aguarde...' : 'Compartilhar (Texto)'}</span>
           </button>
-           <button
+          <button
             onClick={onClose}
             disabled={isSharing}
             className="w-full mt-2 bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500 transition-colors disabled:bg-slate-500"
@@ -92,13 +92,8 @@ const DebtReceiptActionsModal: React.FC<DebtReceiptActionsModalProps> = ({
         </div>
       </div>
       <style>{`
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.3s ease-out forwards;
-        }
+        @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
       `}</style>
     </div>
   );

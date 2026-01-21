@@ -3,16 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     match /users/{userId}/{document=**} {
-      // Allow authenticated users to read and write their own documents.
+      // Allow authenticated users to read and write their own documents,
+      // including their profile and other data.
       allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    match /user_profiles/{userId} {
-      // A user can read, create, and update their own profile.
-      allow get, create, update: if request.auth != null && request.auth.uid == userId;
-      
-      // Disallow listing or deleting profiles from the client-side.
-      allow list, delete: if false;
     }
   }
 }

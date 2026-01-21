@@ -11,7 +11,7 @@ interface ReceiptActionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onShare: () => Promise<void>;
-  onViewReceipt: () => void;
+  onPrint: () => void;
   onPrintRawBt: () => Promise<void>;
   onPrintSunmi: () => Promise<void>;
   billing: Billing;
@@ -24,7 +24,7 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
   isOpen,
   onClose,
   onShare,
-  onViewReceipt,
+  onPrint,
   onPrintRawBt,
   onPrintSunmi,
   isSharing,
@@ -58,7 +58,7 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
             </button>
           )}
           <button
-            onClick={onViewReceipt}
+            onClick={onPrint}
             disabled={isSharing}
             className="w-full inline-flex items-center justify-center gap-2 bg-cyan-600 text-white font-bold py-3 px-6 rounded-md hover:bg-cyan-500 transition-colors disabled:bg-slate-500"
           >

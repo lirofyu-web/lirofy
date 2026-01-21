@@ -31,11 +31,11 @@ const DebtReminders: React.FC<DebtRemindersProps> = ({ customers }) => {
             <div>
               <p className="font-bold text-slate-800 dark:text-white break-words">{customer.name}</p>
               <p className="text-sm font-mono font-semibold text-red-600 dark:text-red-400">
-                Dívida: R$ {customer.debtAmount.toFixed(2)}
+                Dívida: R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <a
-              href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${customer.name}, tudo bem? Passando para lembrar sobre o valor de R$ ${customer.debtAmount.toFixed(2)} que ficou pendente. Quando seria uma boa data para acertarmos?`)}`}
+              href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${customer.name}, tudo bem? Passando para lembrar sobre o valor de R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} que ficou pendente. Quando seria uma boa data para acertarmos?`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className={`flex-shrink-0 inline-flex items-center gap-2 text-white text-xs font-bold py-1.5 px-3 rounded-md transition-colors ${

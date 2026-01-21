@@ -29,6 +29,7 @@ interface FullScreenCustomerViewProps {
   onHistory: (customer: Customer) => void;
   onShare: (customer: Customer) => void;
   onLocationActions: (customer: Customer) => void;
+  onWhatsAppActions: (customer: Customer) => void;
   billings: Billing[];
   debtPayments: DebtPayment[];
 }
@@ -83,7 +84,7 @@ const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label:
     </button>
 );
 
-const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, billings, debtPayments }) => {
+const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, billings, debtPayments }) => {
   if (!customer) return null;
   
   const hasDebt = customer.debtAmount > 0;
@@ -210,13 +211,16 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                  <div className="bg-slate-900/50 p-4 rounded-xl">
                     <h3 className="text-lg font-bold text-slate-300 mb-3">Contato e Localização</h3>
                     <div className="grid grid-cols-2 gap-3">
-                        <a href={`https://wa.me/55${customer.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}`}>
+                        <button onClick={() => onWhatsAppActions(customer)} className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${customer.telefone ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-sky-700 hover:bg-sky-600 text-white'}`}>
                             <WhatsAppIcon className="w-6 h-6" />
-                            <span className="mt-1.5">WhatsApp</span>
-                        </a>
-                        <button onClick={() => onLocationActions(customer)} disabled={!customer.latitude} className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}`}>
+                            <span className="mt-1.5">{customer.telefone ? 'WhatsApp' : 'Adicionar Fone'}</span>
+                        </button>
+                        <button 
+                            onClick={() => onLocationActions(customer)} 
+                            className={`flex-1 flex flex-col items-center justify-center p-3 rounded-lg text-sm font-bold transition-colors ${customer.latitude ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-sky-700 hover:bg-sky-600 text-white'}`}
+                        >
                             <LocationArrowIcon className="w-6 h-6" />
-                            <span className="mt-1.5">Localização</span>
+                            <span className="mt-1.5">{customer.latitude ? 'Localização' : 'Salvar Local'}</span>
                         </button>
                     </div>
                 </div>

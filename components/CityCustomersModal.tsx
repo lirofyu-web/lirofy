@@ -19,6 +19,7 @@ interface CityCustomersModalProps {
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
   onLocationActions: (customer: Customer) => void;
+  onWhatsAppActions: (customer: Customer) => void;
 }
 
 const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
@@ -35,6 +36,7 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
   showNotification,
   onFocusCustomer,
   onLocationActions,
+  onWhatsAppActions,
 }) => {
   return (
     <div
@@ -74,6 +76,7 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
                   showNotification={showNotification}
                   onFocusCustomer={onFocusCustomer}
                   onLocationActions={onLocationActions}
+                  onWhatsAppActions={onWhatsAppActions}
                 />
               );
             })}
