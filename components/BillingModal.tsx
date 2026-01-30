@@ -151,13 +151,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const valorFicha = equipment.valorFicha || 0;
         const valorBruto = partidasCobradas * valorFicha;
         const parteFirma = Math.round((valorBruto * ((equipment.parteFirma || 0) / 100)) * 100) / 100;
-        const parteCliente = valorBruto - parteFirma;
+        const parteCliente = Number((valorBruto - parteFirma).toFixed(2));
         result = { billingType: 'perPlay', partidasJogadas, descontoPartidas, partidasCobradas, valorTotal: parteFirma, parteFirma, parteCliente, valorFicha, valorBruto };
       }
     } else if (equipment.type === 'jukebox') {
         const valorBruto = safeParseFloat(formState.totalArrecadadoJukebox);
         const parteFirma = Math.round((valorBruto * ((equipment.porcentagemJukeboxFirma || 0) / 100)) * 100) / 100;
-        const parteCliente = valorBruto - parteFirma;
+        const parteCliente = Number((valorBruto - parteFirma).toFixed(2));
         
         const relogioAtualJukebox = safeParseFloat(formState.relogioAtual);
         const partidasJogadasJukebox = (formState.relogioAtual !== '' && relogioAtualJukebox >= equipment.relogioAnterior) 
@@ -415,11 +415,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         }
         const baseValorTotalFirma = saldo - aluguelValor;
 
-        if (totalRecebido !== baseValorTotalFirma) {
+        if (Math.abs(totalRecebido - baseValorTotalFirma) > 0.01) { // Tolera 1 centavo de diferença
             setError("O valor recebido (espécie + PIX) deve ser igual ao total calculado para a firma.");
             return;
         }
-    } else if (remainingAmountLiquido !== 0) {
+    } else if (Math.abs(remainingAmountLiquido) > 0.01) { // Tolera 1 centavo de diferença
       setError("A soma dos pagamentos (Dinheiro, PIX, Negativo, Bônus) deve ser igual ao valor total para a firma.");
       return;
     }
@@ -464,16 +464,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Rateio</h4>
                 <div className="flex justify-between font-bold text-lg text-white">
                     <span>VALOR BRUTO TOTAL:</span>
-                    <span className="font-mono">R$ {calculation.valorBruto || 0}</span>
+                    <span className="font-mono">R$ {(calculation.valorBruto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <hr className="border-dashed border-slate-600 my-2" />
                 <div className="flex justify-between text-slate-300">
                     <span>Parte Cliente ({equipment.porcentagemJukeboxCliente}%):</span>
-                    <span className="font-mono">R$ {calculation.parteCliente || 0}</span>
+                    <span className="font-mono">R$ {(calculation.parteCliente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lime-400">
                     <span>Parte Firma ({equipment.porcentagemJukeboxFirma}%):</span>
-                    <span className="font-mono">R$ {calculation.parteFirma || 0}</span>
+                    <span className="font-mono">R$ {(calculation.parteFirma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
             </div>
         )}
@@ -501,14 +501,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
           {valorNegativo > 0 && (
               <div className="text-right py-2 border-t border-b border-slate-700">
-                  <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber}</span></p>
+                  <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
               </div>
           )}
           <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
           <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-          {remainingAmountLiquido !== 0 && (
+          {Math.abs(remainingAmountLiquido) > 0.01 && (
               <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
-                  {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido)}`}
+                  {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </div>
           )}
       </div>
@@ -535,16 +535,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         <h4 className="text-lg font-bold text-white mb-3 text-center">Conferência para o Cliente</h4>
         <div className="flex justify-between text-slate-300 text-base">
             <span>Saldo Bruto:</span>
-            <span className="font-mono">R$ {calculation.saldo || 0}</span>
+            <span className="font-mono">R$ {(calculation.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="flex justify-between text-slate-300 text-base">
             <span>Parte da Firma:</span>
-            <span className="font-mono text-amber-400">- R$ {calculation.valorTotal || 0}</span>
+            <span className="font-mono text-amber-400">- R$ {(calculation.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
         <hr className="border-dashed border-slate-600 my-2" />
         <div className="flex justify-between font-bold text-xl text-lime-400">
             <span>TOTAL PARA O CLIENTE:</span>
-            <span className="font-mono">R$ {calculation.aluguelValor || 0}</span>
+            <span className="font-mono">R$ {(calculation.aluguelValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
     </div>
   );
@@ -603,10 +603,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                       <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Total de Fichas:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
                       <div className="flex justify-between text-slate-300"><span>Desconto (Fichas):</span><span className="font-mono text-amber-400">-{calculation.descontoPartidas || 0}</span></div>
                       <div className="flex justify-between font-semibold text-white"><span>Fichas Cobradas:</span><span className="font-mono">{calculation.partidasCobradas || 0}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {calculation.valorFicha || 0}</span></div>
-                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {calculation.valorBruto || 0}</span></div>
-                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {calculation.parteCliente || 0}</span></div>
-                      <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {calculation.parteFirma || 0}</span></div>
+                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {(calculation.valorFicha || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {(calculation.valorBruto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {(calculation.parteCliente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                      <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                     </div>
                   )}
 
@@ -615,7 +615,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                         <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Mês</h4>
                         <div className="flex justify-between text-slate-300"><span>Partidas Jogadas no Período:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
                         <hr className="border-dashed border-slate-600 my-2" />
-                        <div className="flex justify-between font-bold text-lg text-lime-400"><span>VALOR MENSAL FIXO:</span><span className="font-mono">R$ {calculation.valorTotal || 0}</span></div>
+                        <div className="flex justify-between font-bold text-lg text-lime-400"><span>VALOR MENSAL FIXO:</span><span className="font-mono">R$ {(calculation.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
                     </div>
                   )}
 
@@ -628,16 +628,16 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   
                   {(valorNegativo > 0 || valorBonus > 0) && (
                     <div className="text-right py-2 border-t border-b border-slate-700">
-                        <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber}</span></p>
+                        <p className="text-slate-400">Líquido a Receber: <span className="font-mono font-bold text-sky-400 text-lg">R$ {liquidoAReceber.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
                     </div>
                   )}
 
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
                   
-                  {remainingAmountLiquido !== 0 && (
+                  {Math.abs(remainingAmountLiquido) > 0.01 && (
                       <div className={`mt-2 text-center text-sm p-2 rounded-md ${remainingAmountLiquido > 0 ? 'bg-amber-900/50 text-amber-300' : 'bg-red-900/50 text-red-300'}`}>
-                          {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido)}`}
+                          {remainingAmountLiquido > 0 ? `Falta alocar: R$ ${remainingAmountLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `Valor excedido: R$ ${Math.abs(remainingAmountLiquido).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </div>
                   )}
                 </div>
@@ -657,10 +657,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                 <p className="text-slate-400">Total para a Firma:
                   {valorBonus > 0 && (
                     <span className="font-mono text-base text-slate-400 block">
-                      (R$ {valorTotalParaFirma} - R$ {valorBonus})
+                      (R$ {valorTotalParaFirma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - R$ {valorBonus.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                     </span>
                   )}
-                  <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorFinalFirma}</span>
+                  <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorFinalFirma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -685,7 +685,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                         <button onClick={() => setJukeboxStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
                         <button 
                           onClick={handleFinalize} 
-                          disabled={!!error || remainingAmountLiquido !== 0}
+                          disabled={!!error || Math.abs(remainingAmountLiquido) > 0.01}
                           className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                         >
                           Finalizar Cobrança
@@ -708,7 +708,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                     <button onClick={() => setMesaStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
                     <button 
                       onClick={handleFinalize} 
-                      disabled={remainingAmountLiquido !== 0}
+                      disabled={Math.abs(remainingAmountLiquido) > 0.01}
                       className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
                     >
                       Finalizar Cobrança

@@ -12,6 +12,7 @@ import { LocationMarkerIcon } from './icons/LocationMarkerIcon';
 import SignatureModal from './SignatureModal';
 import { ImageIcon } from './icons/ImageIcon';
 import { safeParseFloat } from '../utils';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CustomerFormProps {
   customers: Customer[];
@@ -128,11 +129,11 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
   const addEquipment = useCallback((type: 'mesa' | 'jukebox' | 'grua') => {
       let newEquipment: Partial<Equipment>;
       if (type === 'mesa') {
-          newEquipment = { id: `new_${new Date().getTime()}`, type: 'mesa', billingType: 'perPlay', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2, parteFirma: 50, parteCliente: 50, monthlyFeeValue: 0 };
+          newEquipment = { id: uuidv4(), type: 'mesa', billingType: 'perPlay', numero: '', relogioNumero: '', relogioAnterior: 0, valorFicha: 2, parteFirma: 50, parteCliente: 50, monthlyFeeValue: 0 };
       } else if (type === 'jukebox') {
-          newEquipment = { id: `new_${new Date().getTime()}`, type: 'jukebox', numero: '', relogioNumero: '', relogioAnterior: 0, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
+          newEquipment = { id: uuidv4(), type: 'jukebox', numero: '', relogioNumero: '', relogioAnterior: 0, porcentagemJukeboxFirma: 50, porcentagemJukeboxCliente: 50 };
       } else {
-          newEquipment = { id: `new_${new Date().getTime()}`, type: 'grua', numero: '', relogioAnterior: 0, aluguelValor: 0, saldo: 0, reposicaoPelucia: 0, recebimentoEspecie: 0, recebimentoPix: 0 };
+          newEquipment = { id: uuidv4(), type: 'grua', numero: '', relogioAnterior: 0, aluguelValor: 0, saldo: 0, reposicaoPelucia: 0, recebimentoEspecie: 0, recebimentoPix: 0 };
       }
       setFormData(prev => {
           const newEquipmentList = [...(prev.equipment || []), newEquipment];

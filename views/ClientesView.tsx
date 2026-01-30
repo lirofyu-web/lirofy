@@ -36,6 +36,15 @@ interface ClientesViewProps {
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
 
+// Debounce function to delay search filtering
+const debounce = (func: (...args: any[]) => void, delay: number) => {
+    let timeout: ReturnType<typeof setTimeout>;
+    return (...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), delay);
+    };
+};
+
 const ClientesView: React.FC<ClientesViewProps> = ({ 
     customers, 
     warnings,
@@ -54,6 +63,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onWhatsAppActions,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   const [viewingCity, setViewingCity] = useState<string | null>(null);
   const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -62,6 +72,17 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+  // State for list virtualization
+  const [visibleCities, setVisibleCities] = useState<Set<string>>(new Set());
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  // Debounce search input
+  const debouncedSetSearch = useCallback(debounce(setDebouncedSearchQuery, 300), []);
+  useEffect(() => {
+      debouncedSetSearch(searchQuery);
+  }, [searchQuery, debouncedSetSearch]);
+
 
   // Get unique cities from customer list
   const uniqueCities = useMemo(() => {
@@ -91,18 +112,18 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const filteredCustomers = useMemo(() => {
     return customers
         .filter(customer => {
-            // Search query filter
-            if (!searchQuery) return true;
-            return customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   customer.cidade.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   customer.linhaNumero.toLowerCase().includes(searchQuery.toLowerCase());
+            // Search query filter (using debounced value)
+            if (!debouncedSearchQuery) return true;
+            return customer.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+                   customer.cidade.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+                   customer.linhaNumero.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
         })
         .filter(customer => {
             // Equipment filter
             if (equipmentFilter === 'all') return true;
             return (customer.equipment || []).some(e => e.type === equipmentFilter);
         });
-  }, [customers, searchQuery, equipmentFilter]);
+  }, [customers, debouncedSearchQuery, equipmentFilter]);
 
   const customersByCity = useMemo(() => {
     const grouped = filteredCustomers.reduce((acc, customer) => {
@@ -123,6 +144,33 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   }, [filteredCustomers]);
 
   const sortedCities = useMemo(() => Object.keys(customersByCity).sort((a, b) => a.localeCompare(b)), [customersByCity]);
+  
+  // Intersection Observer for virtualization
+  useEffect(() => {
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver((entries) => {
+        setVisibleCities(prev => {
+            const newVisible = new Set(prev);
+            entries.forEach(entry => {
+                const city = entry.target.getAttribute('data-city');
+                if (city) {
+                    if (entry.isIntersecting) {
+                        newVisible.add(city);
+                    } else {
+                        // Keep recently viewed items for smoother scrolling
+                        // newVisible.delete(city); 
+                    }
+                }
+            });
+            return newVisible;
+        });
+    }, { rootMargin: '200px 0px' }); // Load content 200px before it enters viewport
+
+    return () => {
+        if (observer.current) observer.current.disconnect();
+    };
+  }, []);
   
   const cityStats = useMemo(() => {
     const stats: Record<string, { visited: number; notVisited: number }> = {};
@@ -289,31 +337,41 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         {sortedCities.length > 0 ? sortedCities.map(city => (
             <section 
                 key={city}
-                ref={(el) => { citySectionRefs.current[city] = el; }}
+                ref={(el) => {
+                    if (el) {
+                        citySectionRefs.current[city] = el;
+                        observer.current?.observe(el);
+                    }
+                }}
+                data-city={city}
+                // Placeholder height for virtualization, adjust as needed
+                style={{ minHeight: visibleCities.has(city) ? 'auto' : '200px' }}
             >
                 <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-2 capitalize">{city}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {customersByCity[city].map(customer => {
-                        const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
-                        return (
-                            <CustomerCard
-                                key={customer.id}
-                                customer={customer}
-                                onBill={onBillCustomer}
-                                onEdit={onEditCustomer}
-                                onDelete={onDeleteCustomer}
-                                onPayDebt={onPayDebtCustomer}
-                                onHistory={onHistoryCustomer}
-                                onShare={onShareCustomer}
-                                onLocationActions={onLocationActions}
-                                onWhatsAppActions={onWhatsAppActions}
-                                hasActiveWarning={hasActiveWarning}
-                                showNotification={showNotification}
-                                onFocusCustomer={onFocusCustomer}
-                            />
-                        );
-                    })}
-                </div>
+                {visibleCities.has(city) ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {customersByCity[city].map(customer => {
+                            const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
+                            return (
+                                <CustomerCard
+                                    key={customer.id}
+                                    customer={customer}
+                                    onBill={onBillCustomer}
+                                    onEdit={onEditCustomer}
+                                    onDelete={onDeleteCustomer}
+                                    onPayDebt={onPayDebtCustomer}
+                                    onHistory={onHistoryCustomer}
+                                    onShare={onShareCustomer}
+                                    onLocationActions={onLocationActions}
+                                    onWhatsAppActions={onWhatsAppActions}
+                                    hasActiveWarning={hasActiveWarning}
+                                    showNotification={showNotification}
+                                    onFocusCustomer={onFocusCustomer}
+                                />
+                            );
+                        })}
+                    </div>
+                ) : null}
             </section>
         )) : (
             <p className="text-center py-10 text-slate-500 dark:text-slate-400">

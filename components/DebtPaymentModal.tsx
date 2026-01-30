@@ -18,7 +18,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
 
   useEffect(() => {
     if (isOpen) {
-      const initialAmount = String(customer.debtAmount);
+      const initialAmount = String(customer.debtAmount).replace('.', ',');
       setAmountStr(initialAmount);
       setPaymentMethod('dinheiro');
     }
@@ -43,7 +43,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
   }, [error, amountStr, onConfirm, paymentMethod]);
   
   const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmountStr(e.target.value.replace(/[^0-9]/g, ''));
+    setAmountStr(e.target.value);
   }, []);
 
   if (!isOpen) return null;
@@ -78,7 +78,7 @@ const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({ isOpen, onClose, on
               <label htmlFor="paymentAmount" className="block text-sm font-medium text-slate-300 mb-1">Valor a Pagar (R$)</label>
               <input 
                 type="text"
-                inputMode="numeric"
+                inputMode="decimal"
                 id="paymentAmount" 
                 value={amountStr} 
                 onChange={handleAmountChange}

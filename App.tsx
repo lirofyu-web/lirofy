@@ -76,7 +76,7 @@ const PrintPreviewOverlay: React.FC<{ customer: Customer; onCancel: () => void }
   }, [onCancel]);
   return (
     <div className="print-overlay fixed inset-0 bg-slate-200 dark:bg-slate-900 z-[100] flex flex-col">
-      <header className="print-controls no-print sticky top-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 shadow-md flex justify-center gap-4 flex-shrink-0">
+      <header className="print-controls no-print sticky top-0 bg-white/90 dark:bg-slate-800/90 p-4 shadow-md flex justify-center gap-4 flex-shrink-0">
         <button onClick={onCancel} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">Cancelar</button>
         <button onClick={handlePrint} className="bg-[var(--color-primary)] text-[var(--color-primary-text)] font-bold py-2 px-6 rounded-md hover:bg-[var(--color-primary-hover)] flex items-center gap-2"><PrinterIcon className="w-5 h-5" />Salvar PDF / Imprimir</button>
       </header>
@@ -884,29 +884,54 @@ const App: React.FC = () => {
               body { 
                 font-family: 'Courier New', Courier, monospace;
                 width: 72mm;
-                font-size: 10pt;
+                font-size: 16pt; /* User Request */
+                font-weight: 700; /* User Request: bold */
                 color: #000;
                 margin: 0 auto;
                 padding: 3mm;
               }
               .header { text-align: center; margin-bottom: 15px; }
-              .header h3 { margin: 0; font-size: 14px; }
-              .header p { margin: 2px 0; }
+              .header h3, .font-black { 
+                margin: 0; 
+                font-size: 20pt; /* User Request */
+                font-weight: 900; 
+              }
+              .font-bold { font-weight: 900; }
+              .text-lg { font-size: 20pt; } /* Header size */
+              .text-xl { font-size: 22pt; }
               .flex { display: flex; }
               .justify-between { justify-content: space-between; }
-              hr { border-top: 1px dashed #000; margin: 10px 0; border-bottom: 0; }
-              .font-bold { font-weight: bold; }
+              hr { border-top: 2px dashed #000; margin: 10px 0; border-bottom: 0; }
               .text-center { text-align: center; }
               .mt-1 { margin-top: 0.25rem; } .mt-2 { margin-top: 0.5rem; } .mt-4 { margin-top: 1rem; }
               .my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
               .pt-1 { padding-top: 0.25rem; } .pt-2 { padding-top: 0.5rem; }
-              .border-t { border-top-width: 1px; } .border-b { border-bottom-width: 1px; }
+              .border-t { border-top: 2px dashed #000; }
+              .border-b { border-bottom: 2px dashed #000; }
               .border-dashed { border-style: dashed; } .border-black { border-color: #000; }
-              .text-base { font-size: 1rem; line-height: 1.5rem; }
-              .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-              .text-xs { font-size: 0.75rem; line-height: 1rem; }
+              /* Scaled font sizes */
+              .text-base { font-size: 18pt; line-height: 1.5rem; } /* Total size */
+              .text-sm { font-size: 16pt; line-height: 1.25rem; } /* Body size */
+              .text-xs { font-size: 12pt; line-height: 1rem; } /* Footer size */
               .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
               img { display: block; margin: 8px auto; border: 4px solid black; }
+
+              /* Styles for dotted filler rows */
+              .receipt-row {
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                align-items: baseline;
+                gap: 0.5ch;
+              }
+              .receipt-row .filler {
+                border-bottom: 2px dotted #000;
+                position: relative;
+                bottom: 0.2em; /* Align dots with middle of text */
+              }
+              .receipt-row .value {
+                white-space: nowrap;
+              }
+
               @page { size: auto; margin: 3mm; }
             </style></head><body>${content}</body></html>
         `;

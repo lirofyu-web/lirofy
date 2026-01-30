@@ -8,6 +8,9 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#84cc16" />
 
+    <link rel="preload" href="/index.tsx" as="script" crossOrigin="anonymous">
+    <link rel="preload" href="https://aistudiocdn.com/react@19.2.0" as="script" crossOrigin="anonymous">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -76,6 +79,7 @@
       /* Custom DivIcon Marker Styles */
       .custom-marker {
         transition: transform 0.2s ease-out;
+        will-change: transform;
       }
       .custom-marker.selected-marker {
         z-index: 1000 !important;
@@ -110,6 +114,7 @@
       }
       .pulse-indicator {
         animation: pulse-indicator 2s infinite ease-in-out;
+        will-change: transform, filter;
       }
 
 

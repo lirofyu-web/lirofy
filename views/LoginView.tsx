@@ -1,11 +1,9 @@
 // views/LoginView.tsx
 import React, { useState } from 'react';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-import { doc, setDoc, Timestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { LogoIcon } from '../components/icons/LogoIcon';
 
 interface LoginViewProps {
@@ -16,37 +14,19 @@ const LoginView: React.FC<LoginViewProps> = ({ showNotification }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-        showNotification('Login realizado com sucesso!', 'success');
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        
-        // Create a user profile document in Firestore.
-        await setDoc(doc(db, "user_profiles", user.uid), {
-            email: user.email,
-            createdAt: Timestamp.now(),
-        });
-
-        showNotification('Conta criada com sucesso!', 'success');
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      showNotification('Login realizado com sucesso!', 'success');
     } catch (error: any) {
       console.error(error);
       let message = 'Ocorreu um erro.';
       if (error.code === 'auth/invalid-login-credentials') {
         message = 'E-mail ou senha incorretos.';
-      } else if (error.code === 'auth/email-already-in-use') {
-        message = 'Este e-mail já está em uso.';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'A senha deve ter pelo menos 6 caracteres.';
       }
       showNotification(message, 'error');
     } finally {
@@ -61,10 +41,10 @@ const LoginView: React.FC<LoginViewProps> = ({ showNotification }) => {
           <LogoIcon className="h-24 w-auto" />
         </div>
         <h2 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-2">
-          {isLogin ? 'Bem-vindo de volta!' : 'Crie sua Conta'}
+          Bem-vindo de volta!
         </h2>
         <p className="text-center text-slate-500 dark:text-slate-400 mb-6">
-          {isLogin ? 'Acesse para sincronizar seus dados.' : 'Uma conta para todos os seus dispositivos.'}
+          Acesse para sincronizar seus dados.
         </p>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -94,17 +74,11 @@ const LoginView: React.FC<LoginViewProps> = ({ showNotification }) => {
             disabled={isSubmitting}
             className="w-full bg-lime-500 text-white font-bold py-3 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 transition-colors"
           >
-            {isSubmitting ? 'Aguarde...' : (isLogin ? 'Entrar' : 'Cadastrar')}
+            {isSubmitting ? 'Aguarde...' : 'Entrar'}
           </button>
         </form>
         <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-6">
-          {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="font-semibold text-lime-500 hover:text-lime-400 ml-1 focus:outline-none"
-          >
-            {isLogin ? 'Cadastre-se' : 'Faça login'}
-          </button>
+          Para criar uma conta, entre em contato com o administrador.
         </p>
       </div>
     </div>

@@ -93,7 +93,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
 
     return (
         <>
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:scale-105 hover:shadow-xl">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-transform duration-300 hover:scale-105 hover:shadow-xl" style={{ willChange: 'transform, box-shadow' }}>
                 <div className="p-3">
                     <div
                         className="flex justify-between items-start cursor-pointer group"
@@ -203,4 +203,4 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
     );
 };
 
-export default CustomerCard;
+export default React.memo(CustomerCard);

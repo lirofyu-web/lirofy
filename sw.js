@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v67'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'montanha-bilhar-cache-v68'; // Versão incrementada para forçar atualização
 
 // Lista de ativos para armazenar em cache.
 const urlsToCache = [
@@ -77,6 +77,8 @@ const urlsToCache = [
   '/components/WarningsReminders.tsx',
   '/components/icons/AlertIcon.tsx',
   '/components/icons/AndroidIcon.tsx',
+  '/components/icons/ArrowsPointingInIcon.tsx',
+  '/components/icons/ArrowsPointingOutIcon.tsx',
   '/components/icons/BellAlertIcon.tsx',
   '/components/icons/BilliardIcon.tsx',
   '/components/icons/BluetoothIcon.tsx',

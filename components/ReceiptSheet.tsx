@@ -10,9 +10,10 @@ interface ReceiptSheetProps {
 }
 
 const ReceiptRow: React.FC<{label: string, value: string | number}> = ({ label, value }) => (
-    <div className="flex justify-between">
-      <span>{label}</span>
-      <span>{value}</span>
+    <div className="receipt-row">
+      <span className="label">{label}</span>
+      <span className="filler"></span>
+      <span className="value">{value}</span>
     </div>
 );
 
@@ -27,24 +28,27 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
         misto: 'MISTO',
     };
 
+    const formatCurrency = (value: number | undefined) => (value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatCurrencyFicha = (value: number | undefined) => (value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+
     const renderGruaDetails = () => (
         <>
             <p className="font-bold">EQUIPAMENTO: GRUA {billing.equipmentNumero}</p>
             <ReceiptRow label="Leitura Anterior:" value={billing.relogioAnterior} />
             <ReceiptRow label="Leitura Atual:" value={billing.relogioAtual} />
             <hr className="border-dashed border-black my-2" />
-            <ReceiptRow label="SALDO:" value={`R$ ${billing.saldo || 0}`} />
-            <ReceiptRow label="Recebido Espécie:" value={`R$ ${billing.recebimentoEspecie || 0}`} />
-            <ReceiptRow label="Recebido PIX:" value={`R$ ${billing.recebimentoPix || 0}`} />
+            <ReceiptRow label="SALDO:" value={`R$ ${formatCurrency(billing.saldo)}`} />
+            <ReceiptRow label="Recebido Espécie:" value={`R$ ${formatCurrency(billing.recebimentoEspecie)}`} />
+            <ReceiptRow label="Recebido PIX:" value={`R$ ${formatCurrency(billing.recebimentoPix)}`} />
             <hr className="border-dashed border-black my-2" />
             <ReceiptRow label="Qtd. Pelúcias (Capacidade):" value={billing.quantidadePelucia || 0} />
             <ReceiptRow label="Sobra de Pelúcias:" value={billing.sobraPelucia || 0} />
             <ReceiptRow label="Reposição de Pelúcias:" value={billing.reposicaoPelucia || 0} />
             <hr className="border-dashed border-black my-2" />
-            <ReceiptRow label="ALUGUEL (PAGO AO CLIENTE):" value={`R$ ${billing.aluguelValor || 0}`} />
+            <ReceiptRow label="ALUGUEL (PAGO AO CLIENTE):" value={`R$ ${formatCurrency(billing.aluguelValor)}`} />
             <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
                 <span>TOTAL (FIRMA):</span>
-                <span>R$ {billing.valorTotal}</span>
+                <span>R$ {formatCurrency(billing.valorTotal)}</span>
             </div>
         </>
     );
@@ -60,17 +64,17 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
                     <ReceiptRow label="Partidas Jogadas (Período):" value={billing.partidasJogadas} />
                     {billing.valorBonus && billing.valorBonus > 0 ? (
                         <>
-                            <ReceiptRow label="Subtotal (Firma):" value={`R$ ${billing.valorTotal}`} />
-                            <ReceiptRow label="Desconto / Bônus:" value={`- R$ ${billing.valorBonus}`} />
+                            <ReceiptRow label="Subtotal (Firma):" value={`R$ ${formatCurrency(billing.valorTotal)}`} />
+                            <ReceiptRow label="Desconto / Bônus:" value={`- R$ ${formatCurrency(billing.valorBonus)}`} />
                             <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
                                 <span>TOTAL (FIRMA):</span>
-                                <span>R$ {finalFirmaValue}</span>
+                                <span>R$ {formatCurrency(finalFirmaValue)}</span>
                             </div>
                         </>
                     ) : (
                         <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
                             <span>TOTAL (FIRMA):</span>
-                            <span>R$ {billing.valorTotal}</span>
+                            <span>R$ {formatCurrency(billing.valorTotal)}</span>
                         </div>
                     )}
                 </>
@@ -89,27 +93,27 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
                         <ReceiptRow label="Partidas Jogadas:" value={billing.partidasJogadas} />
                         <ReceiptRow label="Partidas Desconto:" value={billing.descontoPartidas || 0} />
                         <ReceiptRow label="Partidas Cobradas:" value={billing.partidasCobradas || 0} />
-                        <ReceiptRow label="Valor Ficha:" value={`R$ ${billing.valorFicha ?? 0}`} />
+                        <ReceiptRow label="Valor Ficha:" value={`R$ ${formatCurrencyFicha(billing.valorFicha)}`} />
                     </>
                 )}
                 
                 <hr className="border-dashed border-black my-2" />
-                <ReceiptRow label="Valor Bruto:" value={`R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0))}`} />
-                <ReceiptRow label="Parte Cliente:" value={`R$ ${billing.parteCliente ?? 0}`} />
+                <ReceiptRow label="Valor Bruto:" value={`R$ ${formatCurrency(billing.valorBruto)}`} />
+                <ReceiptRow label="Parte Cliente:" value={`R$ ${formatCurrency(billing.parteCliente)}`} />
                 
                 {billing.valorBonus && billing.valorBonus > 0 ? (
                     <>
-                        <ReceiptRow label="Subtotal (Firma):" value={`R$ ${billing.valorTotal}`} />
-                        <ReceiptRow label="Desconto / Bônus:" value={`- R$ ${billing.valorBonus}`} />
+                        <ReceiptRow label="Subtotal (Firma):" value={`R$ ${formatCurrency(billing.valorTotal)}`} />
+                        <ReceiptRow label="Desconto / Bônus:" value={`- R$ ${formatCurrency(billing.valorBonus)}`} />
                         <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
                             <span>TOTAL (FIRMA):</span>
-                            <span>R$ {finalFirmaValue}</span>
+                            <span>R$ {formatCurrency(finalFirmaValue)}</span>
                         </div>
                     </>
                 ) : (
                     <div className="flex justify-between font-bold text-base pt-2 mt-2 border-t border-dashed border-black">
                         <span>TOTAL (FIRMA):</span>
-                        <span>R$ {billing.valorTotal}</span>
+                        <span>R$ {formatCurrency(billing.valorTotal)}</span>
                     </div>
                 )}
             </>
@@ -119,7 +123,7 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
     return (
         <div className="font-bold text-sm">
             <div className="header text-center mb-4">
-                <h3 className="font-bold text-lg">MONTANHA BILHAR & JUKEBOX</h3>
+                <h3 className="font-black text-lg">MONTANHA BILHAR & JUKEBOX</h3>
                 <p className="font-bold">{isProvisional ? 'DEMONSTRATIVO DE COBRANÇA' : 'ACERTO DE CONTAS'}</p>
                 <p>--------------------------------</p>
             </div>
@@ -135,14 +139,15 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
                     billing.paymentMethod === 'misto' ? (
                         <div className="pt-1">
                             <p className="font-bold">PAGAMENTO:</p>
-                            {billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0 && <ReceiptRow label="- Dinheiro:" value={`R$ ${billing.valorPagoDinheiro}`} />}
-                            {billing.valorPagoPix && billing.valorPagoPix > 0 && <ReceiptRow label="- PIX:" value={`R$ ${billing.valorPagoPix}`} />}
-                            {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && <ReceiptRow label="- Negativo:" value={`R$ ${billing.valorDebitoNegativo}`} />}
+                            {billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0 && <ReceiptRow label="- Dinheiro:" value={`R$ ${formatCurrency(billing.valorPagoDinheiro)}`} />}
+                            {billing.valorPagoPix && billing.valorPagoPix > 0 && <ReceiptRow label="- PIX:" value={`R$ ${formatCurrency(billing.valorPagoPix)}`} />}
+                            {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && <ReceiptRow label="- Negativo:" value={`R$ ${formatCurrency(billing.valorDebitoNegativo)}`} />}
                         </div>
                     ) : (
-                        <div className="flex justify-between pt-1">
-                            <span>Pagamento:</span>
-                            <span>{paymentMethodText[billing.paymentMethod]}</span>
+                        <div className="receipt-row pt-1">
+                            <span className="label">Pagamento:</span>
+                            <span className="filler"></span>
+                            <span className="value">{paymentMethodText[billing.paymentMethod]}</span>
                         </div>
                     )
                 )}

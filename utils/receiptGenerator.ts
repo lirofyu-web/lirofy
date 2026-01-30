@@ -1,6 +1,9 @@
 // utils/receiptGenerator.ts
 import { Billing, DebtPayment, Equipment, Customer } from '../types';
 
+const formatCurrency = (value: number | undefined) => (value || 0).toFixed(2);
+const formatCurrencyFicha = (value: number | undefined) => (value || 0).toFixed(2); // Use 2 for consistency on text receipts
+
 export function generateBillingText(billing: Billing, isProvisional: boolean): string {
     const isMesa = billing.equipmentType === 'mesa';
     const isGrua = billing.equipmentType === 'grua';
@@ -21,25 +24,25 @@ EQUIPAMENTO: GRUA ${billing.equipmentNumero}
 Leitura Anterior: ${billing.relogioAnterior}
 Leitura Atual: ${billing.relogioAtual}
 --------------------------------
-SALDO: R$ ${(billing.saldo || 0).toFixed(2)}
-Recebido Especie: R$ ${(billing.recebimentoEspecie || 0).toFixed(2)}
-Recebido PIX: R$ ${(billing.recebimentoPix || 0).toFixed(2)}
+SALDO: R$ ${formatCurrency(billing.saldo)}
+Recebido Especie: R$ ${formatCurrency(billing.recebimentoEspecie)}
+Recebido PIX: R$ ${formatCurrency(billing.recebimentoPix)}
 --------------------------------
 Qtd. Pelucias (Capacidade): ${billing.quantidadePelucia || 0}
 Sobra de Pelucias: ${billing.sobraPelucia || 0}
 Reposicao de Pelucias: ${billing.reposicaoPelucia || 0}
 --------------------------------
-ALUGUEL (PAGO AO CLIENTE): R$ ${(billing.aluguelValor || 0).toFixed(2)}
+ALUGUEL (PAGO AO CLIENTE): R$ ${formatCurrency(billing.aluguelValor)}
 --------------------------------
-*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*
+*TOTAL (FIRMA): R$ ${formatCurrency(billing.valorTotal)}*
         `.trim();
     } else { // Mesa or Jukebox
         const totalSection = (billing.valorBonus && billing.valorBonus > 0)
-          ? `Subtotal (Firma): R$ ${billing.valorTotal.toFixed(2)}\n` +
-            `Desconto / Bonus: - R$ ${billing.valorBonus.toFixed(2)}\n` +
+          ? `Subtotal (Firma): R$ ${formatCurrency(billing.valorTotal)}\n` +
+            `Desconto / Bonus: - R$ ${formatCurrency(billing.valorBonus)}\n` +
             `--------------------------------\n` +
-            `*TOTAL (FIRMA): R$ ${(billing.valorTotal - billing.valorBonus).toFixed(2)}*`
-          : `*TOTAL (FIRMA): R$ ${billing.valorTotal.toFixed(2)}*`;
+            `*TOTAL (FIRMA): R$ ${formatCurrency(billing.valorTotal - billing.valorBonus)}*`
+          : `*TOTAL (FIRMA): R$ ${formatCurrency(billing.valorTotal)}*`;
 
         if (isMesa && billing.billingType === 'monthly') {
             details = `
@@ -56,7 +59,7 @@ ${totalSection}
 Partidas Jogadas: ${billing.partidasJogadas}
 Partidas Desconto: ${billing.descontoPartidas || 0}
 Partidas Cobradas: ${billing.partidasCobradas || 0}
-Valor Ficha: R$ ${(billing.valorFicha ?? 0).toFixed(2)}
+Valor Ficha: R$ ${formatCurrencyFicha(billing.valorFicha)}
 --------------------------------`;
             }
             details = `
@@ -64,8 +67,8 @@ EQUIPAMENTO: ${isMesa ? `MESA ${billing.equipmentNumero}` : `JUKEBOX ${billing.e
 Leitura Anterior: ${billing.relogioAnterior}
 Leitura Atual: ${billing.relogioAtual}
 --------------------------------${mesaDetails}
-Valor Bruto: R$ ${((billing.parteFirma ?? 0) + (billing.parteCliente ?? 0)).toFixed(2)}
-Parte Cliente: R$ ${(billing.parteCliente ?? 0).toFixed(2)}
+Valor Bruto: R$ ${formatCurrency(billing.valorBruto)}
+Parte Cliente: R$ ${formatCurrency(billing.parteCliente)}
 --------------------------------
 ${totalSection}
             `.trim();
@@ -76,9 +79,9 @@ ${totalSection}
     if (!isProvisional && !isGrua) {
         if (billing.paymentMethod === 'misto') {
             let parts = [];
-            if (billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0) parts.push(`- Dinheiro: R$ ${billing.valorPagoDinheiro.toFixed(2)}`);
-            if (billing.valorPagoPix && billing.valorPagoPix > 0) parts.push(`- PIX: R$ ${billing.valorPagoPix.toFixed(2)}`);
-            if (billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0) parts.push(`- Negativo: R$ ${billing.valorDebitoNegativo.toFixed(2)}`);
+            if (billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0) parts.push(`- Dinheiro: R$ ${formatCurrency(billing.valorPagoDinheiro)}`);
+            if (billing.valorPagoPix && billing.valorPagoPix > 0) parts.push(`- PIX: R$ ${formatCurrency(billing.valorPagoPix)}`);
+            if (billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0) parts.push(`- Negativo: R$ ${formatCurrency(billing.valorDebitoNegativo)}`);
             paymentDetails = `\nPAGAMENTO:\n${parts.join('\n')}`;
         } else {
             paymentDetails = `\nPagamento: ${paymentMethodText[billing.paymentMethod]}`;
@@ -111,13 +114,14 @@ export function generateDebtText(debtPayment: DebtPayment): string {
         pix: 'PIX',
         dinheiro: 'DINHEIRO',
     };
+    const formatCurrency = (value: number) => (value || 0).toFixed(2);
     return `*MONTANHA BILHAR & JUKEBOX*
 COMPROVANTE DE PAGAMENTO DE DIVIDA
 --------------------------------
 CLIENTE: ${debtPayment.customerName}
 DATA: ${new Date(debtPayment.paidAt).toLocaleString('pt-BR')}
 --------------------------------
-*VALOR PAGO: R$ ${debtPayment.amountPaid.toFixed(2)}*
+*VALOR PAGO: R$ ${formatCurrency(debtPayment.amountPaid)}*
 Pagamento: ${paymentMethodText[debtPayment.paymentMethod]}
     `.trim();
 }

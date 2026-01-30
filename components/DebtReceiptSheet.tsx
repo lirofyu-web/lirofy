@@ -13,6 +13,8 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
         pix: 'PIX',
         dinheiro: 'DINHEIRO',
     };
+    
+    const formatCurrency = (value: number) => (value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     return (
         <div className="font-bold text-sm">
@@ -27,13 +29,15 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
                 <p>DATA: {new Date(debtPayment.paidAt).toLocaleString('pt-BR')}</p>
                 <hr className="border-dashed border-black my-2" />
                 
-                <div className="flex justify-between font-bold text-base pt-2 mt-2">
-                    <span>VALOR PAGO:</span>
-                    <span>R$ {debtPayment.amountPaid}</span>
+                <div className="receipt-row font-bold text-base pt-2 mt-2">
+                    <span className="label">VALOR PAGO:</span>
+                    <span className="filler"></span>
+                    <span className="value">R$ {formatCurrency(debtPayment.amountPaid)}</span>
                 </div>
-                <div className="flex justify-between pt-1">
-                    <span>Pagamento:</span>
-                    <span>{paymentMethodText[debtPayment.paymentMethod]}</span>
+                <div className="receipt-row pt-1">
+                    <span className="label">Pagamento:</span>
+                    <span className="filler"></span>
+                    <span className="value">{paymentMethodText[debtPayment.paymentMethod]}</span>
                 </div>
             </div>
 

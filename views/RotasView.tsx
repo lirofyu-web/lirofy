@@ -11,6 +11,8 @@ import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { ListBulletIcon } from '../components/icons/ListBulletIcon';
 import { XIcon } from '../components/icons/XIcon';
+import { ArrowsPointingOutIcon } from '../components/icons/ArrowsPointingOutIcon';
+import { ArrowsPointingInIcon } from '../components/icons/ArrowsPointingInIcon';
 
 
 interface RotasViewProps {
@@ -19,6 +21,7 @@ interface RotasViewProps {
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
 type GeocodedCustomer = Customer & { latitude: number; longitude: number; };
+type FullScreenMode = 'none' | 'map' | 'list';
 
 const FilterCard: React.FC<{
     title: string;
@@ -51,6 +54,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   const [isProcessingRoute, setIsProcessingRoute] = useState(false);
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   const [optimizedRoute, setOptimizedRoute] = useState<GeocodedCustomer[] | null>(null);
+  const [fullScreenMode, setFullScreenMode] = useState<FullScreenMode>('none');
   const customerRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -298,49 +302,58 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
   }, [displayedCustomers]);
 
   return (
-    <div className="h-full flex flex-col">
-      <PageHeader
-        title="Rotas e Mapa de Clientes"
-        subtitle="Visualize a localização dos seus clientes e planeje suas rotas."
-      />
+    <div className="h-full flex flex-col relative">
+      {fullScreenMode === 'none' && (
+        <>
+          <PageHeader
+            title="Rotas e Mapa de Clientes"
+            subtitle="Visualize a localização dos seus clientes e planeje suas rotas."
+          />
+          {/* Filter Cards */}
+          <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <FilterCard 
+                  title="Todas as Rotas"
+                  count={equipmentCounts.all}
+                  icon={<ListBulletIcon className="w-6 h-6" />}
+                  onClick={() => handleFilterChange('all')}
+                  isActive={equipmentFilter === 'all'}
+              />
+              <FilterCard 
+                  title="Rotas (Mesas)"
+                  count={equipmentCounts.mesa}
+                  icon={<BilliardIcon className="w-6 h-6" />}
+                  onClick={() => handleFilterChange('mesa')}
+                  isActive={equipmentFilter === 'mesa'}
+              />
+              <FilterCard 
+                  title="Rotas (Jukebox)"
+                  count={equipmentCounts.jukebox}
+                  icon={<JukeboxIcon className="w-6 h-6" />}
+                  onClick={() => handleFilterChange('jukebox')}
+                  isActive={equipmentFilter === 'jukebox'}
+              />
+              <FilterCard 
+                  title="Rotas (Gruas)"
+                  count={equipmentCounts.grua}
+                  icon={<CraneIcon className="w-6 h-6" />}
+                  onClick={() => handleFilterChange('grua')}
+                  isActive={equipmentFilter === 'grua'}
+              />
+          </div>
+        </>
+      )}
 
-       {/* Filter Cards */}
-      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <FilterCard 
-              title="Todas as Rotas"
-              count={equipmentCounts.all}
-              icon={<ListBulletIcon className="w-6 h-6" />}
-              onClick={() => handleFilterChange('all')}
-              isActive={equipmentFilter === 'all'}
-          />
-          <FilterCard 
-              title="Rotas (Mesas)"
-              count={equipmentCounts.mesa}
-              icon={<BilliardIcon className="w-6 h-6" />}
-              onClick={() => handleFilterChange('mesa')}
-              isActive={equipmentFilter === 'mesa'}
-          />
-          <FilterCard 
-              title="Rotas (Jukebox)"
-              count={equipmentCounts.jukebox}
-              icon={<JukeboxIcon className="w-6 h-6" />}
-              onClick={() => handleFilterChange('jukebox')}
-              isActive={equipmentFilter === 'jukebox'}
-          />
-          <FilterCard 
-              title="Rotas (Gruas)"
-              count={equipmentCounts.grua}
-              icon={<CraneIcon className="w-6 h-6" />}
-              onClick={() => handleFilterChange('grua')}
-              isActive={equipmentFilter === 'grua'}
-          />
-      </div>
 
-
-      <div className="flex flex-col md:flex-row gap-8 flex-grow min-h-0">
+      <div className={`flex flex-grow min-h-0 ${fullScreenMode === 'none' ? 'flex-col md:flex-row gap-8' : 'flex-col'}`}>
         
         {/* Map Panel */}
-        <div ref={mapContainerRef} className="h-[50vh] md:h-full w-full md:w-2/3 lg:w-3/4">
+        <div 
+          ref={mapContainerRef} 
+          className={`
+            ${fullScreenMode === 'list' ? 'hidden' : 'flex'}
+            ${fullScreenMode === 'map' ? 'flex-grow w-full h-full' : 'flex-1 min-h-0 md:flex-[2_1_0%] w-full md:w-auto'}
+          `}
+        >
           <MapComponent
             customers={geocodedCustomers}
             selectedCustomerId={selectedCustomerId}
@@ -350,7 +363,11 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
         </div>
 
         {/* Customer List Panel */}
-        <div className="flex-grow min-h-0 w-full md:w-1/3 lg:w-1/4 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col">
+        <div className={`
+            bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col
+            ${fullScreenMode === 'map' ? 'hidden' : 'flex'}
+            ${fullScreenMode === 'list' ? 'flex-grow w-full h-full' : 'flex-1 min-h-0 md:flex-[1_1_0%] w-full md:w-auto'}
+          `}>
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes ({displayedCustomers.length})</h3>
             <div className="flex gap-2">
@@ -417,8 +434,26 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
             )}
           </div>
         </div>
-        
       </div>
+      
+      {/* Floating Fullscreen Controls */}
+      <div className="absolute bottom-[calc(8rem+env(safe-area-inset-bottom))] md:bottom-20 right-5 z-40 flex flex-col gap-2">
+          <button 
+              onClick={() => setFullScreenMode(fullScreenMode === 'map' ? 'none' : 'map')}
+              title={fullScreenMode === 'map' ? "Restaurar Visualização" : "Mapa em Tela Cheia"}
+              className="p-3 bg-slate-800 text-white rounded-full shadow-lg hover:bg-lime-600 transition-colors border-2 border-slate-700"
+          >
+              {fullScreenMode === 'map' ? <ArrowsPointingInIcon className="w-6 h-6" /> : <ArrowsPointingOutIcon className="w-6 h-6" />}
+          </button>
+          <button 
+              onClick={() => setFullScreenMode(fullScreenMode === 'list' ? 'none' : 'list')}
+              title={fullScreenMode === 'list' ? "Restaurar Visualização" : "Lista em Tela Cheia"}
+              className="p-3 bg-slate-800 text-white rounded-full shadow-lg hover:bg-lime-600 transition-colors border-2 border-slate-700"
+          >
+              {fullScreenMode === 'list' ? <ArrowsPointingInIcon className="w-6 h-6" /> : <ArrowsPointingOutIcon className="w-6 h-6" />}
+          </button>
+      </div>
+
     </div>
   );
 };
