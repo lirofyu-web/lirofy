@@ -1,6 +1,6 @@
 // views/ClientesView.tsx
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Customer, Warning } from '../types';
+import { Customer, Warning, Billing } from '../types';
 import AddCustomerForm from '../components/AddCustomerForm';
 import CustomerCard from '../components/CustomerCard';
 import PageHeader from '../components/PageHeader';
@@ -18,6 +18,7 @@ import { ListBulletIcon } from '../components/icons/ListBulletIcon';
 interface ClientesViewProps {
   customers: Customer[];
   warnings: Warning[];
+  billings: Billing[];
   onAddCustomer: (customerData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt'>) => Promise<void>;
   isSaving: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
@@ -32,6 +33,7 @@ interface ClientesViewProps {
   onOpenScanner: () => void;
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
+  onFinalizePendingPayment: (billing: Billing) => void;
 }
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
@@ -48,6 +50,7 @@ const debounce = (func: (...args: any[]) => void, delay: number) => {
 const ClientesView: React.FC<ClientesViewProps> = ({ 
     customers, 
     warnings,
+    billings,
     onAddCustomer, 
     isSaving,
     showNotification,
@@ -61,6 +64,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onOpenScanner,
     onLocationActions,
     onWhatsAppActions,
+    onFinalizePendingPayment,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -77,7 +81,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [visibleCities, setVisibleCities] = useState<Set<string>>(new Set());
   const observer = useRef<IntersectionObserver | null>(null);
 
-  // Debounce search input
+  // Debounce search input for main filtering
   const debouncedSetSearch = useCallback(debounce(setDebouncedSearchQuery, 300), []);
   useEffect(() => {
       debouncedSetSearch(searchQuery);
@@ -94,6 +98,27 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     });
     return Array.from(cities).sort((a, b) => a.localeCompare(b));
   }, [customers]);
+  
+  // Debounce for city suggestions
+  useEffect(() => {
+    if (searchQuery.length > 1) {
+      const handler = setTimeout(() => {
+        const matchingCities = uniqueCities.filter(city =>
+          city.toLowerCase().startsWith(searchQuery.toLowerCase())
+        );
+        setCitySuggestions(matchingCities.slice(0, 5));
+        setIsSuggestionsOpen(matchingCities.length > 0);
+      }, 300); // 300ms delay
+
+      return () => {
+        clearTimeout(handler);
+      };
+    } else {
+      setCitySuggestions([]);
+      setIsSuggestionsOpen(false);
+    }
+  }, [searchQuery, uniqueCities]);
+
 
   // Click outside handler for suggestions
   useEffect(() => {
@@ -201,17 +226,6 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-
-    if (query.length > 1) {
-      const matchingCities = uniqueCities.filter(city => 
-        city.toLowerCase().startsWith(query.toLowerCase())
-      );
-      setCitySuggestions(matchingCities.slice(0, 5));
-      setIsSuggestionsOpen(matchingCities.length > 0);
-    } else {
-      setCitySuggestions([]);
-      setIsSuggestionsOpen(false);
-    }
   };
 
   const handleSuggestionClick = (city: string) => {
@@ -356,17 +370,19 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                 <CustomerCard
                                     key={customer.id}
                                     customer={customer}
+                                    billings={billings}
+                                    hasActiveWarning={hasActiveWarning}
                                     onBill={onBillCustomer}
                                     onEdit={onEditCustomer}
                                     onDelete={onDeleteCustomer}
                                     onPayDebt={onPayDebtCustomer}
                                     onHistory={onHistoryCustomer}
                                     onShare={onShareCustomer}
-                                    onLocationActions={onLocationActions}
-                                    onWhatsAppActions={onWhatsAppActions}
-                                    hasActiveWarning={hasActiveWarning}
                                     showNotification={showNotification}
                                     onFocusCustomer={onFocusCustomer}
+                                    onLocationActions={onLocationActions}
+                                    onWhatsAppActions={onWhatsAppActions}
+                                    onFinalizePayment={onFinalizePendingPayment}
                                 />
                             );
                         })}
@@ -385,6 +401,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             city={viewingCity}
             customers={customersByCity[viewingCity] || []}
             warnings={warnings}
+            billings={billings}
             onClose={() => setViewingCity(null)}
             onBillCustomer={onBillCustomer}
             onEditCustomer={onEditCustomer}
@@ -396,10 +413,12 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             onFocusCustomer={onFocusCustomer}
             onLocationActions={onLocationActions}
             onWhatsAppActions={onWhatsAppActions}
+            onFinalizePayment={onFinalizePendingPayment}
         />
       )}
     </>
   );
 };
 
+// FIX: Add default export to make the component available for import in other files.
 export default ClientesView;

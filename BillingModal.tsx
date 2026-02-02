@@ -239,16 +239,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             }
             
             const valorTotalFirma = saldoBruto - aluguelValorNum;
-
-            if (field === 'recebimentoEspecie') {
-                const recebimentoEspecieNum = safeParseFloat(value);
-                const pixCalculado = valorTotalFirma - recebimentoEspecieNum;
-                newState.recebimentoPix = String(parseFloat(pixCalculado.toFixed(2)));
-            } else if (field === 'recebimentoPix') {
-                const recebimentoPixNum = safeParseFloat(value);
-                const especieCalculado = valorTotalFirma - recebimentoPixNum;
-                newState.recebimentoEspecie = String(parseFloat(especieCalculado.toFixed(2)));
-            }
+            const recebimentoEspecieNum = safeParseFloat(newState.recebimentoEspecie);
+            const pixCalculado = Math.max(0, valorTotalFirma - recebimentoEspecieNum);
+            newState.recebimentoPix = String(pixCalculado);
         }
         
         return newState;
@@ -370,27 +363,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     setError(null);
     return true;
   }, [formState.relogioAtual, equipment.relogioAnterior, equipment.type]);
-  
-  const handleProvisionalAction = () => {
-      if(equipment.type === 'jukebox' && !validateJukeboxStep1()) return;
-      if(equipment.type !== 'jukebox' && !validateAndProceed()) return;
 
-      const provisionalBilling: Billing = {
-        id: 'provisional-' + uuidv4(),
-        customerId: customer.id,
-        customerName: customer.name,
-        equipmentId: equipment.id,
-        equipmentType: equipment.type,
-        equipmentNumero: equipment.numero,
-        relogioAnterior: equipment.relogioAnterior,
-        relogioAtual: Math.round(safeParseFloat(formState.relogioAtual)),
-        settledAt: new Date(),
-        ...calculation,
-        partidasJogadas: calculation.partidasJogadas || 0,
-        valorTotal: calculation.valorTotal || 0,
-        paymentMethod: 'pending_payment',
-      };
-      onTriggerProvisionalReceiptAction(provisionalBilling, () => {});
+  const handleProvisionalAction = () => {
+    if (!validateAndProceed()) return;
+    const billing = generateBillingObject();
+    if (billing) {
+        onTriggerProvisionalReceiptAction(billing, () => setMesaStep(2));
+    }
   };
   
   const handleGoToPayment = () => {
@@ -420,28 +399,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       valorTotal: totalFirma,
       paymentMethod: 'pending_payment',
       valorBonus: bonusDesconto > 0 ? bonusDesconto : undefined,
-    };
-  
-    onConfirm(billing);
-  };
-
-  const handleGruaWaitForPayment = () => {
-    if (!validateAndProceed()) return;
-  
-    const billing: Billing = {
-      id: uuidv4(),
-      customerId: customer.id,
-      customerName: customer.name,
-      equipmentId: equipment.id,
-      equipmentType: 'grua',
-      equipmentNumero: equipment.numero,
-      relogioAnterior: equipment.relogioAnterior,
-      relogioAtual: Math.round(safeParseFloat(formState.relogioAtual)),
-      settledAt: new Date(),
-      ...calculation,
-      partidasJogadas: calculation.partidasJogadas || 0,
-      valorTotal: calculation.valorTotal || 0,
-      paymentMethod: 'pending_payment',
     };
   
     onConfirm(billing);
@@ -508,17 +465,9 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       if (!validateAndProceed()) return;
       setGruaStep(2);
     } else if (gruaStep === 2) {
-      setFormState(prev => {
-          const valorTotal = calculation.valorTotal || 0;
-          return {
-            ...prev,
-            recebimentoEspecie: '0',
-            recebimentoPix: String(valorTotal > 0 ? parseFloat(valorTotal.toFixed(2)) : '0')
-          };
-      });
       setGruaStep(3);
     }
-  }, [gruaStep, validateAndProceed, calculation.valorTotal]);
+  }, [gruaStep, validateAndProceed]);
   
   const handleGruaPrevStep = useCallback(() => {
     setGruaStep(prev => Math.max(1, prev - 1));
@@ -628,7 +577,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       <div className="space-y-4">
           <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
           <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
           <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
@@ -748,46 +697,34 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col gap-3">
-                    <div className="flex gap-3">
-                        <button onClick={onClose} className="flex-1 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500">Cancelar</button>
-                        {isGrua ? (
-                            <>
-                                {gruaStep > 1 && <button onClick={handleGruaPrevStep} className="flex-1 bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400">Voltar</button>}
-                            </>
-                        ) : isJukebox && jukeboxStep > 1 ? (
-                            <button onClick={() => setJukeboxStep(1)} className="flex-1 bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400">&larr; Voltar</button>
-                        ) : null}
-                    </div>
-
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
                     {isGrua ? (
                         <>
-                            {gruaStep === 1 && <button onClick={handleGruaNextStep} className="w-full bg-sky-600 text-white font-bold py-3 px-4 rounded-md hover:bg-sky-500">Avançar para Conferência &rarr;</button>}
-                            {gruaStep === 2 && 
-                                <div className="flex flex-col gap-3">
-                                    <button onClick={handleGruaNextStep} className="w-full bg-sky-600 text-white font-bold py-3 px-4 rounded-md hover:bg-sky-500">Confirmar e Continuar &rarr;</button>
-                                    <button onClick={handleGruaWaitForPayment} className="w-full inline-flex items-center justify-center gap-2 bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500">
-                                        <CreditCardIcon className="w-5 h-5"/>
-                                        Pagamento Pendente
-                                    </button>
-                                </div>
-                            }
-                            {gruaStep === 3 && <button onClick={handleFinalize} className="w-full bg-lime-500 text-white font-bold py-3 px-4 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
+                            {gruaStep > 1 && <button onClick={handleGruaPrevStep} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">Voltar</button>}
+                            {gruaStep === 1 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Avançar</button>}
+                            {gruaStep === 2 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Confirmar e Continuar</button>}
+                            {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
                         </>
                     ) : isJukebox ? (
                         <>
-                            {jukeboxStep === 1 && <button onClick={handleJukeboxNextStep} className="w-full bg-sky-600 text-white font-bold py-3 px-4 rounded-md hover:bg-sky-500">Ir para Pagamento &rarr;</button>}
-                            {jukeboxStep === 2 && <button onClick={handleFinalize} disabled={!!error} className="w-full bg-lime-500 text-white font-bold py-3 px-4 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed">Finalizar Cobrança</button>}
+                            {jukeboxStep === 1 && <button onClick={handleJukeboxNextStep} className="flex-1 inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Ir para Pagamento &rarr;</button>}
+                            {jukeboxStep === 2 && (
+                                <>
+                                    <button onClick={() => setJukeboxStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
+                                    <button onClick={handleFinalize} disabled={!!error} className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed">Finalizar Cobrança</button>
+                                </>
+                            )}
                         </>
                     ) : ( // isMesa and step 1
-                        <div className="flex gap-3">
+                        <>
                             <button onClick={handleProvisionalAction} className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500">
-                                Gerar Demonstrativo
+                                Imprimir Via Cliente
                             </button>
                             <button onClick={handleGoToPayment} className="flex-1 inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
                                 Ir para Pagamento &rarr;
                             </button>
-                        </div>
+                        </>
                     )}
                 </div>
             )}

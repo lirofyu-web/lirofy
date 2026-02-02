@@ -3,7 +3,6 @@ import React from 'react';
 import { ShareIcon } from './icons/ShareIcon';
 import { Billing } from '../types';
 import { PrinterIcon } from './icons/PrinterIcon';
-import { RawBtIcon } from './icons/RawBtIcon';
 import { sunmiPrinterService } from '../utils/sunmiPrinter';
 import { SunmiIcon } from './icons/SunmiIcon';
 
@@ -12,7 +11,6 @@ interface ReceiptActionsModalProps {
   onClose: () => void;
   onShare: () => Promise<void>;
   onPrint: () => void;
-  onPrintRawBt: () => Promise<void>;
   onPrintSunmi: () => Promise<void>;
   billing: Billing;
   isProvisional: boolean;
@@ -25,7 +23,6 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
   onClose,
   onShare,
   onPrint,
-  onPrintRawBt,
   onPrintSunmi,
   isSharing,
 }) => {
@@ -64,15 +61,6 @@ const ReceiptActionsModal: React.FC<ReceiptActionsModalProps> = ({
           >
             <PrinterIcon className="w-5 h-5" />
             <span>Salvar / Imprimir (PDF)</span>
-          </button>
-          <button
-            onClick={onPrintRawBt}
-            disabled={isSharing}
-            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 transition-colors disabled:bg-slate-500"
-            title="Imprimir em impressora térmica via RawBT"
-          >
-            <RawBtIcon className="w-5 h-5" />
-            <span>{isSharing ? 'Aguarde...' : 'Imprimir (RawBT)'}</span>
           </button>
           <button
             onClick={onShare}

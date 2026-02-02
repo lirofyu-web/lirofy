@@ -1,8 +1,6 @@
 // components/ThermalPrintActionsModal.tsx
 import React from 'react';
 import { ShareIcon } from './icons/ShareIcon';
-import { PrinterIcon } from './icons/PrinterIcon';
-import { RawBtIcon } from './icons/RawBtIcon';
 import { SunmiIcon } from './icons/SunmiIcon';
 import { sunmiPrinterService } from '../utils/sunmiPrinter';
 
@@ -12,13 +10,12 @@ interface ThermalPrintActionsModalProps {
   title: string;
   content: string;
   onShare: (text: string, title: string) => Promise<void>;
-  onPrintRawBt: (text: string) => Promise<void>;
   onPrintSunmi: (text: string) => Promise<void>;
   isSharing: boolean;
 }
 
 const ThermalPrintActionsModal: React.FC<ThermalPrintActionsModalProps> = ({
-  isOpen, onClose, title, content, onShare, onPrintRawBt, onPrintSunmi, isSharing,
+  isOpen, onClose, title, content, onShare, onPrintSunmi, isSharing,
 }) => {
   if (!isOpen) return null;
 
@@ -42,14 +39,6 @@ const ThermalPrintActionsModal: React.FC<ThermalPrintActionsModalProps> = ({
               <span>{isSharing ? 'Imprimindo...' : 'Imprimir (Sunmi)'}</span>
             </button>
           )}
-          <button
-            onClick={() => onPrintRawBt(content)}
-            disabled={isSharing}
-            className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-500 disabled:bg-slate-500"
-          >
-            <RawBtIcon className="w-5 h-5" />
-            <span>{isSharing ? 'Aguarde...' : 'Imprimir (RawBT)'}</span>
-          </button>
           <button
             onClick={() => onShare(content, title)}
             disabled={isSharing}

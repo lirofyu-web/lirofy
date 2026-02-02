@@ -17,24 +17,28 @@ type HistoryItem = {
     date: Date;
     type: 'billing' | 'payment';
     description: string;
-    amount: number;
-    paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto';
+    amount: number; // For payments, this is the amount paid. For billings, it's the net amount received.
+    debtChange: number; // Positive for new debt, negative for payment.
+    paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' | 'pending_payment';
     equipmentType?: 'mesa' | 'jukebox' | 'grua';
+    paymentDetails?: {dinheiro?: number, pix?: number};
 };
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' }> = React.memo(({ method }) => {
-    const displayMethod = method === 'debito_negativo' ? 'negativo' : method;
-    const styles: Record<'pix' | 'dinheiro' | 'negativo' | 'misto', string> = {
+const PaymentMethodDisplay: React.FC<{ method: HistoryItem['paymentMethod'] }> = React.memo(({ method }) => {
+    const displayMethod = method === 'debito_negativo' ? 'negativo' : method === 'pending_payment' ? 'pendente' : method;
+    const styles: Record<string, string> = {
         pix: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600',
         dinheiro: 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-600',
         negativo: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-600',
         misto: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-600',
+        pendente: 'bg-slate-100 dark:bg-slate-600/50 text-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-500',
     };
-    const text: Record<'pix' | 'dinheiro' | 'negativo' | 'misto', string> = {
+    const text: Record<string, string> = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
         negativo: 'Negativo',
         misto: 'Misto',
+        pendente: 'Pendente',
     };
 
     return (
@@ -52,16 +56,19 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
             .filter(b => b.customerId === customer.id)
             .map(b => {
                 let description = 'Cobrança';
-                if (b.equipmentType === 'mesa') description += ' - Mesa';
-                if (b.equipmentType === 'jukebox') description += ' - Jukebox';
-                if (b.equipmentType === 'grua') description += ' - Grua';
+                if (b.equipmentType === 'mesa') description += ` - Mesa ${b.equipmentNumero}`;
+                if (b.equipmentType === 'jukebox') description += ` - Jukebox ${b.equipmentNumero}`;
+                if (b.equipmentType === 'grua') description += ` - Grua ${b.equipmentNumero}`;
 
+                const receivedAmount = (b.valorPagoDinheiro || 0) + (b.valorPagoPix || 0) + (b.recebimentoEspecie || 0) + (b.recebimentoPix || 0);
+                
                 return {
                     id: b.id,
                     date: new Date(b.settledAt),
                     type: 'billing' as 'billing',
                     description: description,
-                    amount: b.valorTotal,
+                    amount: receivedAmount,
+                    debtChange: b.valorDebitoNegativo || 0,
                     paymentMethod: b.paymentMethod,
                     equipmentType: b.equipmentType,
                 };
@@ -73,9 +80,14 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                 id: p.id,
                 date: new Date(p.paidAt),
                 type: 'payment',
-                description: `Pagamento de Dívida (${p.paymentMethod === 'pix' ? 'PIX' : 'Dinheiro'})`,
+                description: `Pagamento de Dívida`,
                 amount: p.amountPaid,
+                debtChange: -p.amountPaid,
                 paymentMethod: p.paymentMethod,
+                paymentDetails: {
+                    dinheiro: p.amountPaidDinheiro,
+                    pix: p.amountPaidPix,
+                },
             }));
 
         return [...customerBillings, ...customerPayments].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -109,28 +121,49 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                             {historyItems.map(item => {
                                 const style = item.type === 'billing' ? colorStyles[item.equipmentType || 'mesa'] : colorStyles.payment;
                                 return (
-                                <li key={item.id} className="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${style.bg}`}>
-                                        {item.type === 'billing' 
-                                            ? <ReceiptIcon className={`w-5 h-5 ${style.text}`} />
-                                            : <CurrencyDollarIcon className={`w-5 h-5 ${style.text}`} />
-                                        }
-                                    </div>
-                                    <div className="flex-grow">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-semibold text-slate-900 dark:text-white">{item.description}</p>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
-                                            </div>
-                                            <p className={`font-mono font-bold text-lg ${style.text}`}>
-                                                R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </p>
+                                <li key={item.id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-start gap-4">
+                                        <div className={`mt-1 flex-shrink-0 p-2 rounded-full ${style.bg}`}>
+                                            {item.type === 'billing' 
+                                                ? <ReceiptIcon className={`w-5 h-5 ${style.text}`} />
+                                                : <CurrencyDollarIcon className={`w-5 h-5 ${style.text}`} />
+                                            }
                                         </div>
-                                        {item.paymentMethod && (
-                                            <div className="mt-2">
-                                                <PaymentMethodDisplay method={item.paymentMethod} />
+                                        <div className="flex-grow">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-semibold text-slate-900 dark:text-white">{item.description}</p>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    {item.type === 'payment' && (
+                                                        <p className="font-mono font-bold text-lg text-emerald-400">
+                                                            + R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </p>
+                                                    )}
+                                                     {item.type === 'billing' && item.amount > 0 && (
+                                                        <p className="font-mono font-bold text-lg text-lime-400">
+                                                            R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </p>
+                                                    )}
+                                                     {item.type === 'billing' && item.debtChange > 0 && (
+                                                        <p className="font-mono text-sm text-red-400">
+                                                            (Dívida: R$ {item.debtChange.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
-                                        )}
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <PaymentMethodDisplay method={item.paymentMethod} />
+                                                {item.paymentMethod === 'misto' && item.paymentDetails && (
+                                                    <span className="text-xs text-slate-400">
+                                                        ({item.paymentDetails.dinheiro && `Dinheiro: R$${item.paymentDetails.dinheiro.toFixed(2)}`}
+                                                        {item.paymentDetails.dinheiro && item.paymentDetails.pix && ', '}
+                                                        {item.paymentDetails.pix && `PIX: R$${item.paymentDetails.pix.toFixed(2)}`})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </li>
                             )})}

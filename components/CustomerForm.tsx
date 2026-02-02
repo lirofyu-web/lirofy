@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 interface CustomerFormProps {
   customers: Customer[];
   initialData?: Customer;
-  onSubmit: (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { equipment: Partial<Equipment>[] }) => Promise<void>;
+  onSubmit: (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { debtAmount?: string | number } & { equipment: Partial<Equipment>[] }) => Promise<void>;
   isSaving: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onCancel: () => void;

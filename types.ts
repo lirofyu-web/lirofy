@@ -89,7 +89,7 @@ export interface Billing {
 
   // Universal
   valorTotal: number; // The final value for the company
-  paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto'; // Negativo will not be an option for grua
+  paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' | 'pending_payment';
   valorPagoDinheiro?: number;
   valorPagoPix?: number;
   valorDebitoNegativo?: number;
@@ -111,7 +111,9 @@ export interface DebtPayment {
   customerName: string;
   amountPaid: number;
   paidAt: Date;
-  paymentMethod: 'pix' | 'dinheiro';
+  paymentMethod: 'pix' | 'dinheiro' | 'misto';
+  amountPaidDinheiro?: number;
+  amountPaidPix?: number;
 }
 
 export interface Warning {

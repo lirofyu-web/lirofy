@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v68'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'montanha-bilhar-cache-v69'; // Versão incrementada para forçar atualização
 
 // Lista de ativos para armazenar em cache.
 const urlsToCache = [
@@ -15,8 +15,6 @@ const urlsToCache = [
   '/utils/theme.ts',
   '/utils/receiptGenerator.ts',
   '/utils/sunmiPrinter.ts',
-  '/utils/bluetoothPrinter.ts',
-  '/utils/escpos.ts',
   '/icon-192.svg',
   '/icon-512.svg',
   '/views/ClientesView.tsx',
@@ -31,7 +29,6 @@ const urlsToCache = [
   '/components/ActionModal.tsx',
   '/components/AddCustomerForm.tsx',
   '/components/AddPhoneModal.tsx',
-  '/components/AdvancedFilterModal.tsx',
   '/components/BackupReminder.tsx',
   '/components/BillingModal.tsx',
   '/components/BillingSlipSheet.tsx',
@@ -60,13 +57,11 @@ const urlsToCache = [
   '/components/MobileHeader.tsx',
   '/components/Notification.tsx',
   '/components/PageHeader.tsx',
-  '/components/PerformanceChart.tsx',
   '/components/PixQrCode.tsx',
   '/components/PrintableSlipsModal.tsx',
   '/components/QrScannerModal.tsx',
   '/components/ReceiptActionsModal.tsx',
   '/components/ReceiptSheet.tsx',
-  '/components/SaveStatusIndicator.tsx',
   '/components/ShareCustomerModal.tsx',
   '/components/Sidebar.tsx',
   '/components/SignatureModal.tsx',
@@ -81,7 +76,6 @@ const urlsToCache = [
   '/components/icons/ArrowsPointingOutIcon.tsx',
   '/components/icons/BellAlertIcon.tsx',
   '/components/icons/BilliardIcon.tsx',
-  '/components/icons/BluetoothIcon.tsx',
   '/components/icons/CalculatorIcon.tsx',
   '/components/icons/CameraIcon.tsx',
   '/components/icons/ChartBarIcon.tsx',
@@ -115,7 +109,6 @@ const urlsToCache = [
   '/components/icons/PrinterIcon.tsx',
   '/components/icons/PurpleBilliardBallIcon.tsx',
   '/components/icons/QrCodeIcon.tsx',
-  '/components/icons/RawBtIcon.tsx',
   '/components/icons/ReceiptIcon.tsx',
   '/components/icons/RedBilliardBallIcon.tsx',
   '/components/icons/RulerIcon.tsx',
@@ -136,10 +129,6 @@ const urlsToCache = [
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap',
   'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2',
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7S0Q5nw.woff2',
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7f0Q5nw.woff2',
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7a0Q5nw.woff2',
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7k0Q5nw.woff2',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css',
@@ -152,7 +141,6 @@ const urlsToCache = [
   'https://aistudiocdn.com/html5-qrcode@2.3.8',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'

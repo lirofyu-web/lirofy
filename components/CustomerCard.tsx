@@ -1,6 +1,6 @@
 // components/CustomerCard.tsx
-import React, { useState } from 'react';
-import { Customer, Equipment } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Customer, Equipment, Billing } from '../types';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CurrencyDollarIcon } from './icons/CurrencyDollarIcon';
@@ -20,6 +20,7 @@ import { PurpleBilliardBallIcon } from './icons/PurpleBilliardBallIcon';
 
 interface CustomerCardProps {
   customer: Customer;
+  billings: Billing[];
   onBill: (customer: Customer) => void;
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
@@ -28,6 +29,7 @@ interface CustomerCardProps {
   onShare: (customer: Customer) => void;
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
+  onFinalizePayment: (billing: Billing) => void;
   hasActiveWarning: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
@@ -60,8 +62,16 @@ const EquipmentDetailRow: React.FC<{ label: string; value: string | number | und
 };
 
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePayment }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const pendingBilling = useMemo(() => {
+        return billings.find(b => 
+            b.customerId === customer.id && 
+            b.paymentMethod === 'pending_payment' &&
+            (b.equipmentType === 'mesa' || b.equipmentType === 'jukebox')
+        );
+    }, [billings, customer.id]);
 
     const hasDebt = customer.debtAmount > 0;
     const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
@@ -130,9 +140,25 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onBill, onEdit, o
                     </div>
                     
                     <div className="mt-4 flex flex-wrap gap-2">
-                        <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="" isPrimary />
+                        {pendingBilling ? (
+                            <ActionButton 
+                                onClick={() => onFinalizePayment(pendingBilling)} 
+                                icon={<ReceiptIcon className="w-5 h-5" />} 
+                                label="Finalizar Pgto." 
+                                colorClass="bg-amber-600"
+                                title={`Finalizar pagamento pendente de ${pendingBilling.equipmentType === 'mesa' ? 'Mesa' : 'Jukebox'} ${pendingBilling.equipmentNumero}`}
+                            />
+                        ) : (
+                            <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="" isPrimary />
+                        )}
                         <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" title='Editar Cliente' />
-                        <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-5 h-5" />} label="Pagar Dívida" colorClass="bg-amber-600" disabled={!hasDebt} />
+                        <ActionButton 
+                            onClick={() => onPayDebt(customer)} 
+                            icon={<CurrencyDollarIcon className="w-5 h-5" />} 
+                            label={hasDebt ? "Pagar Dívida" : "Adic. Dívida"} 
+                            colorClass={hasDebt ? "bg-amber-600" : "bg-orange-500"}
+                            title={hasDebt ? "Registrar pagamento de dívida" : "Adicionar uma dívida avulsa"}
+                        />
                         <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" colorClass="bg-indigo-600" />
                         <ActionButton onClick={() => onDelete(customer)} icon={<TrashIcon className="w-5 h-5" />} label="Excluir" colorClass="bg-red-600" title='Excluir Cliente' />
                     </div>

@@ -14,7 +14,7 @@ interface AddCustomerFormProps {
 const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCustomer, isSaving, showNotification }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleSubmit = async (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { equipment: Partial<Equipment>[] }) => {
+  const handleSubmit = async (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { debtAmount?: string | number } & { equipment: Partial<Equipment>[] }) => {
     // Validation for unique equipment numbers (already present in CustomerForm)
     const finalEquipment: Equipment[] = formData.equipment.map(eq => {
       const base = {
@@ -55,7 +55,8 @@ const AddCustomerForm: React.FC<AddCustomerFormProps> = ({ customers, onAddCusto
       return base as Equipment;
     });
 
-    await onAddCustomer({ ...formData, equipment: finalEquipment });
+    const { debtAmount, ...restOfData } = formData;
+    await onAddCustomer({ ...restOfData, equipment: finalEquipment });
     setIsOpen(false);
   };
 

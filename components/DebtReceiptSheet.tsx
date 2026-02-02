@@ -45,7 +45,7 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
                 <div className="text-center mt-4">
                     <p className="font-bold">Pague com PIX</p>
                     <img src={qrCodeDataUrl} alt="PIX QR Code" style={{ width: '150px', height: '150px', margin: '8px auto', border: '4px solid black' }} />
-                    <p className="text-xs">Chave: 43999581993</p>
+                    <p className="text-xs">Chave: +5543999581993</p>
                 </div>
             ) : (
                 <PixQrCode />

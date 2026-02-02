@@ -32,6 +32,7 @@ interface FullScreenCustomerViewProps {
   onWhatsAppActions: (customer: Customer) => void;
   billings: Billing[];
   debtPayments: DebtPayment[];
+  onFinalizePendingPayment: (billing: Billing) => void;
 }
 
 type HistoryItem = {
@@ -40,27 +41,30 @@ type HistoryItem = {
     type: 'billing' | 'payment';
     description: string;
     amount: number;
-    paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto';
+    paymentMethod: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' | 'pending_payment';
     equipmentType?: 'mesa' | 'jukebox' | 'grua';
 };
 
-const PaymentMethodDisplay: React.FC<{ method: 'pix' | 'dinheiro' | 'debito_negativo' | 'misto' }> = React.memo(({ method }) => {
-    const styles = {
+const PaymentMethodDisplay: React.FC<{ method: HistoryItem['paymentMethod'] }> = React.memo(({ method }) => {
+    const displayMethod = method === 'debito_negativo' ? 'negativo' : method === 'pending_payment' ? 'pendente' : method;
+    const styles: Record<string, string> = {
         pix: 'bg-emerald-900/50 text-emerald-300 border-emerald-600',
         dinheiro: 'bg-sky-900/50 text-sky-300 border-sky-600',
-        debito_negativo: 'bg-amber-900/50 text-amber-300 border-amber-600',
+        negativo: 'bg-amber-900/50 text-amber-300 border-amber-600',
         misto: 'bg-indigo-900/50 text-indigo-300 border-indigo-600',
+        pendente: 'bg-slate-600/50 text-slate-300 border-slate-500',
     };
-    const text = {
+    const text: Record<string, string> = {
         pix: 'PIX',
         dinheiro: 'Dinheiro',
-        debito_negativo: 'Negativo',
+        negativo: 'Negativo',
         misto: 'Misto',
+        pendente: 'Pendente',
     };
 
     return (
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[method]}`}>
-            {text[method]}
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${styles[displayMethod]}`}>
+            {text[displayMethod]}
         </span>
     );
 });
@@ -84,9 +88,18 @@ const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label:
     </button>
 );
 
-const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, billings, debtPayments }) => {
+const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, billings, debtPayments, onFinalizePendingPayment }) => {
   if (!customer) return null;
   
+  const pendingBilling = useMemo(() => {
+    if (!customer) return null;
+    return billings.find(b => 
+        b.customerId === customer.id && 
+        b.paymentMethod === 'pending_payment' &&
+        (b.equipmentType === 'mesa' || b.equipmentType === 'jukebox')
+    );
+  }, [billings, customer]);
+
   const hasDebt = customer.debtAmount > 0;
   const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
   const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
@@ -180,8 +193,8 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                     </div>
                 )}
                 {hasDebt && (
-                    <div title={`Dívida: R$ ${customer.debtAmount.toFixed(2)}`} className="flex items-center gap-1.5 text-amber-400 font-semibold text-sm">
-                        <YellowBilliardBallIcon className="w-4 h-4 text-amber-500" /> Dívida de R$ {customer.debtAmount.toFixed(2)}
+                    <div title={`Dívida: R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} className="flex items-center gap-1.5 text-amber-400 font-semibold text-sm">
+                        <YellowBilliardBallIcon className="w-4 h-4 text-amber-500" /> Dívida de R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                 )}
                 {hasActiveWarning && (
@@ -200,7 +213,17 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                  <div className="bg-slate-900/50 p-4 rounded-xl">
                     <h3 className="text-lg font-bold text-slate-300 mb-3">Ações Principais</h3>
                     <div className="grid grid-cols-3 gap-3">
-                       <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-6 h-6" />} label="Faturar" colorClass="" isPrimary />
+                       {pendingBilling ? (
+                            <ActionButton 
+                                onClick={() => onFinalizePendingPayment(pendingBilling)} 
+                                icon={<ReceiptIcon className="w-6 h-6" />} 
+                                label="Finalizar Pgto." 
+                                colorClass="bg-amber-600"
+                                title={`Finalizar pagamento pendente de ${pendingBilling.equipmentType === 'mesa' ? 'Mesa' : 'Jukebox'} ${pendingBilling.equipmentNumero}`}
+                            />
+                        ) : (
+                            <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-6 h-6" />} label="Faturar" colorClass="" isPrimary />
+                        )}
                        <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-6 h-6" />} label="Editar" colorClass="bg-sky-600" />
                        <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-6 h-6" />} label="Histórico" colorClass="bg-indigo-600" />
                        <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-6 h-6" />} label="Pagar Dívida" colorClass="bg-amber-600" disabled={!hasDebt} />
@@ -278,7 +301,7 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                                                 <p className="text-sm text-slate-400">{item.date.toLocaleDateString('pt-BR')}</p>
                                             </div>
                                             <p className={`font-mono font-bold text-lg ${style.text}`}>
-                                                R$ {item.amount.toFixed(2)}
+                                                R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>
                                         </div>
                                         {item.paymentMethod && (

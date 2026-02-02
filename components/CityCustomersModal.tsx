@@ -1,6 +1,6 @@
 // components/CityCustomersModal.tsx
 import React from 'react';
-import { Customer, Warning } from '../types';
+import { Customer, Warning, Billing } from '../types';
 import CustomerCard from './CustomerCard';
 import { XIcon } from './icons/XIcon';
 
@@ -8,6 +8,7 @@ interface CityCustomersModalProps {
   city: string;
   customers: Customer[];
   warnings: Warning[];
+  billings: Billing[];
   onClose: () => void;
   // Pass down all the handlers CustomerCard needs
   onBillCustomer: (customer: Customer) => void;
@@ -20,12 +21,14 @@ interface CityCustomersModalProps {
   onFocusCustomer: (customer: Customer) => void;
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
+  onFinalizePayment: (billing: Billing) => void;
 }
 
 const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
   city,
   customers,
   warnings,
+  billings,
   onClose,
   onBillCustomer,
   onEditCustomer,
@@ -37,7 +40,14 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
   onFocusCustomer,
   onLocationActions,
   onWhatsAppActions,
+  onFinalizePayment,
 }) => {
+
+  const handleFocus = (customer: Customer) => {
+    onFocusCustomer(customer);
+    onClose(); // Close this modal before opening the full-screen view
+  };
+
   return (
     <div
       className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 p-4 animate-fade-in no-print"
@@ -66,6 +76,7 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
                 <CustomerCard
                   key={customer.id}
                   customer={customer}
+                  billings={billings}
                   hasActiveWarning={hasActiveWarning}
                   onBill={onBillCustomer}
                   onEdit={onEditCustomer}
@@ -74,9 +85,10 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
                   onHistory={onHistoryCustomer}
                   onShare={onShareCustomer}
                   showNotification={showNotification}
-                  onFocusCustomer={onFocusCustomer}
+                  onFocusCustomer={handleFocus}
                   onLocationActions={onLocationActions}
                   onWhatsAppActions={onWhatsAppActions}
+                  onFinalizePayment={onFinalizePayment}
                 />
               );
             })}

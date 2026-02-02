@@ -12,6 +12,7 @@ import { CreditCardIcon } from '../components/icons/CreditCardIcon';
 import WarningsReminders from '../components/WarningsReminders';
 import BackupReminder from '../components/BackupReminder';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
+import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 
 
 interface DashboardViewProps {
@@ -55,12 +56,14 @@ const DateFilter: React.FC<DateFilterProps> = React.memo(({ currentDate, onMonth
 type ChartView = 'total' | 'average';
 type CategoryData = {
     label: string;
-    faturamento: number;
+    faturamentoTotal: number;
     saldo: number;
     despesas: number;
     quantidade: number;
     color: string;
     icon: React.FC<{className?: string}>;
+    receitaDinheiro: number;
+    receitaPix: number;
 };
 
 const FinancialPerformanceCard: React.FC<{ 
@@ -72,27 +75,33 @@ const FinancialPerformanceCard: React.FC<{
     const chartData: CategoryData[] = useMemo(() => [
         { 
             label: 'Mesas',
-            faturamento: chartView === 'total' ? stats.totalRevenueMesa : stats.averageRevenueMesa,
+            faturamentoTotal: chartView === 'total' ? stats.totalRevenueMesa : stats.averageRevenueMesa,
             saldo: chartView === 'total' ? stats.balanceMesa : stats.averageProfitMesa,
             despesas: chartView === 'total' ? stats.expensesMesa : (stats.mesaCount > 0 ? stats.expensesMesa / stats.mesaCount : 0),
+            receitaDinheiro: chartView === 'total' ? stats.revenueMesaDinheiro : (stats.mesaCount > 0 ? stats.revenueMesaDinheiro / stats.mesaCount : 0),
+            receitaPix: chartView === 'total' ? stats.revenueMesaPix : (stats.mesaCount > 0 ? stats.revenueMesaPix / stats.mesaCount : 0),
             quantidade: stats.mesaCount,
             color: 'cyan', 
             icon: BilliardIcon
         },
         { 
             label: 'Jukeboxes',
-            faturamento: chartView === 'total' ? stats.totalRevenueJukebox : stats.averageRevenueJukebox,
+            faturamentoTotal: chartView === 'total' ? stats.totalRevenueJukebox : stats.averageRevenueJukebox,
             saldo: chartView === 'total' ? stats.balanceJukebox : stats.averageProfitJukebox,
             despesas: chartView === 'total' ? stats.expensesJukebox : (stats.jukeboxCount > 0 ? stats.expensesJukebox / stats.jukeboxCount : 0),
+            receitaDinheiro: chartView === 'total' ? stats.revenueJukeboxDinheiro : (stats.jukeboxCount > 0 ? stats.revenueJukeboxDinheiro / stats.jukeboxCount : 0),
+            receitaPix: chartView === 'total' ? stats.revenueJukeboxPix : (stats.jukeboxCount > 0 ? stats.revenueJukeboxPix / stats.jukeboxCount : 0),
             quantidade: stats.jukeboxCount,
             color: 'fuchsia', 
             icon: JukeboxIcon
         },
         { 
             label: 'Gruas',
-            faturamento: chartView === 'total' ? stats.totalRevenueGrua : stats.averageRevenueGrua,
+            faturamentoTotal: chartView === 'total' ? stats.totalRevenueGrua : stats.averageRevenueGrua,
             saldo: chartView === 'total' ? stats.balanceGrua : stats.averageProfitGrua,
             despesas: chartView === 'total' ? stats.expensesGrua : (stats.gruaCount > 0 ? stats.expensesGrua / stats.gruaCount : 0),
+            receitaDinheiro: chartView === 'total' ? stats.revenueGruaEspecie : (stats.gruaCount > 0 ? stats.revenueGruaEspecie / stats.gruaCount : 0),
+            receitaPix: chartView === 'total' ? stats.revenueGruaPix : (stats.gruaCount > 0 ? stats.revenueGruaPix / stats.gruaCount : 0),
             quantidade: stats.gruaCount,
             color: 'orange', 
             icon: CraneIcon
@@ -100,7 +109,7 @@ const FinancialPerformanceCard: React.FC<{
     ], [stats, chartView]);
 
     const maxValue = useMemo(() => {
-        const values = chartData.map(d => d.faturamento);
+        const values = chartData.map(d => d.faturamentoTotal);
         const max = Math.max(...values);
         return max > 0 ? max : 1;
     }, [chartData]);
@@ -135,24 +144,24 @@ const FinancialPerformanceCard: React.FC<{
             {/* Chart Area */}
             <div className="flex justify-around items-end h-48 pt-4">
                 {chartData.map(item => {
-                    const revenueHeight = `${(item.faturamento / maxValue) * 100}%`;
-                    const profitHeight = item.faturamento > 0 ? `${(item.saldo / item.faturamento) * 100}%` : '0%';
+                    const revenueHeight = `${(item.faturamentoTotal / maxValue) * 100}%`;
+                    const profitHeight = item.faturamentoTotal > 0 ? `${(item.saldo / item.faturamentoTotal) * 100}%` : '0%';
                     const colors = colorClasses[item.color as keyof typeof colorClasses];
                     
                     return (
                         <div key={item.label} className="flex flex-col items-center w-1/4 h-full text-center">
                             <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">
-                                R$ {(chartView === 'total' ? item.saldo : item.saldo).toFixed(2)}
+                                R$ {(chartView === 'total' ? item.saldo : item.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                             <div 
                                 className={`w-12 md:w-16 rounded-t-md ${colors.revenue} relative transition-all duration-700 ease-out`} 
                                 style={{ height: revenueHeight }}
-                                title={`Faturamento: R$ ${item.faturamento.toFixed(2)}`}
+                                title={`Faturamento: R$ ${item.faturamentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                             >
                                 <div 
                                     className={`absolute bottom-0 left-0 right-0 rounded-t-md ${colors.profit}`} 
                                     style={{ height: profitHeight }}
-                                    title={`Saldo: R$ ${item.saldo.toFixed(2)}`}
+                                    title={`Saldo: R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 />
                             </div>
                         </div>
@@ -175,9 +184,10 @@ const FinancialPerformanceCard: React.FC<{
                                 {isBest && <span className="text-xs font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full">Destaque</span>}
                             </div>
                             <div className="mt-2 text-xs space-y-1 font-mono">
-                               <InfoRow label="Faturamento:" value={`R$ ${item.faturamento.toFixed(2)}`} valueColor="text-lime-600 dark:text-lime-400" />
-                               <InfoRow label="Despesas:" value={`- R$ ${item.despesas.toFixed(2)}`} valueColor="text-red-600 dark:text-red-400" />
-                               <InfoRow label="Saldo:" value={`R$ ${item.saldo.toFixed(2)}`} valueColor={item.saldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} />
+                               <InfoRow label="Receita (Dinheiro):" value={`R$ ${item.receitaDinheiro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-sky-600 dark:text-sky-400" />
+                               <InfoRow label="Receita (PIX):" value={`R$ ${item.receitaPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-lime-600 dark:text-lime-400" />
+                               <InfoRow label="Despesas:" value={`- R$ ${item.despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-red-600 dark:text-red-400" />
+                               <InfoRow label="Saldo Líquido:" value={`R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor={item.saldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} />
                                <InfoRow label="Quantidade:" value={`${item.quantidade} unid.`} valueColor="text-slate-500 dark:text-slate-400" />
                             </div>
                         </div>
@@ -249,52 +259,70 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             return date.getFullYear() === year && date.getMonth() === month;
         });
 
+        const monthlyDebtPayments = debtPayments.filter(p => {
+            const date = new Date(p.paidAt);
+            return date.getFullYear() === year && date.getMonth() === month;
+        });
+
+        const totalDebtReceived = monthlyDebtPayments.reduce((sum, p) => sum + p.amountPaid, 0);
+
         // Expenses by category
         const expensesMesa = monthlyExpenses.filter(e => e.category === 'mesa').reduce((sum, e) => sum + e.amount, 0);
         const expensesJukebox = monthlyExpenses.filter(e => e.category === 'jukebox').reduce((sum, e) => sum + e.amount, 0);
         const expensesGrua = monthlyExpenses.filter(e => e.category === 'grua').reduce((sum, e) => sum + e.amount, 0);
         const totalExpenses = expensesMesa + expensesJukebox + expensesGrua + monthlyExpenses.filter(e => e.category === 'geral').reduce((sum, e) => sum + e.amount, 0);
-
-        // Faturamento (accrual basis) from company's share for each category, accounting for bonuses
-        const totalRevenueMesa = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + (b.valorTotal - (b.valorBonus || 0)), 0);
+        
+        // Revenue for Mesas (Only direct payments)
+        const revenueMesaDinheiro = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + (b.valorPagoDinheiro || 0), 0);
+        const revenueMesaPix = monthlyBillings.filter(b => b.equipmentType === 'mesa').reduce((sum, b) => sum + (b.valorPagoPix || 0), 0);
+        const totalRevenueMesa = revenueMesaDinheiro + revenueMesaPix;
         const balanceMesa = totalRevenueMesa - expensesMesa;
 
-        const totalRevenueJukebox = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + (b.valorTotal - (b.valorBonus || 0)), 0);
+        // Revenue for Jukebox (Only direct payments)
+        const revenueJukeboxDinheiro = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + (b.valorPagoDinheiro || 0), 0);
+        const revenueJukeboxPix = monthlyBillings.filter(b => b.equipmentType === 'jukebox').reduce((sum, b) => sum + (b.valorPagoPix || 0), 0);
+        const totalRevenueJukebox = revenueJukeboxDinheiro + revenueJukeboxPix;
         const balanceJukebox = totalRevenueJukebox - expensesJukebox;
-
-        const totalRevenueGrua = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.valorTotal - (b.valorBonus || 0)), 0);
+        
+        // Revenue for Gruas
+        const revenueGruaEspecie = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.recebimentoEspecie || 0), 0);
+        const revenueGruaPix = monthlyBillings.filter(b => b.equipmentType === 'grua').reduce((sum, b) => sum + (b.recebimentoPix || 0), 0);
+        const totalRevenueGrua = revenueGruaEspecie + revenueGruaPix;
         const balanceGrua = totalRevenueGrua - expensesGrua;
         
-        // Total outstanding debt (from all customers, not period-specific)
         const totalOutstandingDebt = customers.reduce((sum, c) => sum + (c.debtAmount || 0), 0);
         
-        // Equipment counts
         const allEquipment = customers.flatMap(c => c.equipment);
         const mesaCount = allEquipment.filter(e => e.type === 'mesa').length;
         const jukeboxCount = allEquipment.filter(e => e.type === 'jukebox').length;
         const gruaCount = allEquipment.filter(e => e.type === 'grua').length;
         
-        // Average profit per equipment
         const averageProfitMesa = mesaCount > 0 ? balanceMesa / mesaCount : 0;
         const averageProfitJukebox = jukeboxCount > 0 ? balanceJukebox / jukeboxCount : 0;
         const averageProfitGrua = gruaCount > 0 ? balanceGrua / gruaCount : 0;
         
-        // Average revenue per equipment
         const averageRevenueMesa = mesaCount > 0 ? totalRevenueMesa / mesaCount : 0;
         const averageRevenueJukebox = jukeboxCount > 0 ? totalRevenueJukebox / jukeboxCount : 0;
         const averageRevenueGrua = gruaCount > 0 ? totalRevenueGrua / gruaCount : 0;
 
         return {
+            revenueMesaDinheiro,
+            revenueMesaPix,
             totalRevenueMesa,
             expensesMesa,
             balanceMesa,
+            revenueJukeboxDinheiro,
+            revenueJukeboxPix,
             totalRevenueJukebox,
             expensesJukebox,
             balanceJukebox,
+            revenueGruaEspecie,
+            revenueGruaPix,
             totalRevenueGrua,
             expensesGrua,
             balanceGrua,
             totalOutstandingDebt,
+            totalDebtReceived,
             mesaCount,
             jukeboxCount,
             gruaCount,
@@ -306,7 +334,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             averageRevenueGrua,
             totalExpenses,
         };
-    }, [billings, expenses, customers, currentDate]);
+    }, [billings, expenses, customers, debtPayments, currentDate]);
     
     return (
         <div className="space-y-8">
@@ -330,19 +358,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
                 <FinancialPerformanceCard stats={stats} chartView={chartView} onChartViewChange={setChartView} />
                 
-                <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-3">
+                <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-2">
                     <InfoRow 
                         label="Total em Dívidas (Negativo)"
-                        value={`R$ ${stats.totalOutstandingDebt.toFixed(2)}`} 
+                        value={`R$ ${stats.totalOutstandingDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                         valueColor="text-amber-600 dark:text-amber-400 text-2xl"
                         className="flex-col !items-start"
                     />
                 </InfoCard>
-                 <InfoCard title="Despesas Totais" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />} className="lg:col-span-3">
+                 <InfoCard title="Despesas Totais" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />} className="lg:col-span-2">
                     <InfoRow 
                         label="Total de Despesas no Período"
-                        value={`R$ ${stats.totalExpenses.toFixed(2)}`} 
+                        value={`R$ ${stats.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                         valueColor="text-red-600 dark:text-red-400 text-2xl"
+                        className="flex-col !items-start"
+                    />
+                </InfoCard>
+                <InfoCard title="Dívidas Recebidas" icon={<CurrencyDollarIcon className="w-6 h-6 text-emerald-500" />} className="lg:col-span-2">
+                    <InfoRow 
+                        label="Total Recebido de Dívidas"
+                        value={`R$ ${stats.totalDebtReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                        valueColor="text-emerald-600 dark:text-emerald-400 text-2xl"
                         className="flex-col !items-start"
                     />
                 </InfoCard>

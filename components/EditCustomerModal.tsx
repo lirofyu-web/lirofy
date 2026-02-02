@@ -2,6 +2,7 @@
 import React, { useCallback } from 'react';
 import { Customer, Equipment } from '../types';
 import CustomerForm from './CustomerForm';
+import { safeParseFloat } from '../utils';
 
 interface EditCustomerModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface EditCustomerModalProps {
 
 const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, customers, isSaving, showNotification }) => {
 
-  const handleSubmit = useCallback(async (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { equipment: Partial<Equipment>[] }) => {
+  const handleSubmit = useCallback(async (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { debtAmount?: string | number } & { equipment: Partial<Equipment>[] }) => {
     
     const finalEquipment: Equipment[] = formData.equipment.map(eq => {
       const base = {
@@ -60,6 +61,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
     await onConfirm({
       ...customer, // Keep original id, createdAt, etc.
       ...formData,   // Apply all form changes
+      debtAmount: safeParseFloat(formData.debtAmount),
       equipment: finalEquipment,
     });
   }, [onConfirm, customer]);
