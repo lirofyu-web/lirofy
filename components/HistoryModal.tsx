@@ -10,6 +10,7 @@ interface HistoryModalProps {
   customer: Customer;
   billings: Billing[];
   debtPayments: DebtPayment[];
+  areValuesHidden: boolean;
 }
 
 type HistoryItem = {
@@ -49,7 +50,7 @@ const PaymentMethodDisplay: React.FC<{ method: HistoryItem['paymentMethod'] }> =
 });
 
 
-const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, billings, debtPayments }) => {
+const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, billings, debtPayments, areValuesHidden }) => {
     
     const historyItems = useMemo(() => {
         const customerBillings: HistoryItem[] = billings
@@ -138,17 +139,17 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, customer, 
                                                 <div className="text-right">
                                                     {item.type === 'payment' && (
                                                         <p className="font-mono font-bold text-lg text-emerald-400">
-                                                            + R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                           {areValuesHidden ? 'R$ •••,••' : `+ R$ ${item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                                         </p>
                                                     )}
                                                      {item.type === 'billing' && item.amount > 0 && (
                                                         <p className="font-mono font-bold text-lg text-lime-400">
-                                                            R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {areValuesHidden ? 'R$ •••,••' : `R$ ${item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                                         </p>
                                                     )}
                                                      {item.type === 'billing' && item.debtChange > 0 && (
                                                         <p className="font-mono text-sm text-red-400">
-                                                            (Dívida: R$ {item.debtChange.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                            (Dívida: {areValuesHidden ? 'R$ •••,••' : `R$ ${item.debtChange.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
                                                         </p>
                                                     )}
                                                 </div>

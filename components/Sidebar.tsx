@@ -1,4 +1,6 @@
 import React from 'react';
+import { User } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { MASTER_USER_UID } from '../firebase';
 import { View } from '../types';
 import { HomeIcon } from './icons/HomeIcon';
 import { UsersIcon } from './icons/UsersIcon';
@@ -17,6 +19,7 @@ interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onOpenScanner: () => void;
+  user: User | null;
 }
 
 const navItems = [
@@ -33,8 +36,10 @@ const secondaryNavItems = [
     { view: 'CONFIGURACOES' as View, label: 'Configurações', icon: CogIcon },
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, onOpenScanner }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOpen, onOpenScanner, user }) => {
     
+    const isMasterUser = user && user.uid === MASTER_USER_UID;
+
     const handleViewChange = (view: View) => {
         setView(view);
         setIsOpen(false); // Close sidebar on navigation in mobile
@@ -78,7 +83,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, setIsOp
 
             <aside className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-800 p-4 flex flex-col border-r border-slate-200 dark:border-slate-700 z-30 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 no-print ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="mb-4 text-center">
-                    <LogoIcon className="w-full h-auto py-4" />
+                    {isMasterUser && (
+                        <div className="mb-2 text-center text-sm font-bold text-amber-400 bg-amber-900/50 border border-amber-700 rounded-md py-1">
+                            ADM CONECTADO
+                        </div>
+                    )}
+                    <LogoIcon className="w-full h-auto pt-2" />
                 </div>
                 <div className="mb-6">
                     <button 

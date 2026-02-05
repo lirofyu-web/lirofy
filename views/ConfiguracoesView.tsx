@@ -5,12 +5,16 @@ import { auth } from '../firebase';
 import PageHeader from '../components/PageHeader';
 import { CloudUploadIcon } from '../components/icons/CloudUploadIcon';
 // FIX: Import Theme from types.ts to break circular dependency.
-import { Theme } from '../types';
+import { Theme, SavedUser } from '../types';
 import { SunIcon } from '../components/icons/SunIcon';
 import { MoonIcon } from '../components/icons/MoonIcon';
 import { InstallIcon } from '../components/icons/InstallIcon';
 import { applyThemeColors, defaultColors, AppThemeColors } from '../utils/theme';
 import { TrashIcon } from '../components/icons/TrashIcon';
+import { UserIcon } from '../components/icons/UserIcon';
+import { XIcon } from '../components/icons/XIcon';
+import { LockClosedIcon } from '../components/icons/LockClosedIcon';
+import { DatabaseIcon } from '../components/icons/DatabaseIcon';
 
 interface ConfiguracoesViewProps {
   onExportData: () => void;
@@ -21,6 +25,12 @@ interface ConfiguracoesViewProps {
   deferredPrompt: any;
   onInstallPrompt: () => void;
   onDeleteAllData: () => void;
+  onLogout: () => void;
+  onSwitchAccount: (email: string) => void;
+  onAddNewAccount: () => void;
+  isPrivacyModeEnabled: boolean;
+  onActivatePrivacyMode: () => void;
+  onDeactivatePrivacyMode: () => void;
 }
 
 const ColorPicker: React.FC<{ label: string, color: string, onChange: (color: string) => void }> = ({ label, color, onChange }) => (
@@ -48,8 +58,52 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   deferredPrompt,
   onInstallPrompt,
   onDeleteAllData,
+  onLogout,
+  onSwitchAccount,
+  onAddNewAccount,
+  isPrivacyModeEnabled,
+  onActivatePrivacyMode,
+  onDeactivatePrivacyMode,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [savedUsers, setSavedUsers] = useState<SavedUser[]>([]);
+  const currentUserEmail = auth.currentUser?.email;
+  const [storageInfo, setStorageInfo] = useState<{ usage: number; quota: number } | null>(null);
+  const [isLoadingStorage, setIsLoadingStorage] = useState(true);
+
+  useEffect(() => {
+    try {
+        const usersStr = localStorage.getItem('savedUsers');
+        const users: SavedUser[] = usersStr ? JSON.parse(usersStr) : [];
+        setSavedUsers(users.filter((user) => user.email !== currentUserEmail));
+    } catch (error) {
+        console.error("Failed to load saved users:", error);
+    }
+  }, [currentUserEmail]);
+  
+  useEffect(() => {
+    const getStorageEstimate = async () => {
+        if ('storage' in navigator && 'estimate' in navigator.storage) {
+            try {
+                const estimate = await navigator.storage.estimate();
+                setStorageInfo({
+                    usage: estimate.usage || 0,
+                    quota: estimate.quota || 0,
+                });
+            } catch (error) {
+                console.error('Erro ao estimar o armazenamento:', error);
+                setStorageInfo(null);
+            } finally {
+                setIsLoadingStorage(false);
+            }
+        } else {
+            console.log('API de estimativa de armazenamento não suportada.');
+            setIsLoadingStorage(false);
+            setStorageInfo(null);
+        }
+    };
+    getStorageEstimate();
+  }, []);
 
   const [themeColors, setThemeColors] = useState<AppThemeColors>(() => {
     const savedColors = localStorage.getItem('appThemeColors');
@@ -94,17 +148,33 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
   const handleThemeChange = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
-
-  const handleLogout = async () => {
-    try {
-        await signOut(auth);
-        showNotification('Você saiu com sucesso.', 'success');
-    } catch (error) {
-        console.error("Erro ao sair: ", error);
-        showNotification('Erro ao tentar sair.', 'error');
+  
+  const handleRemoveAccount = (emailToRemove: string) => {
+    const confirmed = window.confirm(`Tem certeza que deseja remover a conta '${emailToRemove}' da lista de acesso rápido?`);
+    if (confirmed) {
+      try {
+        const usersStr = localStorage.getItem('savedUsers');
+        const allUsers: SavedUser[] = usersStr ? JSON.parse(usersStr) : [];
+        const newAllUsers = allUsers.filter(user => user.email !== emailToRemove);
+        localStorage.setItem('savedUsers', JSON.stringify(newAllUsers));
+        setSavedUsers(newAllUsers.filter(user => user.email !== currentUserEmail));
+        showNotification(`Conta ${emailToRemove} removida da lista.`, 'success');
+      } catch(e) {
+        console.error("Error removing account", e);
+        showNotification('Erro ao remover conta.', 'error');
+      }
     }
   };
   
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (!+bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+  };
+
   return (
     <>
       <PageHeader
@@ -115,20 +185,115 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
       <div className="space-y-12">
         {/* Account Section */}
         <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Conta</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Gerenciamento de Contas</h2>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
-              <p className="text-slate-500 dark:text-slate-400 mb-4">
-                Você está logado como: <strong className="text-slate-800 dark:text-slate-200">{auth.currentUser?.email}</strong>
-              </p>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-500 transition-colors"
-              >
-                Sair (Logout)
-              </button>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Conta Ativa</h3>
+              <div className="bg-slate-100 dark:bg-slate-700/50 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-lime-500/20 rounded-full"><UserIcon className="w-6 h-6 text-lime-400"/></div>
+                      <div>
+                          <p className="text-slate-500 dark:text-slate-400 text-sm">Conectado como:</p>
+                          <p className="font-bold text-slate-800 dark:text-slate-200">{currentUserEmail}</p>
+                      </div>
+                  </div>
+                  <button onClick={onLogout} className="w-full sm:w-auto bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400 transition-colors">
+                    Sair
+                  </button>
+              </div>
+
+              {savedUsers.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Outras contas salvas</h3>
+                    <ul className="space-y-3">
+                        {savedUsers.map(user => (
+                            <li key={user.email} className="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <span className="font-medium text-slate-700 dark:text-slate-300 break-all">{user.email}</span>
+                                <div className="flex gap-3 w-full sm:w-auto">
+                                    <button onClick={() => handleRemoveAccount(user.email)} title="Remover da lista" className="flex-1 sm:flex-initial bg-red-600/20 text-red-400 font-bold py-2 px-3 rounded-md hover:bg-red-600/40 transition-colors"><XIcon className="w-5 h-5 mx-auto"/></button>
+                                    <button onClick={() => onSwitchAccount(user.email)} className="flex-1 sm:flex-initial bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors text-sm">Trocar</button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+              )}
+              
+              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                  <button onClick={onAddNewAccount} className="w-full sm:w-auto bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 transition-colors">
+                    + Adicionar nova conta
+                  </button>
+              </div>
+
             </div>
         </section>
 
+        {/* Security Section */}
+        <section>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Segurança</h2>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Modo de Privacidade</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">
+              Oculte todos os valores financeiros do aplicativo. Um PIN será necessário para desbloquear a visualização dos valores temporariamente.
+            </p>
+            {isPrivacyModeEnabled ? (
+              <button
+                onClick={onDeactivatePrivacyMode}
+                className="inline-flex items-center gap-2 bg-red-600 text-white font-bold py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
+              >
+                <LockClosedIcon className="w-5 h-5" />
+                <span>Desativar Modo de Privacidade</span>
+              </button>
+            ) : (
+              <button
+                onClick={onActivatePrivacyMode}
+                className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500 transition-colors"
+              >
+                <LockClosedIcon className="w-5 h-5" />
+                <span>Ativar Modo de Privacidade</span>
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Storage Section */}
+        <section>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">Armazenamento</h2>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+              <DatabaseIcon className="w-6 h-6 text-slate-500 dark:text-slate-400" />
+              Uso de Armazenamento Offline
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">
+              O aplicativo armazena dados localmente para funcionar offline. Este é o espaço utilizado no seu dispositivo.
+            </p>
+            {isLoadingStorage ? (
+              <p className="text-slate-500 dark:text-slate-400">Calculando uso de armazenamento...</p>
+            ) : storageInfo && storageInfo.quota > 0 ? (
+              <div>
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Usado: {formatBytes(storageInfo.usage)}
+                  </span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    Total: {formatBytes(storageInfo.quota)}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-4 overflow-hidden">
+                  <div
+                    className="bg-lime-500 h-4 rounded-full transition-all duration-500"
+                    style={{ width: `${(storageInfo.usage / storageInfo.quota) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-right text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {((storageInfo.usage / storageInfo.quota) * 100).toFixed(2)}% utilizado
+                </p>
+              </div>
+            ) : (
+              <p className="text-amber-500 dark:text-amber-400">Não foi possível obter informações de armazenamento do seu navegador.</p>
+            )}
+          </div>
+        </section>
+        
         {/* Install App Section */}
         {deferredPrompt && (
           <section>

@@ -33,6 +33,7 @@ interface CustomerCardProps {
   hasActiveWarning: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
+  areValuesHidden: boolean;
 }
 
 const EquipmentIcon: React.FC<{ type: Equipment['type'], className?: string }> = ({ type, className }) => {
@@ -51,18 +52,20 @@ const EquipmentIcon: React.FC<{ type: Equipment['type'], className?: string }> =
     }
 };
 
-const EquipmentDetailRow: React.FC<{ label: string; value: string | number | undefined | null }> = ({ label, value }) => {
+const EquipmentDetailRow: React.FC<{ label: string; value: string | number | undefined | null; areValuesHidden?: boolean }> = ({ label, value, areValuesHidden }) => {
   if (value === undefined || value === null || value === '') return null;
+  const isCurrency = typeof value === 'string' && value.startsWith('R$');
+
   return (
     <div className="flex justify-between text-xs">
       <span className="text-slate-400">{label}:</span>
-      <span className="font-semibold text-slate-200">{String(value)}</span>
+      <span className="font-semibold text-slate-200">{areValuesHidden && isCurrency ? 'R$ •••,••' : String(value)}</span>
     </div>
   );
 };
 
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePayment }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePayment, areValuesHidden }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const pendingBilling = useMemo(() => {
@@ -131,9 +134,9 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
                                 </div>
                             )}
                             {hasDebt && (
-                                <div title={`Dívida: R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
+                                <div title={areValuesHidden ? "Dívida Pendente" : `Dívida: R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-sm bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-600">
                                 <YellowBilliardBallIcon className="w-4 h-4 text-amber-500 pulse-indicator" />
-                                <span>R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>{areValuesHidden ? 'Dívida' : `R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span>
                                 </div>
                             )}
                         </div>
@@ -199,10 +202,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
                                             <EquipmentDetailRow label="Leitura Anterior" value={equip.relogioAnterior} />
                                             {equip.type === 'mesa' && (
                                                 equip.billingType === 'monthly' ? (
-                                                    <EquipmentDetailRow label="Mensalidade" value={`R$ ${(equip.monthlyFeeValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+                                                    <EquipmentDetailRow label="Mensalidade" value={`R$ ${(equip.monthlyFeeValue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} areValuesHidden={areValuesHidden} />
                                                 ) : (
                                                     <>
-                                                        <EquipmentDetailRow label="Vlr. Ficha" value={`R$ ${(equip.valorFicha || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+                                                        <EquipmentDetailRow label="Vlr. Ficha" value={`R$ ${(equip.valorFicha || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} areValuesHidden={areValuesHidden} />
                                                         <EquipmentDetailRow label="Parte Firma" value={`${equip.parteFirma || 0}%`} />
                                                     </>
                                                 )
@@ -213,7 +216,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
                                             {equip.type === 'grua' && (
                                                 <>
                                                     {equip.aluguelPercentual != null && <EquipmentDetailRow label="Aluguel" value={`${equip.aluguelPercentual}%`} />}
-                                                    {equip.aluguelValor != null && <EquipmentDetailRow label="Aluguel" value={`R$ ${(equip.aluguelValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />}
+                                                    {equip.aluguelValor != null && <EquipmentDetailRow label="Aluguel" value={`R$ ${(equip.aluguelValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} areValuesHidden={areValuesHidden} />}
                                                     <EquipmentDetailRow label="Capacidade Pelúcias" value={equip.quantidadePelucia} />
                                                 </>
                                             )}

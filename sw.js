@@ -1,149 +1,19 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v69'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'montanha-bilhar-cache-v72'; // Versão incrementada para forçar atualização
 
-// Lista de ativos para armazenar em cache.
+// Apenas o "casco" do aplicativo é pré-cacheado. O restante é cacheado sob demanda pelo manipulador de fetch.
 const urlsToCache = [
   '/',
   '/index.html',
-  '/index.tsx',
   '/manifest.json',
   '/sw.js',
-  '/types.ts',
+  '/index.tsx',
   '/App.tsx',
+  '/types.ts',
   '/firebase.ts',
-  '/utils.ts',
-  '/utils/theme.ts',
-  '/utils/receiptGenerator.ts',
-  '/utils/sunmiPrinter.ts',
+  '/utils/offlineSync.ts',
   '/icon-192.svg',
-  '/icon-512.svg',
-  '/views/ClientesView.tsx',
-  '/views/CobrancasView.tsx',
-  '/views/ConfiguracoesView.tsx',
-  '/views/DashboardView.tsx',
-  '/views/DespesasView.tsx',
-  '/views/EquipamentosView.tsx',
-  '/views/LoginView.tsx',
-  '/views/RelatoriosView.tsx',
-  '/views/RotasView.tsx',
-  '/components/ActionModal.tsx',
-  '/components/AddCustomerForm.tsx',
-  '/components/AddPhoneModal.tsx',
-  '/components/BackupReminder.tsx',
-  '/components/BillingModal.tsx',
-  '/components/BillingSlipSheet.tsx',
-  '/components/BottomNavBar.tsx',
-  '/components/CityAutocomplete.tsx',
-  '/components/CityCustomersModal.tsx',
-  '/components/CraneReportModal.tsx',
-  '/components/CustomerCard.tsx',
-  '/components/CustomerForm.tsx',
-  '/components/CustomerSelectionForSlipsModal.tsx',
-  '/components/CustomerSheet.tsx',
-  '/components/DebtPaymentModal.tsx',
-  '/components/DebtReceiptActionsModal.tsx',
-  '/components/DebtReceiptSheet.tsx',
-  '/components/DebtReminders.tsx',
-  '/components/EditBillingModal.tsx',
-  '/components/EditCustomerModal.tsx',
-  '/components/EquipmentLabel.tsx',
-  '/components/EquipmentSelectionModal.tsx',
-  '/components/FullScreenCustomerView.tsx',
-  '/components/HistoryModal.tsx',
-  '/components/InstallPwaBanner.tsx',
-  '/components/LabelGenerationModal.tsx',
-  '/components/LocationActionsModal.tsx',
-  '/components/MapComponent.tsx',
-  '/components/MobileHeader.tsx',
-  '/components/Notification.tsx',
-  '/components/PageHeader.tsx',
-  '/components/PixQrCode.tsx',
-  '/components/PrintableSlipsModal.tsx',
-  '/components/QrScannerModal.tsx',
-  '/components/ReceiptActionsModal.tsx',
-  '/components/ReceiptSheet.tsx',
-  '/components/ShareCustomerModal.tsx',
-  '/components/Sidebar.tsx',
-  '/components/SignatureModal.tsx',
-  '/components/SignaturePad.tsx',
-  '/components/SyncStatusIndicator.tsx',
-  '/components/ThermalPrintActionsModal.tsx',
-  '/components/WarningsManager.tsx',
-  '/components/WarningsReminders.tsx',
-  '/components/icons/AlertIcon.tsx',
-  '/components/icons/AndroidIcon.tsx',
-  '/components/icons/ArrowsPointingInIcon.tsx',
-  '/components/icons/ArrowsPointingOutIcon.tsx',
-  '/components/icons/BellAlertIcon.tsx',
-  '/components/icons/BilliardIcon.tsx',
-  '/components/icons/CalculatorIcon.tsx',
-  '/components/icons/CameraIcon.tsx',
-  '/components/icons/ChartBarIcon.tsx',
-  '/components/icons/CheckCircleIcon.tsx',
-  '/components/icons/ChevronDownIcon.tsx',
-  '/components/icons/CloudUploadIcon.tsx',
-  '/components/icons/CogIcon.tsx',
-  '/components/icons/CraneIcon.tsx',
-  '/components/icons/CreditCardIcon.tsx',
-  '/components/icons/CurrencyDollarIcon.tsx',
-  '/components/icons/DocumentDuplicateIcon.tsx',
-  '/components/icons/ExclamationTriangleIcon.tsx',
-  '/components/icons/FilterIcon.tsx',
-  '/components/icons/GreenBilliardBallIcon.tsx',
-  '/components/icons/HistoryIcon.tsx',
-  '/components/icons/HomeIcon.tsx',
-  '/components/icons/ImageIcon.tsx',
-  '/components/icons/InstallIcon.tsx',
-  '/components/icons/JukeboxIcon.tsx',
-  '/components/icons/ListBulletIcon.tsx',
-  '/components/icons/LocationArrowIcon.tsx',
-  '/components/icons/LocationMarkerIcon.tsx',
-  '/components/icons/LogoIcon.tsx',
-  '/components/icons/MapIcon.tsx',
-  '/components/icons/MenuIcon.tsx',
-  '/components/icons/MoonIcon.tsx',
-  '/components/icons/NotVisitedIcon.tsx',
-  '/components/icons/PencilIcon.tsx',
-  '/components/icons/PhoneIcon.tsx',
-  '/components/icons/PlusIcon.tsx',
-  '/components/icons/PrinterIcon.tsx',
-  '/components/icons/PurpleBilliardBallIcon.tsx',
-  '/components/icons/QrCodeIcon.tsx',
-  '/components/icons/ReceiptIcon.tsx',
-  '/components/icons/RedBilliardBallIcon.tsx',
-  '/components/icons/RulerIcon.tsx',
-  '/components/icons/SaveIcon.tsx',
-  '/components/icons/SearchIcon.tsx',
-  '/components/icons/ShareIcon.tsx',
-  '/components/icons/SunIcon.tsx',
-  '/components/icons/SunmiIcon.tsx',
-  '/components/icons/TrashIcon.tsx',
-  '/components/icons/UserIcon.tsx',
-  '/components/icons/UsersIcon.tsx',
-  '/components/icons/VisitedIcon.tsx',
-  '/components/icons/WhatsAppIcon.tsx',
-  '/components/icons/XIcon.tsx',
-  '/components/icons/YellowBilliardBallIcon.tsx',
-  '/data/brazilianCities.ts',
-  '/data/seedHelper.ts',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap',
-  'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7W0Q5nw.woff2',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css',
-  'https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css',
-  'https://aistudiocdn.com/react@19.2.0',
-  'https://aistudiocdn.com/react-dom@19.2.0/client',
-  'https://aistudiocdn.com/react-dom@19.2.0/server',
-  'https://aistudiocdn.com/react@19.2.0/jsx-runtime',
-  'https://aistudiocdn.com/uuid@13.0.0',
-  'https://aistudiocdn.com/qrcode@1.5.3',
-  'https://aistudiocdn.com/html5-qrcode@2.3.8',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-  'https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js',
-  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+  '/icon-512.svg'
 ];
 
 self.addEventListener('install', (event) => {
@@ -152,11 +22,11 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Cache aberto, cacheando ativos principais...');
+        console.log('Cache aberto, cacheando o casco principal do aplicativo...');
         return cache.addAll(urlsToCache);
       })
       .catch(error => {
-        console.error('Falha ao armazenar ativos no cache durante a instalação:', error);
+        console.error('Falha ao armazenar o casco do aplicativo no cache durante a instalação:', error);
       })
   );
 });
@@ -194,7 +64,7 @@ self.addEventListener('fetch', (event) => {
       return cache.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
           // Se a requisição for bem-sucedida, atualiza o cache.
-          if (networkResponse.ok) {
+          if (networkResponse && networkResponse.ok) {
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;

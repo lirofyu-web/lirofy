@@ -23,6 +23,7 @@ interface CustomerFormProps {
   onCancel: () => void;
   submitButtonText: string;
   isEditMode?: boolean;
+  areValuesHidden?: boolean;
 }
 
 const initialFormState = {
@@ -66,7 +67,7 @@ const FormField: React.FC<{
     </div>
 ));
 
-const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onSubmit, isSaving, showNotification, onCancel, submitButtonText, isEditMode = false }) => {
+const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onSubmit, isSaving, showNotification, onCancel, submitButtonText, isEditMode = false, areValuesHidden = false }) => {
   const [formData, setFormData] = useState(() => {
     // FIX: Explicitly type `equipment` as `Partial<Equipment>[]` to handle both full and partial equipment objects during form manipulation. This resolves the type error when updating the state.
     const equipment: Partial<Equipment>[] = initialData?.equipment ? [...initialData.equipment] : [];
@@ -258,6 +259,9 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                  <CityAutocomplete id={`${isEditMode ? 'edit-' : ''}cidade`} value={formData.cidade || ''} onChange={handleCityChange} required />
             </div>
             <FormField label="Cobrador" name="linhaNumero" value={formData.linhaNumero || ''} onChange={handleBaseChange} isEditMode={isEditMode}/>
+            {isEditMode && !areValuesHidden && (
+                <FormField label="Dívida Atual (R$)" name="debtAmount" value={String(formData.debtAmount || '')} onChange={handleBaseChange} type="text" inputMode="decimal" isEditMode={isEditMode}/>
+            )}
         </div>
         
         <div className={`pt-4 border-t ${isEditMode ? 'border-slate-700' : 'border-slate-200 dark:border-slate-700'}`}>

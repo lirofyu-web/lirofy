@@ -26,6 +26,7 @@ interface DashboardViewProps {
   onDeleteWarning: (warningId: string) => void;
   lastBackupDate: string | null;
   onNavigateToSettings: () => void;
+  areValuesHidden: boolean;
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
@@ -69,8 +70,9 @@ type CategoryData = {
 const FinancialPerformanceCard: React.FC<{ 
     stats: any, // Using 'any' for brevity, but should be a specific stats type
     chartView: ChartView, 
-    onChartViewChange: (view: ChartView) => void 
-}> = React.memo(({ stats, chartView, onChartViewChange }) => {
+    onChartViewChange: (view: ChartView) => void,
+    areValuesHidden: boolean;
+}> = React.memo(({ stats, chartView, onChartViewChange, areValuesHidden }) => {
     
     const chartData: CategoryData[] = useMemo(() => [
         { 
@@ -144,24 +146,24 @@ const FinancialPerformanceCard: React.FC<{
             {/* Chart Area */}
             <div className="flex justify-around items-end h-48 pt-4">
                 {chartData.map(item => {
-                    const revenueHeight = `${(item.faturamentoTotal / maxValue) * 100}%`;
-                    const profitHeight = item.faturamentoTotal > 0 ? `${(item.saldo / item.faturamentoTotal) * 100}%` : '0%';
+                    const revenueHeight = areValuesHidden ? '50%' : `${(item.faturamentoTotal / maxValue) * 100}%`;
+                    const profitHeight = areValuesHidden ? '50%' : item.faturamentoTotal > 0 ? `${(item.saldo / item.faturamentoTotal) * 100}%` : '0%';
                     const colors = colorClasses[item.color as keyof typeof colorClasses];
                     
                     return (
                         <div key={item.label} className="flex flex-col items-center w-1/4 h-full text-center">
                             <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">
-                                R$ {(chartView === 'total' ? item.saldo : item.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {areValuesHidden ? 'R$ •••,••' : `R$ ${(chartView === 'total' ? item.saldo : item.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                             </div>
                             <div 
                                 className={`w-12 md:w-16 rounded-t-md ${colors.revenue} relative transition-all duration-700 ease-out`} 
                                 style={{ height: revenueHeight }}
-                                title={`Faturamento: R$ ${item.faturamentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                title={areValuesHidden ? 'Valor Oculto' : `Faturamento: R$ ${item.faturamentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                             >
                                 <div 
                                     className={`absolute bottom-0 left-0 right-0 rounded-t-md ${colors.profit}`} 
                                     style={{ height: profitHeight }}
-                                    title={`Saldo: R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                    title={areValuesHidden ? 'Valor Oculto' : `Saldo: R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 />
                             </div>
                         </div>
@@ -175,19 +177,19 @@ const FinancialPerformanceCard: React.FC<{
                     const colors = colorClasses[item.color as keyof typeof colorClasses];
                     const isBest = item.label === bestPerformerLabel;
                     return (
-                        <div key={item.label} className={`p-4 rounded-lg transition-all duration-300 ${isBest ? 'bg-amber-50 dark:bg-amber-900/30 ring-2 ring-amber-400 shadow-lg shadow-amber-500/20' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
+                        <div key={item.label} className={`p-4 rounded-lg transition-all duration-300 ${isBest && !areValuesHidden ? 'bg-amber-50 dark:bg-amber-900/30 ring-2 ring-amber-400 shadow-lg shadow-amber-500/20' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
                             <div className="flex justify-between items-start">
                                 <h4 className={`font-bold flex items-center gap-2 ${colors.text}`}>
                                     <item.icon className="w-5 h-5" />
                                     {item.label}
                                 </h4>
-                                {isBest && <span className="text-xs font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full">Destaque</span>}
+                                {isBest && !areValuesHidden && <span className="text-xs font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full">Destaque</span>}
                             </div>
                             <div className="mt-2 text-xs space-y-1 font-mono">
-                               <InfoRow label="Receita (Dinheiro):" value={`R$ ${item.receitaDinheiro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-sky-600 dark:text-sky-400" />
-                               <InfoRow label="Receita (PIX):" value={`R$ ${item.receitaPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-lime-600 dark:text-lime-400" />
-                               <InfoRow label="Despesas:" value={`- R$ ${item.despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-red-600 dark:text-red-400" />
-                               <InfoRow label="Saldo Líquido:" value={`R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor={item.saldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} />
+                               <InfoRow label="Receita (Dinheiro):" value={areValuesHidden ? 'R$ •••,••' : `R$ ${item.receitaDinheiro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-sky-600 dark:text-sky-400" />
+                               <InfoRow label="Receita (PIX):" value={areValuesHidden ? 'R$ •••,••' : `R$ ${item.receitaPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-lime-600 dark:text-lime-400" />
+                               <InfoRow label="Despesas:" value={areValuesHidden ? 'R$ •••,••' : `- R$ ${item.despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-red-600 dark:text-red-400" />
+                               <InfoRow label="Saldo Líquido:" value={areValuesHidden ? 'R$ •••,••' : `R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor={item.saldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} />
                                <InfoRow label="Quantidade:" value={`${item.quantidade} unid.`} valueColor="text-slate-500 dark:text-slate-400" />
                             </div>
                         </div>
@@ -233,7 +235,7 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
 
 // --- Main View Component ---
 
-const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings, areValuesHidden }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [chartView, setChartView] = useState<ChartView>('total');
 
@@ -345,7 +347,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
 
             <div className="space-y-8">
                 <BackupReminder lastBackupDate={lastBackupDate} onNavigate={onNavigateToSettings} />
-                <DebtReminders customers={customers} />
+                <DebtReminders customers={customers} areValuesHidden={areValuesHidden} />
                 <WarningsReminders warnings={warnings} />
             </div>
             
@@ -356,12 +358,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
-                <FinancialPerformanceCard stats={stats} chartView={chartView} onChartViewChange={setChartView} />
+                <FinancialPerformanceCard stats={stats} chartView={chartView} onChartViewChange={setChartView} areValuesHidden={areValuesHidden} />
                 
                 <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-2">
                     <InfoRow 
                         label="Total em Dívidas (Negativo)"
-                        value={`R$ ${stats.totalOutstandingDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                        value={areValuesHidden ? 'R$ •••,••' : `R$ ${stats.totalOutstandingDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                         valueColor="text-amber-600 dark:text-amber-400 text-2xl"
                         className="flex-col !items-start"
                     />
@@ -369,7 +371,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                  <InfoCard title="Despesas Totais" icon={<CalculatorIcon className="w-6 h-6 text-red-500" />} className="lg:col-span-2">
                     <InfoRow 
                         label="Total de Despesas no Período"
-                        value={`R$ ${stats.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                        value={areValuesHidden ? 'R$ •••,••' : `R$ ${stats.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                         valueColor="text-red-600 dark:text-red-400 text-2xl"
                         className="flex-col !items-start"
                     />
@@ -377,7 +379,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 <InfoCard title="Dívidas Recebidas" icon={<CurrencyDollarIcon className="w-6 h-6 text-emerald-500" />} className="lg:col-span-2">
                     <InfoRow 
                         label="Total Recebido de Dívidas"
-                        value={`R$ ${stats.totalDebtReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                        value={areValuesHidden ? 'R$ •••,••' : `R$ ${stats.totalDebtReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                         valueColor="text-emerald-600 dark:text-emerald-400 text-2xl"
                         className="flex-col !items-start"
                     />

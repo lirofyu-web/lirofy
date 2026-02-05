@@ -12,9 +12,10 @@ interface EditCustomerModalProps {
   customers: Customer[];
   isSaving: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  areValuesHidden: boolean;
 }
 
-const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, customers, isSaving, showNotification }) => {
+const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, onConfirm, customer, customers, isSaving, showNotification, areValuesHidden }) => {
 
   const handleSubmit = useCallback(async (formData: Omit<Customer, 'id' | 'createdAt' | 'debtAmount' | 'lastVisitedAt' | 'equipment'> & { debtAmount?: string | number } & { equipment: Partial<Equipment>[] }) => {
     
@@ -90,6 +91,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({ isOpen, onClose, 
             onCancel={onClose}
             submitButtonText="Salvar Alterações"
             isEditMode
+            areValuesHidden={areValuesHidden}
           />
         </div>
       </div>

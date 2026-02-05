@@ -34,6 +34,7 @@ interface ClientesViewProps {
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
   onFinalizePendingPayment: (billing: Billing) => void;
+  areValuesHidden: boolean;
 }
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
@@ -65,6 +66,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onLocationActions,
     onWhatsAppActions,
     onFinalizePendingPayment,
+    areValuesHidden,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -382,7 +384,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                     onFocusCustomer={onFocusCustomer}
                                     onLocationActions={onLocationActions}
                                     onWhatsAppActions={onWhatsAppActions}
-                                    onFinalizePayment={onFinalizePendingPayment}
+                                    onFinalizePendingPayment={onFinalizePendingPayment}
+                                    areValuesHidden={areValuesHidden}
                                 />
                             );
                         })}
@@ -414,11 +417,11 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             onLocationActions={onLocationActions}
             onWhatsAppActions={onWhatsAppActions}
             onFinalizePayment={onFinalizePendingPayment}
+            areValuesHidden={areValuesHidden}
         />
       )}
     </>
   );
 };
 
-// FIX: Add default export to make the component available for import in other files.
 export default ClientesView;

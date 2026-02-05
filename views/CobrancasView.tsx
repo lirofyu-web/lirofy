@@ -22,6 +22,7 @@ interface CobrancasViewProps {
     onDeleteBilling: (billingId: string) => void;
     onFinalizePayment: (billing: Billing) => void;
     onPayDebtCustomer: (customer: Customer) => void;
+    areValuesHidden: boolean;
 }
 
 type SortKey = 'settledAt' | 'customerName' | 'valorTotal' | 'paidAt' | 'amountPaid';
@@ -69,7 +70,7 @@ const TabButton: React.FC<{label: string, active: boolean, onClick: () => void}>
 
 // --- Sub-components for each tab ---
 
-const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, totalBilled, handleSort, renderSortArrow, getNetBilledAmount }) => (
+const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, totalBilled, handleSort, renderSortArrow, getNetBilledAmount, areValuesHidden }) => (
     <>
         {/* Mobile View: Cards */}
         <div className="md:hidden space-y-4 mb-10">
@@ -82,11 +83,11 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                             </div>
                             <div className="text-right">
                                 <p className="font-mono font-bold text-lg text-lime-600 dark:text-lime-400">
-                                    R$ {getNetBilledAmount(billing).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {areValuesHidden ? 'R$ •••,••' : `R$ ${getNetBilledAmount(billing).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                 </p>
                                 {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
                                     <p className="font-mono text-sm text-red-500 dark:text-red-400">
-                                        Dívida: R$ {billing.valorDebitoNegativo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        Dívida: {areValuesHidden ? 'R$ •••,••' : `R$ ${billing.valorDebitoNegativo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                     </p>
                                 )}
                                 <div className="mt-1"><PaymentMethodDisplay method={billing.paymentMethod} /></div>
@@ -114,7 +115,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                     </div>
                  )
             ) : <p className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada.</p>}
-            {billings.length > 0 && <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex justify-between font-bold text-lg"><span >TOTAL ARRECADADO</span><span className="font-mono text-lime-600 dark:text-lime-400">R$ {totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>}
+            {billings.length > 0 && <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex justify-between font-bold text-lg"><span >TOTAL ARRECADADO</span><span className="font-mono text-lime-600 dark:text-lime-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span></div>}
         </div>
 
         {/* Desktop View: Table */}
@@ -150,11 +151,11 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                                     <td className="px-6 py-4 text-right font-mono font-bold">
                                         <div className="flex flex-col items-end">
                                             <span className="text-lime-600 dark:text-lime-400">
-                                                R$ {getNetBilledAmount(billing).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {areValuesHidden ? 'R$ •••,••' : `R$ ${getNetBilledAmount(billing).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                             </span>
                                             {billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0 && (
                                                 <span className="text-xs text-red-500 dark:text-red-400">
-                                                    (Dívida: R$ {billing.valorDebitoNegativo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                    (Dívida: {areValuesHidden ? 'R$ •••,••' : `R$ ${billing.valorDebitoNegativo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
                                                 </span>
                                             )}
                                         </div>
@@ -177,7 +178,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                     <tfoot className="bg-slate-100 dark:bg-slate-700/50 font-bold text-slate-900 dark:text-white">
                         <tr>
                             <td colSpan={4} className="text-right px-6 py-3 uppercase">Total Arrecadado (Filtrado)</td>
-                            <td className="text-right px-6 py-3 font-mono text-lg text-lime-600 dark:text-lime-400">R$ {totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="text-right px-6 py-3 font-mono text-lg text-lime-600 dark:text-lime-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -187,7 +188,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
     </>
 );
 
-const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, onPrint, onPayDebtCustomer }) => (
+const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, onPrint, onPayDebtCustomer, areValuesHidden }) => (
     <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores ({debtorCustomers.length})</h3>
@@ -207,7 +208,7 @@ const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, onPrint, onPay
                             <p className="text-sm text-slate-500 dark:text-slate-400">{customer.cidade}</p>
                         </div>
                         <p className="font-mono font-bold text-lg text-red-500 dark:text-red-400">
-                            R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                           {areValuesHidden ? 'R$ •••,••' : `R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         </p>
                     </div>
                     <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
@@ -238,7 +239,7 @@ const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, onPrint, onPay
                         <tr key={customer.id} className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                             <td className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{customer.name}</td>
                             <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{customer.cidade}</td>
-                            <td className="px-6 py-4 text-right font-mono font-bold text-red-500 dark:text-red-400">R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="px-6 py-4 text-right font-mono font-bold text-red-500 dark:text-red-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</td>
                             <td className="px-6 py-4 text-center"><button onClick={() => onPayDebtCustomer(customer)} className="bg-amber-600 text-white font-bold py-1 px-3 rounded-md hover:bg-amber-500 text-xs">Pagar/Adicionar Dívida</button></td>
                         </tr>
                     )) : (<tr><td colSpan={4} className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhum cliente com dívida pendente.</td></tr>)}
@@ -246,14 +247,14 @@ const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, onPrint, onPay
                 <tfoot className="bg-slate-100 dark:bg-slate-700/50 font-bold text-slate-900 dark:text-white">
                     <tr>
                         <td colSpan={2} className="text-right px-6 py-3 uppercase">Total Geral de Dívidas</td>
-                        <td className="text-right px-6 py-3 font-mono text-lg text-red-500 dark:text-red-400">R$ {totalDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="text-right px-6 py-3 font-mono text-lg text-red-500 dark:text-red-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${totalDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</td>
                         <td></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
 
-        {debtorCustomers.length > 0 && (<div className="md:hidden p-4 bg-slate-100 dark:bg-slate-700/50 flex justify-between font-bold text-slate-900 dark:text-white"><span>TOTAL</span><span className="font-mono text-lg text-red-500 dark:text-red-400">R$ {totalDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>)}
+        {debtorCustomers.length > 0 && (<div className="md:hidden p-4 bg-slate-100 dark:bg-slate-700/50 flex justify-between font-bold text-slate-900 dark:text-white"><span>TOTAL</span><span className="font-mono text-lg text-red-500 dark:text-red-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${totalDebt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span></div>)}
     </div>
 );
 
@@ -266,6 +267,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
     onDeleteBilling,
     onFinalizePayment,
     onPayDebtCustomer,
+    areValuesHidden,
 }) => {
     const [activeTab, setActiveTab] = useState<MainTab>('billings');
     const [sortKey, setSortKey] = useState<SortKey>('settledAt');
@@ -473,12 +475,14 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
                                         {new Date(billing.settledAt).toLocaleDateString('pt-BR')} - <span className="capitalize">{billing.equipmentType}</span> {billing.equipmentNumero}
                                     </p>
                                     <p className="font-mono font-bold text-lg text-amber-600 dark:text-amber-400 mt-1">
-                                        R$ {(billing.valorTotal - (billing.valorBonus || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {areValuesHidden ? 'R$ •••,••' : `R$ ${(billing.valorTotal - (billing.valorBonus || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                     </p>
                                 </div>
-                                <button onClick={() => onFinalizePayment(billing)} className="w-full sm:w-auto bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500">
-                                    Finalizar Pagamento
-                                </button>
+                                {billing.equipmentType !== 'grua' && (
+                                    <button onClick={() => onFinalizePayment(billing)} className="w-full sm:w-auto bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500">
+                                        Finalizar Pagamento
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -486,8 +490,8 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
             )}
 
 
-            {activeTab === 'billings' && <BillingsList billings={completedBillings} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} getNetBilledAmount={getNetBilledAmount} />}
-            {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} billings={billings} onPrint={handlePrintDebtors} onPayDebtCustomer={onPayDebtCustomer} />}
+            {activeTab === 'billings' && <BillingsList billings={completedBillings} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} getNetBilledAmount={getNetBilledAmount} areValuesHidden={areValuesHidden} />}
+            {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} billings={billings} onPrint={handlePrintDebtors} onPayDebtCustomer={onPayDebtCustomer} areValuesHidden={areValuesHidden} />}
             
             {deletingBilling && <ActionModal isOpen={!!deletingBilling} onClose={() => setDeletingBilling(null)} onConfirm={handleConfirmDelete} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>?</p><p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p></ActionModal>}
         </>

@@ -12,6 +12,7 @@ interface QueuedMutation {
   collectionPath: string;
   docId?: string;
   payload: any;
+  targetUserId?: string;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -78,8 +79,8 @@ export const clearOfflineQueue = async (): Promise<void> => {
   });
 };
 
-export const processSyncQueue = async (userId: string | null): Promise<number> => {
-  if (!userId) return 0;
+export const processSyncQueue = async (currentUserId: string | null): Promise<number> => {
+  if (!currentUserId) return 0;
   
   const dbInstance = await getDb();
   const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
@@ -96,22 +97,18 @@ export const processSyncQueue = async (userId: string | null): Promise<number> =
     const batch = writeBatch(db);
 
     mutations.forEach((mutation) => {
-      const collectionPath = `users/${userId}/${mutation.collectionPath}`;
+      const userIdForPath = mutation.targetUserId || currentUserId;
+      const collectionPath = `users/${userIdForPath}/${mutation.collectionPath}`;
       let docRef;
       
       const cleanPayload = processPayloadForFirestore(mutation.payload);
 
       if (mutation.action === 'add') {
         const docId = cleanPayload.id;
-        // CRITICAL FIX: Always use the client-generated ID if it exists.
-        // This ensures that subsequent updates/deletes for an item created offline
-        // can find the correct document in Firestore.
         if (docId && typeof docId === 'string') {
             docRef = doc(db, collectionPath, docId);
             batch.set(docRef, cleanPayload);
         } else {
-            // Fallback for mutations that don't generate a client-side ID.
-            // Note: This path can still cause issues if an update/delete is queued for it.
             docRef = doc(collection(db, collectionPath));
             batch.set(docRef, cleanPayload);
         }
@@ -126,7 +123,6 @@ export const processSyncQueue = async (userId: string | null): Promise<number> =
 
     await batch.commit();
 
-    // If commit is successful, clear the queue.
     await clearOfflineQueue();
     
     return mutations.length;

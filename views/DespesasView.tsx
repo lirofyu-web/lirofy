@@ -14,6 +14,7 @@ interface DespesasViewProps {
   expenses: Expense[];
   onAddExpense: (description: string, amount: number, category: Expense['category']) => void;
   onDeleteExpense: (expenseId: string) => void;
+  areValuesHidden: boolean;
 }
 
 type SortKey = 'date' | 'description' | 'amount' | 'category';
@@ -43,7 +44,7 @@ const CategoryDisplay: React.FC<{ category?: Expense['category'] }> = React.memo
     );
 });
 
-const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onDeleteExpense }) => {
+const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onDeleteExpense, areValuesHidden }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Expense['category']>('geral');
@@ -108,7 +109,9 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
         <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(expense.date).toLocaleDateString('pt-BR')}</p>
       </div>
       <div className="text-right">
-        <p className="font-mono font-bold text-red-600 dark:text-red-400 text-lg">R$ {expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <p className="font-mono font-bold text-red-600 dark:text-red-400 text-lg">
+            {areValuesHidden ? 'R$ •••,••' : `R$ ${expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        </p>
         <button onClick={() => onDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500 dark:text-slate-500 mt-1" title="Excluir Despesa">
           <TrashIcon className="w-4 h-4" />
         </button>
@@ -142,7 +145,9 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
         {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseCard) : <p className="text-center py-10 text-slate-500 dark:text-slate-400">Nenhuma despesa registrada.</p>}
         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center font-bold text-slate-900 dark:text-white">
             <span className="text-lg">TOTAL DE DESPESAS</span>
-            <span className="font-mono text-xl text-red-600 dark:text-red-400">R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="font-mono text-xl text-red-600 dark:text-red-400">
+                {areValuesHidden ? 'R$ •••,••' : `R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </span>
         </div>
       </div>
 
@@ -162,7 +167,9 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
                 <td className="px-6 py-4">{new Date(expense.date).toLocaleDateString('pt-BR')}</td>
                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white break-words">{expense.description}</td>
                 <td className="px-6 py-4"><CategoryDisplay category={expense.category} /></td>
-                <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400">R$ {expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="px-6 py-4 text-right font-mono text-red-600 dark:text-red-400">
+                    {areValuesHidden ? 'R$ •••,••' : `R$ ${expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </td>
                 <td className="px-6 py-4 text-center"><button onClick={() => onDeleteExpense(expense.id)} className="text-slate-400 hover:text-red-500" title="Excluir Despesa"><TrashIcon className="w-5 h-5" /></button></td>
               </tr>
             )) : (
@@ -171,7 +178,9 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
           </tbody>
           <tfoot className="bg-slate-100 dark:bg-slate-700/50"><tr className="font-bold text-slate-900 dark:text-white">
               <td colSpan={3} className="text-right px-6 py-3 uppercase">Total de Despesas</td>
-              <td className="text-right px-6 py-3 font-mono text-lg text-red-600 dark:text-red-400">R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td></td>
+              <td className="text-right px-6 py-3 font-mono text-lg text-red-600 dark:text-red-400">
+                {areValuesHidden ? 'R$ •••,••' : `R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </td><td></td>
           </tr></tfoot>
         </table></div>
       </div>

@@ -437,7 +437,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
       </div>
       
       {/* Floating Fullscreen Controls */}
-      <div className="absolute bottom-[calc(8rem+env(safe-area-inset-bottom))] md:bottom-20 right-5 z-40 flex flex-col gap-2">
+      <div className="absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-20 right-5 z-40 flex flex-col gap-2">
           <button 
               onClick={() => setFullScreenMode(fullScreenMode === 'map' ? 'none' : 'map')}
               title={fullScreenMode === 'map' ? "Restaurar Visualização" : "Mapa em Tela Cheia"}

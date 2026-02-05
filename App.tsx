@@ -1,12 +1,12 @@
 // App.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { User, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+import { User, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
 import { collection, query, onSnapshot, Timestamp, getDocs, deleteDoc, doc, setDoc, addDoc, updateDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'qrcode';
-import { auth, db, processFirestoreDoc } from './firebase';
+import { auth, db, processFirestoreDoc, MASTER_USER_UID } from './firebase';
 
-import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile } from './types';
+import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser } from './types';
 import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -52,6 +52,7 @@ import LocationActionsModal from './components/LocationActionsModal';
 import AddPhoneModal from './components/AddPhoneModal';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
 import FinalizePaymentModal from './components/FinalizePaymentModal';
+import PrivacyPinModal from './components/PrivacyPinModal';
 
 
 type NotificationState = {
@@ -165,6 +166,12 @@ const App: React.FC = () => {
     const [isSharing, setIsSharing] = useState(false);
     const [lastBackupTimestamp, setLastBackupTimestamp] = useState<string | null>(localStorage.getItem('lastBackupTimestamp'));
 
+    // Privacy Mode State
+    const [isPrivacyModeEnabled, setIsPrivacyModeEnabled] = useState<boolean>(() => !!localStorage.getItem('privacyPin'));
+    const [isPrivacyUnlocked, setIsPrivacyUnlocked] = useState<boolean>(false);
+    const areValuesHidden = useMemo(() => isPrivacyModeEnabled && !isPrivacyUnlocked, [isPrivacyModeEnabled, isPrivacyUnlocked]);
+    const [privacyPinModalState, setPrivacyPinModalState] = useState<{ isOpen: boolean; mode: 'create' | 'enter'; title: string; onConfirm: (pin: string) => void; error?: string }>({ isOpen: false, mode: 'enter', title: '', onConfirm: () => {} });
+
     // Sync & Offline State
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'offline'>('idle');
@@ -225,6 +232,61 @@ const App: React.FC = () => {
         setNotification({ message, type });
     }, []);
     
+    // --- Privacy Mode Handlers ---
+    const openPinModal = useCallback((mode: 'create' | 'enter', title: string, onConfirm: (pin: string) => void) => {
+        setPrivacyPinModalState({ isOpen: true, mode, title, onConfirm, error: '' });
+    }, []);
+
+    const handleSetPin = useCallback((pin: string) => {
+        localStorage.setItem('privacyPin', btoa(pin));
+        setIsPrivacyModeEnabled(true);
+        setIsPrivacyUnlocked(false);
+        setPrivacyPinModalState({ isOpen: false, mode: 'create', title: '', onConfirm: () => {} });
+        showNotification('Modo de privacidade ativado!', 'success');
+    }, [showNotification]);
+
+    const handleUnlock = useCallback((pin: string) => {
+        const storedPin = localStorage.getItem('privacyPin');
+        if (storedPin && atob(storedPin) === pin) {
+            setIsPrivacyUnlocked(true);
+            setPrivacyPinModalState({ isOpen: false, mode: 'enter', title: '', onConfirm: () => {} });
+            showNotification('Valores visíveis nesta sessão.', 'success');
+        } else {
+            setPrivacyPinModalState(prev => ({ ...prev, error: 'PIN incorreto.' }));
+        }
+    }, [showNotification]);
+
+    const handleRemovePin = useCallback((pin: string) => {
+        const storedPin = localStorage.getItem('privacyPin');
+        if (storedPin && atob(storedPin) === pin) {
+            localStorage.removeItem('privacyPin');
+            setIsPrivacyModeEnabled(false);
+            setIsPrivacyUnlocked(false);
+            setPrivacyPinModalState({ isOpen: false, mode: 'enter', title: '', onConfirm: () => {} });
+            showNotification('Modo de privacidade desativado.', 'success');
+        } else {
+            setPrivacyPinModalState(prev => ({ ...prev, error: 'PIN incorreto.' }));
+        }
+    }, [showNotification]);
+
+    const handleToggleLock = useCallback(() => {
+        if (isPrivacyUnlocked) {
+            setIsPrivacyUnlocked(false);
+            showNotification('Valores ocultados.', 'success');
+        } else {
+            openPinModal('enter', 'Desbloquear Valores', handleUnlock);
+        }
+    }, [isPrivacyUnlocked, openPinModal, handleUnlock, showNotification]);
+
+    const handleActivatePrivacyMode = useCallback(() => {
+        openPinModal('create', 'Criar PIN de Privacidade', handleSetPin);
+    }, [openPinModal, handleSetPin]);
+
+    const handleDeactivatePrivacyMode = useCallback(() => {
+        openPinModal('enter', 'Confirmar PIN para Desativar', handleRemovePin);
+    }, [openPinModal, handleRemovePin]);
+
+
     // --- Offline & Sync Logic ---
     const syncData = useCallback(async () => {
         if (!isOnline || isSyncing.current) return;
@@ -279,11 +341,63 @@ const App: React.FC = () => {
 
 
     // --- Firebase Auth & Data Sync Effects ---
+    const handleLoginSuccess = useCallback((email: string, password?: string, rememberMe?: boolean) => {
+      try {
+        const usersStr = localStorage.getItem('savedUsers');
+        const users: SavedUser[] = usersStr ? JSON.parse(usersStr) : [];
+        const userIndex = users.findIndex(u => u.email === email);
+
+        if (rememberMe && password) {
+            // Remember me: save email and encoded password
+            const newUser: SavedUser = { email, pass: btoa(password) };
+            if (userIndex > -1) {
+                users[userIndex] = newUser;
+            } else {
+                users.push(newUser);
+            }
+        } else {
+             // Not remembering: save email only, removing any existing password
+             const newUser: SavedUser = { email };
+             if (userIndex > -1) {
+                 users[userIndex] = newUser;
+             } else {
+                users.push(newUser);
+             }
+        }
+        localStorage.setItem('savedUsers', JSON.stringify(users));
+
+      } catch (error) {
+        console.error("Failed to update saved users list:", error);
+      }
+    }, []);
+
+    const handleLogout = useCallback(async () => {
+        try {
+            await signOut(auth);
+            setIsPrivacyUnlocked(false);
+        } catch (error) {
+            showNotification('Erro ao sair da conta.', 'error');
+        }
+    }, [showNotification]);
+
+    const handleSwitchAccount = useCallback(async (email: string) => {
+        setIsPrivacyUnlocked(false);
+        sessionStorage.setItem('switchAccountEmail', email);
+        await handleLogout();
+    }, [handleLogout]);
+
+    const handleAddNewAccount = useCallback(async () => {
+        setIsPrivacyUnlocked(false);
+        sessionStorage.removeItem('switchAccountEmail');
+        await handleLogout();
+    }, [handleLogout]);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             if (!user) {
-                setUserProfile(null); // Limpa o perfil no logout
+                setUserProfile(null);
+                setIsPrivacyUnlocked(false);
             }
             setIsLoadingAuth(false);
         });
@@ -357,6 +471,8 @@ const App: React.FC = () => {
             setWarnings([]);
             return;
         }
+
+        const userIdToListen = user.uid === MASTER_USER_UID ? MASTER_USER_UID : user.uid;
     
         const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
         const setters: Record<string, React.Dispatch<React.SetStateAction<any[]>>> = {
@@ -368,7 +484,7 @@ const App: React.FC = () => {
         };
     
         const unsubscribers = collections.map(col => {
-            const q = query(collection(db, `users/${user.uid}/${col}`));
+            const q = query(collection(db, `users/${userIdToListen}/${col}`));
             return onSnapshot(q, (querySnapshot) => {
                 const data = querySnapshot.docs.map(processFirestoreDoc);
                 setters[col](data as any);
@@ -407,6 +523,7 @@ const App: React.FC = () => {
     // --- Data Handlers (Add, Update, Delete) ---
     
     const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'debtAmount' | 'lastVisitedAt'>) => {
+        if (!user) return;
         setIsSaving(true);
         const customerWithId: Customer = {
             id: uuidv4(),
@@ -416,22 +533,29 @@ const App: React.FC = () => {
             lastVisitedAt: null,
         };
     
-        // Optimistic update
         const originalCustomers = customers;
         setCustomers(prev => [...prev, customerWithId].sort((a,b) => a.name.localeCompare(b.name)));
     
         try {
             const { id, ...payload } = customerWithId;
             const firestorePayload = processPayloadForFirestore(payload);
-            if(isOnline && user) {
-                await setDoc(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
+            if(isOnline) {
+                const batch = writeBatch(db);
+                batch.set(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.set(doc(db, `users/${MASTER_USER_UID}/customers`, id), firestorePayload);
+                }
+                await batch.commit();
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
+                if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId, targetUserId: MASTER_USER_UID });
+                }
             }
             showNotification('Cliente adicionado com sucesso!');
         } catch (error) {
             showNotification('Erro ao adicionar cliente. Alteração desfeita.', 'error');
-            setCustomers(originalCustomers); // Rollback
+            setCustomers(originalCustomers);
             console.error(error);
         } finally {
             setIsSaving(false);
@@ -439,20 +563,28 @@ const App: React.FC = () => {
     }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
     
     const handleUpdateCustomer = useCallback(async (customer: Customer) => {
+        if (!user) return;
         setIsSaving(true);
         const originalCustomers = customers;
        
-        // Atualização Otimista
         setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
         setEditCustomerModalState({ isOpen: false, customer: null });
 
         const { id, ...customerData } = customer;
         try {
-            if (isOnline && user) {
-                const customerRef = doc(db, `users/${user.uid}/customers`, id);
-                await updateDoc(customerRef, processPayloadForFirestore(customerData));
+            const firestorePayload = processPayloadForFirestore(customerData);
+            if (isOnline) {
+                const batch = writeBatch(db);
+                batch.update(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, id), firestorePayload);
+                }
+                await batch.commit();
             } else {
                  await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
+                 if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData, targetUserId: MASTER_USER_UID });
+                 }
             }
             showNotification('Cliente atualizado com sucesso!');
         } catch (error) {
@@ -465,25 +597,31 @@ const App: React.FC = () => {
     }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
     
     const handleDeleteCustomer = useCallback(async (customerId: string) => {
+        if (!user) return;
         setIsSaving(true);
         const originalCustomers = customers;
-        const customerToDelete = originalCustomers.find(c => c.id === customerId);
-        if (!customerToDelete) return;
     
-        // Optimistic update
         setCustomers(prev => prev.filter(c => c.id !== customerId));
         setDeleteModalState({ isOpen: false, customer: null });
     
         try {
-            if(isOnline && user) {
-                await deleteDoc(doc(db, `users/${user.uid}/customers`, customerId));
+            if(isOnline) {
+                const batch = writeBatch(db);
+                batch.delete(doc(db, `users/${user.uid}/customers`, customerId));
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.delete(doc(db, `users/${MASTER_USER_UID}/customers`, customerId));
+                }
+                await batch.commit();
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {} });
+                if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {}, targetUserId: MASTER_USER_UID });
+                }
             }
             showNotification('Cliente excluído com sucesso!');
         } catch (error) {
             showNotification('Erro ao excluir cliente. Alteração desfeita.', 'error');
-            setCustomers(originalCustomers); // Rollback
+            setCustomers(originalCustomers);
             console.error(error);
         } finally {
             setIsSaving(false);
@@ -491,6 +629,7 @@ const App: React.FC = () => {
     }, [customers, isOnline, user, showNotification]);
 
     const handleAddBilling = useCallback(async (billing: Billing) => {
+        if (!user) return;
         setIsSaving(true);
         const originalCustomers = customers;
         const originalBillings = billings;
@@ -515,7 +654,6 @@ const App: React.FC = () => {
         };
         const updatedCustomer = { ...customerToUpdate, ...updatedCustomerData };
     
-        // Optimistic update
         setBillings(prev => [...prev, billing]);
         setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
         setBillingModalState({ isOpen: false, customer: null, equipment: null });
@@ -527,14 +665,23 @@ const App: React.FC = () => {
             const firestoreBillingPayload = processPayloadForFirestore(billingPayload);
             const firestoreCustomerPayload = processPayloadForFirestore(customerPayload);
 
-            if (isOnline && user) {
+            if (isOnline) {
                 const batch = writeBatch(db);
                 batch.set(doc(db, `users/${user.uid}/billings`, billingId), firestoreBillingPayload);
                 batch.update(doc(db, `users/${user.uid}/customers`, customerId), firestoreCustomerPayload);
+
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.set(doc(db, `users/${MASTER_USER_UID}/billings`, billingId), firestoreBillingPayload);
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customerId), firestoreCustomerPayload);
+                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing, targetUserId: MASTER_USER_UID });
+                    await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload, targetUserId: MASTER_USER_UID });
+                }
             }
             
             if (billing.paymentMethod !== 'pending_payment') {
@@ -553,6 +700,7 @@ const App: React.FC = () => {
     }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
     
     const handleUpdateBilling = useCallback(async (billing: Billing) => {
+        if (!user) return;
         setIsSaving(true);
         const originalBillings = billings;
         const originalCustomers = customers;
@@ -571,17 +719,14 @@ const App: React.FC = () => {
             return;
         }
 
-        // --- Recalculate customer debt based on changes ---
         const oldDebtChange = oldBilling.valorDebitoNegativo || 0;
         const newDebtChange = billing.valorDebitoNegativo || 0;
         const debtDifference = newDebtChange - oldDebtChange;
         
-        // --- Recalculate equipment 'relogioAnterior' for the next billing ---
         const nextBillingForEquipment = billings
             .filter(b => b.equipmentId === billing.equipmentId && new Date(b.settledAt) > new Date(billing.settledAt))
             .sort((a,b) => new Date(a.settledAt).getTime() - new Date(b.settledAt).getTime())[0];
 
-        // Optimistic Update
         const updatedCustomer = { ...customerToUpdate, debtAmount: customerToUpdate.debtAmount + debtDifference };
         setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
         setBillings(prev => prev.map(b => b.id === billing.id ? billing : b));
@@ -590,29 +735,42 @@ const App: React.FC = () => {
         try {
             const { id: billingId, ...billingPayload } = billing;
             const { id: customerId, ...customerPayload } = updatedCustomer;
-            
-            const batchPayloads: { action: 'update', collectionPath: string, docId: string, payload: any }[] = [
-                { action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload },
-                { action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload }
-            ];
+
+            let nextBillingPayload: any = null;
+            let nextBillingId: string | undefined;
 
             if (nextBillingForEquipment) {
                 const updatedNextBilling = { ...nextBillingForEquipment, relogioAnterior: billing.relogioAtual };
-                const {id: nextBillingId, ...nextBillingPayload } = updatedNextBilling;
-                setBillings(prev => prev.map(b => b.id === nextBillingId ? updatedNextBilling : b));
-                batchPayloads.push({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
+                setBillings(prev => prev.map(b => b.id === updatedNextBilling.id ? updatedNextBilling : b));
+                nextBillingId = updatedNextBilling.id;
+                const { id, ...payload } = updatedNextBilling;
+                nextBillingPayload = payload;
             }
 
-            if (isOnline && user) {
+            if (isOnline) {
                 const batch = writeBatch(db);
-                batchPayloads.forEach(p => {
-                    const docRef = doc(db, `users/${user.uid}/${p.collectionPath}`, p.docId);
-                    batch.update(docRef, processPayloadForFirestore(p.payload));
-                });
+                const userBillingRef = doc(db, `users/${user.uid}/billings`, billingId);
+                const userCustomerRef = doc(db, `users/${user.uid}/customers`, customerId);
+
+                batch.update(userBillingRef, processPayloadForFirestore(billingPayload));
+                batch.update(userCustomerRef, processPayloadForFirestore(customerPayload));
+                if (nextBillingId && nextBillingPayload) batch.update(doc(db, `users/${user.uid}/billings`, nextBillingId), processPayloadForFirestore(nextBillingPayload));
+
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/billings`, billingId), processPayloadForFirestore(billingPayload));
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customerId), processPayloadForFirestore(customerPayload));
+                    if (nextBillingId && nextBillingPayload) batch.update(doc(db, `users/${MASTER_USER_UID}/billings`, nextBillingId), processPayloadForFirestore(nextBillingPayload));
+                }
                 await batch.commit();
             } else {
-                for (const p of batchPayloads) {
-                    await queueMutation(p);
+                await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
+
+                if (user.uid !== MASTER_USER_UID) {
+                     await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload, targetUserId: MASTER_USER_UID });
+                     await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload, targetUserId: MASTER_USER_UID });
+                     if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload, targetUserId: MASTER_USER_UID });
                 }
             }
             showNotification('Cobrança atualizada com sucesso!');
@@ -627,62 +785,45 @@ const App: React.FC = () => {
     }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
 
     const handleDeleteBilling = useCallback(async (billingId: string) => {
+        if (!user) return;
         setIsSaving(true);
         const originalBillings = billings;
         const originalCustomers = customers;
     
         const billingToDelete = originalBillings.find(b => b.id === billingId);
-        if (!billingToDelete) {
-            showNotification("Cobrança não encontrada para exclusão.", "error");
-            setIsSaving(false);
-            return;
-        }
-    
+        if (!billingToDelete) return;
         const customerToUpdate = originalCustomers.find(c => c.id === billingToDelete.customerId);
-        if (!customerToUpdate) {
-            showNotification("Cliente associado à cobrança não encontrado.", "error");
-            setIsSaving(false);
-            return;
-        }
+        if (!customerToUpdate) return;
         
-        // Correct logic: Revert the equipment's clock to the state it was in BEFORE this billing occurred.
         const restoredRelogioAnterior = billingToDelete.relogioAnterior;
-    
-        // Optimistic update
         const debtToRemove = billingToDelete.valorDebitoNegativo || 0;
-        const updatedCustomer = { 
-            ...customerToUpdate, 
+        const updatedCustomerPayload = { 
             debtAmount: (customerToUpdate.debtAmount || 0) - debtToRemove, 
-            equipment: customerToUpdate.equipment.map(e => 
-                e.id === billingToDelete.equipmentId 
-                ? { ...e, relogioAnterior: restoredRelogioAnterior } 
-                : e
-            ) 
+            equipment: customerToUpdate.equipment.map(e => e.id === billingToDelete.equipmentId ? { ...e, relogioAnterior: restoredRelogioAnterior } : e) 
         };
+        const updatedCustomer = { ...customerToUpdate, ...updatedCustomerPayload };
     
         setBillings(prev => prev.filter(b => b.id !== billingId));
         setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
         
         try {
-            if (isOnline && user) {
+            if (isOnline) {
                 const batch = writeBatch(db);
                 batch.delete(doc(db, `users/${user.uid}/billings`, billingId));
-                batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), {
-                    debtAmount: updatedCustomer.debtAmount,
-                    equipment: processPayloadForFirestore(updatedCustomer.equipment)
-                });
+                batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), processPayloadForFirestore(updatedCustomerPayload));
+
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.delete(doc(db, `users/${MASTER_USER_UID}/billings`, billingId));
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, updatedCustomer.id), processPayloadForFirestore(updatedCustomerPayload));
+                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
-                await queueMutation({ 
-                    action: 'update', 
-                    collectionPath: 'customers', 
-                    docId: updatedCustomer.id, 
-                    payload: { 
-                        debtAmount: updatedCustomer.debtAmount, 
-                        equipment: updatedCustomer.equipment 
-                    } 
-                });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
+                if (user.uid !== MASTER_USER_UID) {
+                     await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {}, targetUserId: MASTER_USER_UID });
+                     await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload, targetUserId: MASTER_USER_UID });
+                }
             }
             showNotification('Cobrança excluída! O relógio do equipamento foi revertido.', 'success');
         } catch (error) {
@@ -696,6 +837,7 @@ const App: React.FC = () => {
     }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
 
     const handleAddExpense = useCallback(async (description: string, amount: number, category: Expense['category']) => {
+        if (!user) return;
         setIsSaving(true);
         const newExpense: Expense = {
             id: uuidv4(),
@@ -710,10 +852,19 @@ const App: React.FC = () => {
         
         try {
             const { id, ...payload } = newExpense;
-            if(isOnline && user) {
-                await setDoc(doc(db, `users/${user.uid}/expenses`, id), processPayloadForFirestore(payload));
+            const firestorePayload = processPayloadForFirestore(payload);
+            if(isOnline) {
+                const batch = writeBatch(db);
+                batch.set(doc(db, `users/${user.uid}/expenses`, id), firestorePayload);
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.set(doc(db, `users/${MASTER_USER_UID}/expenses`, id), firestorePayload);
+                }
+                await batch.commit();
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
+                if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense, targetUserId: MASTER_USER_UID });
+                }
             }
             showNotification('Despesa adicionada com sucesso!');
         } catch (error) {
@@ -726,15 +877,24 @@ const App: React.FC = () => {
     }, [expenses, isOnline, user, processPayloadForFirestore, showNotification]);
 
     const handleDeleteExpense = useCallback(async (expenseId: string) => {
+        if (!user) return;
         setIsSaving(true);
         const originalExpenses = expenses;
         setExpenses(prev => prev.filter(e => e.id !== expenseId));
 
         try {
-            if(isOnline && user) {
-                await deleteDoc(doc(db, `users/${user.uid}/expenses`, expenseId));
+            if(isOnline) {
+                const batch = writeBatch(db);
+                batch.delete(doc(db, `users/${user.uid}/expenses`, expenseId));
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.delete(doc(db, `users/${MASTER_USER_UID}/expenses`, expenseId));
+                }
+                await batch.commit();
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
+                 if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {}, targetUserId: MASTER_USER_UID });
+                }
             }
             showNotification('Despesa excluída com sucesso!');
         } catch (error) {
@@ -747,14 +907,11 @@ const App: React.FC = () => {
     }, [expenses, isOnline, user, showNotification]);
 
     const handleAddDebtPayment = useCallback(async (customerId: string, details: { amountPaidDinheiro: number; amountPaidPix: number } | { amountToAdd: number }) => {
+        if (!user) return;
         setIsSaving(true);
         const originalCustomers = customers;
         const customerToUpdate = customers.find(c => c.id === customerId);
-        if (!customerToUpdate) {
-            showNotification("Cliente não encontrado.", 'error');
-            setIsSaving(false);
-            return;
-        }
+        if (!customerToUpdate) return;
 
         let updatedCustomer: Customer;
         let debtPayment: DebtPayment | null = null;
@@ -775,45 +932,39 @@ const App: React.FC = () => {
             if (amountPaidDinheiro > 0) methodsUsed.push('dinheiro');
             if (amountPaidPix > 0) methodsUsed.push('pix');
 
-            let paymentMethod: DebtPayment['paymentMethod'] = 'dinheiro';
-            if (methodsUsed.length > 1) {
-                paymentMethod = 'misto';
-            } else if (methodsUsed.length === 1) {
-                paymentMethod = methodsUsed[0];
-            }
+            let paymentMethod: DebtPayment['paymentMethod'] = methodsUsed.length > 1 ? 'misto' : (methodsUsed[0] || 'dinheiro');
 
             debtPayment = {
-                id: uuidv4(),
-                customerId: customerId,
-                customerName: customerToUpdate.name,
-                amountPaid: totalPaid,
-                paidAt: new Date(),
-                paymentMethod,
+                id: uuidv4(), customerId, customerName: customerToUpdate.name, amountPaid: totalPaid, paidAt: new Date(), paymentMethod,
                 amountPaidDinheiro: amountPaidDinheiro > 0 ? amountPaidDinheiro : undefined,
                 amountPaidPix: amountPaidPix > 0 ? amountPaidPix : undefined,
             };
         }
         
-        // Optimistic update
         setCustomers(prev => prev.map(c => c.id === customerId ? updatedCustomer : c));
-        if (debtPayment) {
-            setDebtPayments(prev => [...prev, debtPayment!]);
-        }
+        if (debtPayment) setDebtPayments(prev => [...prev, debtPayment!]);
         setDebtPaymentModalState({isOpen: false, customer: null});
 
         try {
-            if (isOnline && user) {
+            const customerPayload = { debtAmount: updatedCustomer.debtAmount };
+            if (isOnline) {
                 const batch = writeBatch(db);
-                batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), { debtAmount: updatedCustomer.debtAmount });
+                batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), customerPayload);
+                if (user.uid !== MASTER_USER_UID) batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, updatedCustomer.id), customerPayload);
+
                 if (debtPayment) {
                     const { id: dpId, ...dpPayload } = debtPayment;
-                    batch.set(doc(db, `users/${user.uid}/debtPayments`, dpId), processPayloadForFirestore(dpPayload));
+                    const firestoreDpPayload = processPayloadForFirestore(dpPayload);
+                    batch.set(doc(db, `users/${user.uid}/debtPayments`, dpId), firestoreDpPayload);
+                    if (user.uid !== MASTER_USER_UID) batch.set(doc(db, `users/${MASTER_USER_UID}/debtPayments`, dpId), firestoreDpPayload);
                 }
                 await batch.commit();
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: { debtAmount: updatedCustomer.debtAmount } });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: customerPayload });
+                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: customerPayload, targetUserId: MASTER_USER_UID });
                 if (debtPayment) {
                     await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: debtPayment });
+                    if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: debtPayment, targetUserId: MASTER_USER_UID });
                 }
             }
             
@@ -833,20 +984,25 @@ const App: React.FC = () => {
 
 
     const handleForgiveDebt = useCallback(async (customer: Customer) => {
+        if (!user) return;
         setIsSaving(true);
         const originalCustomers = customers;
         const updatedCustomer = { ...customer, debtAmount: 0 };
 
-        // Optimistic Update
         setCustomers(prev => prev.map(c => c.id === customer.id ? updatedCustomer : c));
         setForgiveDebtModalState({ isOpen: false, customer: null });
         setDebtPaymentModalState({ isOpen: false, customer: null });
 
         try {
-            if (isOnline && user) {
-                await updateDoc(doc(db, `users/${user.uid}/customers`, customer.id), { debtAmount: 0 });
+            const payload = { debtAmount: 0 };
+            if (isOnline) {
+                const batch = writeBatch(db);
+                batch.update(doc(db, `users/${user.uid}/customers`, customer.id), payload);
+                if (user.uid !== MASTER_USER_UID) batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customer.id), payload);
+                await batch.commit();
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload: { debtAmount: 0 } });
+                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
+                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload, targetUserId: MASTER_USER_UID });
             }
             showNotification(`Dívida de ${customer.name} foi perdoada.`, 'success');
         } catch (error) {
@@ -860,27 +1016,25 @@ const App: React.FC = () => {
 
 
     const handleAddWarning = useCallback(async (customerId: string, message: string) => {
+        if (!user) return;
         const customer = customers.find(c => c.id === customerId);
         if (!customer) return;
 
-        const newWarning: Warning = {
-            id: uuidv4(),
-            customerId,
-            customerName: customer.name,
-            message,
-            createdAt: new Date(),
-            isResolved: false
-        };
-
+        const newWarning: Warning = { id: uuidv4(), customerId, customerName: customer.name, message, createdAt: new Date(), isResolved: false };
         const originalWarnings = warnings;
         setWarnings(prev => [newWarning, ...prev]);
 
         try {
             const { id, ...payload } = newWarning;
-            if (isOnline && user) {
-                await setDoc(doc(db, `users/${user.uid}/warnings`, id), processPayloadForFirestore(payload));
+            const firestorePayload = processPayloadForFirestore(payload);
+            if (isOnline) {
+                const batch = writeBatch(db);
+                batch.set(doc(db, `users/${user.uid}/warnings`, id), firestorePayload);
+                if (user.uid !== MASTER_USER_UID) batch.set(doc(db, `users/${MASTER_USER_UID}/warnings`, id), firestorePayload);
+                await batch.commit();
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
+                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning, targetUserId: MASTER_USER_UID });
             }
             showNotification("Aviso adicionado com sucesso!", "success");
         } catch (error) {
@@ -891,14 +1045,20 @@ const App: React.FC = () => {
     }, [customers, warnings, isOnline, user, processPayloadForFirestore, showNotification]);
 
     const handleResolveWarning = useCallback(async (warningId: string) => {
+        if (!user) return;
         const originalWarnings = warnings;
         setWarnings(prev => prev.map(w => w.id === warningId ? { ...w, isResolved: true } : w));
 
         try {
-            if (isOnline && user) {
-                await updateDoc(doc(db, `users/${user.uid}/warnings`, warningId), { isResolved: true });
+            const payload = { isResolved: true };
+            if (isOnline) {
+                const batch = writeBatch(db);
+                batch.update(doc(db, `users/${user.uid}/warnings`, warningId), payload);
+                if (user.uid !== MASTER_USER_UID) batch.update(doc(db, `users/${MASTER_USER_UID}/warnings`, warningId), payload);
+                await batch.commit();
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload: { isResolved: true } });
+                await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
+                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload, targetUserId: MASTER_USER_UID });
             }
             showNotification("Aviso marcado como resolvido.", "success");
         } catch (error) {
@@ -909,14 +1069,19 @@ const App: React.FC = () => {
     }, [warnings, isOnline, user, showNotification]);
 
     const handleDeleteWarning = useCallback(async (warningId: string) => {
+        if (!user) return;
         const originalWarnings = warnings;
         setWarnings(prev => prev.filter(w => w.id !== warningId));
         
         try {
-            if (isOnline && user) {
-                await deleteDoc(doc(db, `users/${user.uid}/warnings`, warningId));
+            if (isOnline) {
+                const batch = writeBatch(db);
+                batch.delete(doc(db, `users/${user.uid}/warnings`, warningId));
+                if (user.uid !== MASTER_USER_UID) batch.delete(doc(db, `users/${MASTER_USER_UID}/warnings`, warningId));
+                await batch.commit();
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
+                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {}, targetUserId: MASTER_USER_UID });
             }
             showNotification("Aviso excluído.", "success");
         } catch (error) {
@@ -927,21 +1092,17 @@ const App: React.FC = () => {
     }, [warnings, isOnline, user, showNotification]);
     
     const handleFinalizePendingPayment = useCallback(async (updatedBilling: Billing) => {
+        if (!user) return;
         setIsSaving(true);
         const originalBillings = billings;
         const originalCustomers = customers;
 
         const customerToUpdate = customers.find(c => c.id === updatedBilling.customerId);
-        if (!customerToUpdate) {
-            showNotification("Cliente não encontrado.", 'error');
-            setIsSaving(false);
-            return;
-        }
+        if (!customerToUpdate) return;
 
         const debtToAdd = updatedBilling.valorDebitoNegativo || 0;
         const updatedCustomer = { ...customerToUpdate, debtAmount: (customerToUpdate.debtAmount || 0) + debtToAdd };
 
-        // Optimistic update
         setBillings(prev => prev.map(b => b.id === updatedBilling.id ? updatedBilling : b));
         setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
         setFinalizePaymentModalState({ isOpen: false, billing: null });
@@ -950,14 +1111,25 @@ const App: React.FC = () => {
             const { id: billingId, ...billingPayload } = updatedBilling;
             const { id: customerId, ...customerPayload } = updatedCustomer;
             
-            if (isOnline && user) {
+            const firestoreBillingPayload = processPayloadForFirestore(billingPayload);
+            const firestoreCustomerPayload = processPayloadForFirestore(customerPayload);
+
+            if (isOnline) {
                 const batch = writeBatch(db);
-                batch.update(doc(db, `users/${user.uid}/billings`, billingId), processPayloadForFirestore(billingPayload));
-                batch.update(doc(db, `users/${user.uid}/customers`, customerId), processPayloadForFirestore(customerPayload));
+                batch.update(doc(db, `users/${user.uid}/billings`, billingId), firestoreBillingPayload);
+                batch.update(doc(db, `users/${user.uid}/customers`, customerId), firestoreCustomerPayload);
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/billings`, billingId), firestoreBillingPayload);
+                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customerId), firestoreCustomerPayload);
+                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                 if (user.uid !== MASTER_USER_UID) {
+                    await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload, targetUserId: MASTER_USER_UID });
+                    await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload, targetUserId: MASTER_USER_UID });
+                }
             }
             
             setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false });
@@ -971,8 +1143,9 @@ const App: React.FC = () => {
         }
     }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
     
-    const handleTriggerProvisionalReceiptAction = useCallback((billing: Billing) => {
+    const handleTriggerProvisionalReceiptAction = useCallback((billing: Billing, onComplete: () => void) => {
         setReceiptActionsModalState({ isOpen: true, billing, isProvisional: true });
+        onComplete();
     }, []);
 
     // --- Modal Triggers ---
@@ -1123,18 +1296,37 @@ const App: React.FC = () => {
 
                 setIsSaving(true);
                 const batch = writeBatch(db);
-                
                 const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+
+                // 1. Get current user's documents to delete them
                 for (const col of collections) {
                     const snapshot = await getDocs(collection(db, `users/${user.uid}/${col}`));
-                    snapshot.forEach(doc => batch.delete(doc.ref));
+                    snapshot.forEach(d => {
+                        batch.delete(d.ref);
+                        if (user.uid !== MASTER_USER_UID) {
+                            batch.delete(doc(db, `users/${MASTER_USER_UID}/${col}`, d.id));
+                        }
+                    });
                 }
-                
-                data.customers.forEach((c: Customer) => batch.set(doc(db, `users/${user.uid}/customers`, c.id), processPayloadForFirestore(c)));
-                (data.billings || []).forEach((b: Billing) => batch.set(doc(db, `users/${user.uid}/billings`, b.id), processPayloadForFirestore(b)));
-                (data.expenses || []).forEach((e: Expense) => batch.set(doc(db, `users/${user.uid}/expenses`, e.id), processPayloadForFirestore(e)));
-                (data.debtPayments || []).forEach((p: DebtPayment) => batch.set(doc(db, `users/${user.uid}/debtPayments`, p.id), processPayloadForFirestore(p)));
-                (data.warnings || []).forEach((w: Warning) => batch.set(doc(db, `users/${user.uid}/warnings`, w.id), processPayloadForFirestore(w)));
+
+                // 2. Add new documents from backup file
+                for (const colName of collections) {
+                    if(data[colName] && Array.isArray(data[colName])) {
+                        data[colName].forEach((item: any) => {
+                            const { id, ...payload } = item;
+                            if (!id) {
+                                console.warn(`Item in ${colName} is missing an ID, skipping.`, item);
+                                return;
+                            }
+                            const firestorePayload = processPayloadForFirestore(payload);
+                            
+                            batch.set(doc(db, `users/${user.uid}/${colName}`, id), firestorePayload);
+                            if (user.uid !== MASTER_USER_UID) {
+                                batch.set(doc(db, `users/${MASTER_USER_UID}/${colName}`, id), firestorePayload);
+                            }
+                        });
+                    }
+                }
 
                 await batch.commit();
                 await clearOfflineQueue();
@@ -1143,7 +1335,17 @@ const App: React.FC = () => {
                 setTimeout(() => window.location.reload(), 2000);
             } catch (error) {
                 console.error("Erro ao importar dados: ", error);
-                showNotification(error instanceof Error ? error.message : 'Erro ao ler o arquivo de backup.', 'error');
+                let errorMessage = 'Ocorreu um erro ao importar os dados.';
+                if (error instanceof Error) {
+                    if (error.message.includes("permissions")) {
+                        errorMessage = "Erro de permissão ao importar. A operação foi bloqueada.";
+                    } else if (error.message.includes("invalid")) {
+                        errorMessage = "O arquivo de backup parece ser inválido ou corrompido.";
+                    } else {
+                        errorMessage = error.message;
+                    }
+                }
+                showNotification(errorMessage, 'error');
             } finally {
                 setIsSaving(false);
             }
@@ -1161,10 +1363,27 @@ const App: React.FC = () => {
         try {
             const batch = writeBatch(db);
             const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+    
+            // Get all of the current user's documents to build a list of IDs to delete
+            const docsToDelete: { collection: string, id: string }[] = [];
             for (const col of collections) {
                 const snapshot = await getDocs(collection(db, `users/${user.uid}/${col}`));
-                snapshot.forEach(d => batch.delete(d.ref));
+                snapshot.forEach(d => {
+                    docsToDelete.push({ collection: col, id: d.id });
+                });
             }
+    
+            // Add delete operations for both the user's and the master's path
+            docsToDelete.forEach(docInfo => {
+                // Delete from current user's path
+                batch.delete(doc(db, `users/${user.uid}/${docInfo.collection}`, docInfo.id));
+                
+                // If not master, also delete the mirrored doc from master
+                if (user.uid !== MASTER_USER_UID) {
+                    batch.delete(doc(db, `users/${MASTER_USER_UID}/${docInfo.collection}`, docInfo.id));
+                }
+            });
+    
             await batch.commit();
             await clearOfflineQueue();
             showNotification("Todos os dados foram apagados com sucesso.", 'success');
@@ -1270,17 +1489,17 @@ const App: React.FC = () => {
 
     const activeView = useMemo(() => {
         switch (currentView) {
-            case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} />;
-            case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} />;
-            case 'COBRANCAS': return <CobrancasView billings={billings} customers={customers} debtPayments={debtPayments} onShowActions={(billing) => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false })} onEditBilling={handleOpenEditBillingModal} onDeleteBilling={handleDeleteBilling} onFinalizePayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPayDebtCustomer={handleOpenDebtPaymentModal} />;
+            case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
+            case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} areValuesHidden={areValuesHidden} />;
+            case 'COBRANCAS': return <CobrancasView billings={billings} customers={customers} debtPayments={debtPayments} onShowActions={(billing) => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false })} onEditBilling={handleOpenEditBillingModal} onDeleteBilling={handleDeleteBilling} onFinalizePayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPayDebtCustomer={handleOpenDebtPaymentModal} areValuesHidden={areValuesHidden} />;
             case 'EQUIPAMENTOS': return <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setLabelGenerationModalState({ isOpen: true })} onGenerateLabels={() => {}} />;
-            case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />;
+            case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} areValuesHidden={areValuesHidden} />;
             case 'ROTAS': return <RotasView customers={customers} />;
-            case 'RELATORIOS': return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} onThermalPrint={handleThermalPrint} />;
-            case 'CONFIGURACOES': return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} onDeleteAllData={() => setIsDeleteAllDataModalOpen(true)} />;
-            default: return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} />;
+            case 'RELATORIOS': return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} onThermalPrint={handleThermalPrint} areValuesHidden={areValuesHidden} showNotification={showNotification} />;
+            case 'CONFIGURACOES': return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} onDeleteAllData={() => setIsDeleteAllDataModalOpen(true)} onLogout={handleLogout} onSwitchAccount={handleSwitchAccount} onAddNewAccount={handleAddNewAccount} isPrivacyModeEnabled={isPrivacyModeEnabled} onActivatePrivacyMode={handleActivatePrivacyMode} onDeactivatePrivacyMode={handleDeactivatePrivacyMode} />;
+            default: return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
         }
-    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling]);
+    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode]);
     
     const equipmentForFinalization = useMemo(() => {
         const billing = finalizePaymentModalState.billing;
@@ -1295,15 +1514,15 @@ const App: React.FC = () => {
     }
 
     if (!user) {
-        return <LoginView showNotification={showNotification} />;
+        return <LoginView showNotification={showNotification} onLoginSuccess={handleLoginSuccess} />;
     }
 
     return (
         <div className="flex h-full">
-            <Sidebar currentView={currentView} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} onOpenScanner={() => setQrScannerModalOpen(true)} />
+            <Sidebar user={user} currentView={currentView} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} onOpenScanner={() => setQrScannerModalOpen(true)} />
             <div className="flex-1 flex flex-col h-full">
-                <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900 pb-24 md:pb-8">
-                    <MobileHeader title={viewTitles[currentView]} onMenuClick={() => setIsSidebarOpen(true)} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} />
+                 <MobileHeader title={viewTitles[currentView]} onMenuClick={() => setIsSidebarOpen(true)} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} isPrivacyModeEnabled={isPrivacyModeEnabled} isPrivacyUnlocked={isPrivacyUnlocked} onToggleLock={handleToggleLock} />
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900 pb-24 md:pb-8 pt-4 md:pt-8">
                     {activeView}
                 </main>
             </div>
@@ -1314,9 +1533,9 @@ const App: React.FC = () => {
             
             {/* All Modals */}
             {billingModalState.isOpen && billingModalState.customer && billingModalState.equipment && <BillingModal isOpen={billingModalState.isOpen} onClose={() => setBillingModalState({ isOpen: false, customer: null, equipment: null })} onConfirm={handleAddBilling} customer={billingModalState.customer} equipment={billingModalState.equipment} onTriggerProvisionalReceiptAction={handleTriggerProvisionalReceiptAction} />}
-            {editCustomerModalState.isOpen && editCustomerModalState.customer && <EditCustomerModal isOpen={editCustomerModalState.isOpen} onClose={() => setEditCustomerModalState({ isOpen: false, customer: null })} onConfirm={handleUpdateCustomer} customer={editCustomerModalState.customer} customers={customers} isSaving={isSaving} showNotification={showNotification} />}
+            {editCustomerModalState.isOpen && editCustomerModalState.customer && <EditCustomerModal isOpen={editCustomerModalState.isOpen} onClose={() => setEditCustomerModalState({ isOpen: false, customer: null })} onConfirm={handleUpdateCustomer} customer={editCustomerModalState.customer} customers={customers} isSaving={isSaving} showNotification={showNotification} areValuesHidden={areValuesHidden} />}
             {debtPaymentModalState.isOpen && debtPaymentModalState.customer && <DebtPaymentModal isOpen={debtPaymentModalState.isOpen} onClose={() => setDebtPaymentModalState({ isOpen: false, customer: null })} onConfirm={(details) => handleAddDebtPayment(debtPaymentModalState.customer!.id, details)} onForgiveDebt={(customer) => setForgiveDebtModalState({ isOpen: true, customer })} customer={debtPaymentModalState.customer} />}
-            {historyModalState.isOpen && historyModalState.customer && <HistoryModal isOpen={historyModalState.isOpen} onClose={() => setHistoryModalState({ isOpen: false, customer: null })} customer={historyModalState.customer} billings={billings} debtPayments={debtPayments} />}
+            {historyModalState.isOpen && historyModalState.customer && <HistoryModal isOpen={historyModalState.isOpen} onClose={() => setHistoryModalState({ isOpen: false, customer: null })} customer={historyModalState.customer} billings={billings} debtPayments={debtPayments} areValuesHidden={areValuesHidden} />}
             {deleteModalState.isOpen && deleteModalState.customer && <ActionModal isOpen={deleteModalState.isOpen} onClose={() => setDeleteModalState({ isOpen: false, customer: null })} onConfirm={() => handleDeleteCustomer(deleteModalState.customer!.id)} title="Excluir Cliente" confirmText="Sim, Excluir"><p>Tem certeza? Todos os dados, incluindo histórico de cobranças, serão perdidos.</p></ActionModal>}
             {equipmentSelectionModalState.isOpen && equipmentSelectionModalState.customer && <EquipmentSelectionModal isOpen={equipmentSelectionModalState.isOpen} onClose={() => setEquipmentSelectionModalState({ isOpen: false, customer: null })} customer={equipmentSelectionModalState.customer} onSelect={handleSelectEquipmentForBilling} />}
             {receiptActionsModalState.isOpen && receiptActionsModalState.billing && <ReceiptActionsModal isOpen={receiptActionsModalState.isOpen} onClose={() => setReceiptActionsModalState({ isOpen: false, billing: null, isProvisional: false })} billing={receiptActionsModalState.billing} isProvisional={receiptActionsModalState.isProvisional} isSharing={isSharing} onShare={() => handleShareReceipt(receiptActionsModalState.billing!)} onPrint={() => handlePrintPdfReceipt(receiptActionsModalState.billing!)} onPrintSunmi={() => handlePrintThermalReceipt(receiptActionsModalState.billing!)} showNotification={showNotification} />}
@@ -1332,8 +1551,9 @@ const App: React.FC = () => {
             {isDeleteAllDataModalOpen && <ActionModal isOpen={isDeleteAllDataModalOpen} onClose={() => setIsDeleteAllDataModalOpen(false)} onConfirm={handleDeleteAllData} title="Apagar Todos os Dados" confirmText="Sim, Apagar Tudo"><p className="text-red-400">Esta ação é irreversível. Confirma que deseja apagar todos os dados da sua conta?</p></ActionModal>}
             {finalizePaymentModalState.isOpen && finalizePaymentModalState.billing && equipmentForFinalization && <FinalizePaymentModal isOpen={finalizePaymentModalState.isOpen} onClose={() => setFinalizePaymentModalState({ isOpen: false, billing: null })} onConfirm={handleFinalizePendingPayment} billing={finalizePaymentModalState.billing} equipment={equipmentForFinalization} />}
             {forgiveDebtModalState.isOpen && forgiveDebtModalState.customer && <ActionModal isOpen={forgiveDebtModalState.isOpen} onClose={() => setForgiveDebtModalState({ isOpen: false, customer: null })} onConfirm={() => handleForgiveDebt(forgiveDebtModalState.customer!)} title="Perdoar Dívida" confirmText="Sim, Perdoar"><p>Tem certeza que deseja zerar a dívida de <strong>{forgiveDebtModalState.customer.name}</strong> no valor de <strong>R$ {forgiveDebtModalState.customer.debtAmount.toFixed(2)}</strong>?</p></ActionModal>}
+            {privacyPinModalState.isOpen && <PrivacyPinModal isOpen={privacyPinModalState.isOpen} mode={privacyPinModalState.mode} title={privacyPinModalState.title} error={privacyPinModalState.error} onConfirm={privacyPinModalState.onConfirm} onClose={() => setPrivacyPinModalState(prev => ({ ...prev, isOpen: false, error: '' }))} />}
 
-            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillingModal} onEdit={handleOpenEditCustomerModal} onDelete={handleOpenDeleteModal} onPayDebt={handleOpenDebtPaymentModal} onHistory={handleOpenHistoryModal} onShare={handleOpenShareCustomerModal} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })}/>}
+            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillingModal} onEdit={handleOpenEditCustomerModal} onDelete={handleOpenDeleteModal} onPayDebt={handleOpenDebtPaymentModal} onHistory={handleOpenHistoryModal} onShare={handleOpenShareCustomerModal} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} />}
             {customerToPrint && <PrintPreviewOverlay customer={customerToPrint} onCancel={() => setCustomerToPrint(null)} />}
         </div>
     );

@@ -129,3 +129,8 @@ export type EquipmentWithCustomer = Equipment & {
   customerName: string;
   customerId: string;
 };
+
+export type SavedUser = {
+  email: string;
+  pass?: string; // base64 encoded password
+};

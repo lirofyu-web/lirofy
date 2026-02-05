@@ -6,9 +6,10 @@ import { WhatsAppIcon } from './icons/WhatsAppIcon';
 
 interface DebtRemindersProps {
   customers: Customer[];
+  areValuesHidden: boolean;
 }
 
-const DebtReminders: React.FC<DebtRemindersProps> = ({ customers }) => {
+const DebtReminders: React.FC<DebtRemindersProps> = ({ customers, areValuesHidden }) => {
   const debtors = useMemo(() => {
     return customers
       .filter(c => c.debtAmount > 0)
@@ -31,7 +32,7 @@ const DebtReminders: React.FC<DebtRemindersProps> = ({ customers }) => {
             <div>
               <p className="font-bold text-slate-800 dark:text-white break-words">{customer.name}</p>
               <p className="text-sm font-mono font-semibold text-red-600 dark:text-red-400">
-                Dívida: R$ {customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                Dívida: {areValuesHidden ? 'R$ •••,••' : `R$ ${customer.debtAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
             <a

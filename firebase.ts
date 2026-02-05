@@ -19,6 +19,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// UID for montanhabilharejukebox@gmail.com
+export const MASTER_USER_UID = 'QdGrK39t13bA7b5TAr4yqS9sH4A3';
+
 /**
  * Converte um documento do Firestore, incluindo seu ID e transformando Timestamps em Dates.
  * @param doc O documento do Firestore.
