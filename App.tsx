@@ -4,7 +4,7 @@ import { User, onAuthStateChanged, signOut } from "https://www.gstatic.com/fireb
 import { collection, query, onSnapshot, Timestamp, getDocs, deleteDoc, doc, setDoc, addDoc, updateDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'qrcode';
-import { auth, db, processFirestoreDoc, MASTER_USER_UID } from './firebase';
+import { auth, db, processFirestoreDoc } from './firebase';
 
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser } from './types';
 import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
@@ -167,7 +167,7 @@ const App: React.FC = () => {
     const [lastBackupTimestamp, setLastBackupTimestamp] = useState<string | null>(localStorage.getItem('lastBackupTimestamp'));
 
     // Privacy Mode State
-    const [isPrivacyModeEnabled, setIsPrivacyModeEnabled] = useState<boolean>(() => !!localStorage.getItem('privacyPin'));
+    const isPrivacyModeEnabled = useMemo(() => !!userProfile?.privacyPinHash, [userProfile]);
     const [isPrivacyUnlocked, setIsPrivacyUnlocked] = useState<boolean>(false);
     const areValuesHidden = useMemo(() => isPrivacyModeEnabled && !isPrivacyUnlocked, [isPrivacyModeEnabled, isPrivacyUnlocked]);
     const [privacyPinModalState, setPrivacyPinModalState] = useState<{ isOpen: boolean; mode: 'create' | 'enter'; title: string; onConfirm: (pin: string) => void; error?: string }>({ isOpen: false, mode: 'enter', title: '', onConfirm: () => {} });
@@ -237,37 +237,53 @@ const App: React.FC = () => {
         setPrivacyPinModalState({ isOpen: true, mode, title, onConfirm, error: '' });
     }, []);
 
-    const handleSetPin = useCallback((pin: string) => {
-        localStorage.setItem('privacyPin', btoa(pin));
-        setIsPrivacyModeEnabled(true);
-        setIsPrivacyUnlocked(false);
-        setPrivacyPinModalState({ isOpen: false, mode: 'create', title: '', onConfirm: () => {} });
-        showNotification('Modo de privacidade ativado!', 'success');
-    }, [showNotification]);
+    const handleSetPin = useCallback(async (pin: string) => {
+        if (!user) return;
+        const pinHash = btoa(pin);
+        const userDocRef = doc(db, "users", user.uid);
+        try {
+            await updateDoc(userDocRef, { privacyPinHash: pinHash });
+            setUserProfile(prev => prev ? { ...prev, privacyPinHash: pinHash } : null);
+            setIsPrivacyUnlocked(false);
+            setPrivacyPinModalState({ isOpen: false, mode: 'create', title: '', onConfirm: () => {} });
+            showNotification('Modo de privacidade ativado!', 'success');
+        } catch (error) {
+            console.error("Error setting PIN:", error);
+            showNotification('Erro ao salvar o PIN.', 'error');
+        }
+    }, [user, showNotification]);
 
     const handleUnlock = useCallback((pin: string) => {
-        const storedPin = localStorage.getItem('privacyPin');
-        if (storedPin && atob(storedPin) === pin) {
+        const pinHash = btoa(pin);
+        if (userProfile?.privacyPinHash && userProfile.privacyPinHash === pinHash) {
             setIsPrivacyUnlocked(true);
             setPrivacyPinModalState({ isOpen: false, mode: 'enter', title: '', onConfirm: () => {} });
             showNotification('Valores visíveis nesta sessão.', 'success');
         } else {
             setPrivacyPinModalState(prev => ({ ...prev, error: 'PIN incorreto.' }));
         }
-    }, [showNotification]);
+    }, [userProfile, showNotification]);
 
-    const handleRemovePin = useCallback((pin: string) => {
-        const storedPin = localStorage.getItem('privacyPin');
-        if (storedPin && atob(storedPin) === pin) {
-            localStorage.removeItem('privacyPin');
-            setIsPrivacyModeEnabled(false);
+    const handleRemovePin = useCallback(async (pin: string) => {
+        if (!user || !userProfile?.privacyPinHash) return;
+        const pinHash = btoa(pin);
+        if (userProfile.privacyPinHash !== pinHash) {
+            setPrivacyPinModalState(prev => ({ ...prev, error: 'PIN incorreto.' }));
+            return;
+        }
+        
+        const userDocRef = doc(db, "users", user.uid);
+        try {
+            await updateDoc(userDocRef, { privacyPinHash: "" });
+            setUserProfile(prev => prev ? { ...prev, privacyPinHash: "" } : null);
             setIsPrivacyUnlocked(false);
             setPrivacyPinModalState({ isOpen: false, mode: 'enter', title: '', onConfirm: () => {} });
             showNotification('Modo de privacidade desativado.', 'success');
-        } else {
-            setPrivacyPinModalState(prev => ({ ...prev, error: 'PIN incorreto.' }));
+        } catch (error) {
+            console.error("Error removing PIN:", error);
+            showNotification('Erro ao desativar o modo de privacidade.', 'error');
         }
-    }, [showNotification]);
+    }, [user, userProfile, showNotification]);
 
     const handleToggleLock = useCallback(() => {
         if (isPrivacyUnlocked) {
@@ -374,6 +390,7 @@ const App: React.FC = () => {
     const handleLogout = useCallback(async () => {
         try {
             await signOut(auth);
+            setUserProfile(null);
             setIsPrivacyUnlocked(false);
         } catch (error) {
             showNotification('Erro ao sair da conta.', 'error');
@@ -405,17 +422,16 @@ const App: React.FC = () => {
     }, []);
     
     useEffect(() => {
-        if (user && !userProfile) { // Busca o perfil apenas se o usuário existir e o perfil ainda não estiver carregado
+        if (user && !userProfile) { // Fetch profile only if user exists and profile isn't loaded
             const fetchProfile = async () => {
                 try {
                     const profileDoc = await getDoc(doc(db, "users", user.uid));
                     if (profileDoc.exists()) {
                         setUserProfile(processFirestoreDoc(profileDoc) as UserProfile);
                     } else {
-                        console.warn("User profile not found. Creating a default one.");
-                        const defaultProfile: UserProfile = { id: user.uid, email: user.email!, createdAt: new Date() };
-                        await setDoc(doc(db, "users", user.uid), { email: user.email, createdAt: Timestamp.now() });
-                        setUserProfile(defaultProfile);
+                        const defaultProfileData = { email: user.email!, createdAt: Timestamp.now(), privacyPinHash: "" };
+                        await setDoc(doc(db, "users", user.uid), defaultProfileData);
+                        setUserProfile({ id: user.uid, email: user.email!, createdAt: new Date(), privacyPinHash: "" });
                     }
                 } catch (error) {
                     console.error("Error fetching user profile:", error);
@@ -463,7 +479,7 @@ const App: React.FC = () => {
     // Fetch data from Firestore
     useEffect(() => {
         if (!user) {
-            // Limpa os dados locais ao fazer logout
+            // Clear local data on logout
             setCustomers([]);
             setBillings([]);
             setExpenses([]);
@@ -471,8 +487,6 @@ const App: React.FC = () => {
             setWarnings([]);
             return;
         }
-
-        const userIdToListen = user.uid === MASTER_USER_UID ? MASTER_USER_UID : user.uid;
     
         const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
         const setters: Record<string, React.Dispatch<React.SetStateAction<any[]>>> = {
@@ -484,7 +498,7 @@ const App: React.FC = () => {
         };
     
         const unsubscribers = collections.map(col => {
-            const q = query(collection(db, `users/${userIdToListen}/${col}`));
+            const q = query(collection(db, `users/${user.uid}/${col}`));
             return onSnapshot(q, (querySnapshot) => {
                 const data = querySnapshot.docs.map(processFirestoreDoc);
                 setters[col](data as any);
@@ -540,17 +554,9 @@ const App: React.FC = () => {
             const { id, ...payload } = customerWithId;
             const firestorePayload = processPayloadForFirestore(payload);
             if(isOnline) {
-                const batch = writeBatch(db);
-                batch.set(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.set(doc(db, `users/${MASTER_USER_UID}/customers`, id), firestorePayload);
-                }
-                await batch.commit();
+                await setDoc(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
-                if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId, targetUserId: MASTER_USER_UID });
-                }
             }
             showNotification('Cliente adicionado com sucesso!');
         } catch (error) {
@@ -574,17 +580,9 @@ const App: React.FC = () => {
         try {
             const firestorePayload = processPayloadForFirestore(customerData);
             if (isOnline) {
-                const batch = writeBatch(db);
-                batch.update(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, id), firestorePayload);
-                }
-                await batch.commit();
+                await updateDoc(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
             } else {
                  await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
-                 if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData, targetUserId: MASTER_USER_UID });
-                 }
             }
             showNotification('Cliente atualizado com sucesso!');
         } catch (error) {
@@ -606,17 +604,9 @@ const App: React.FC = () => {
     
         try {
             if(isOnline) {
-                const batch = writeBatch(db);
-                batch.delete(doc(db, `users/${user.uid}/customers`, customerId));
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.delete(doc(db, `users/${MASTER_USER_UID}/customers`, customerId));
-                }
-                await batch.commit();
+                await deleteDoc(doc(db, `users/${user.uid}/customers`, customerId));
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {} });
-                if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {}, targetUserId: MASTER_USER_UID });
-                }
             }
             showNotification('Cliente excluído com sucesso!');
         } catch (error) {
@@ -669,19 +659,10 @@ const App: React.FC = () => {
                 const batch = writeBatch(db);
                 batch.set(doc(db, `users/${user.uid}/billings`, billingId), firestoreBillingPayload);
                 batch.update(doc(db, `users/${user.uid}/customers`, customerId), firestoreCustomerPayload);
-
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.set(doc(db, `users/${MASTER_USER_UID}/billings`, billingId), firestoreBillingPayload);
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customerId), firestoreCustomerPayload);
-                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
-                if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing, targetUserId: MASTER_USER_UID });
-                    await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload, targetUserId: MASTER_USER_UID });
-                }
             }
             
             if (billing.paymentMethod !== 'pending_payment') {
@@ -749,29 +730,14 @@ const App: React.FC = () => {
 
             if (isOnline) {
                 const batch = writeBatch(db);
-                const userBillingRef = doc(db, `users/${user.uid}/billings`, billingId);
-                const userCustomerRef = doc(db, `users/${user.uid}/customers`, customerId);
-
-                batch.update(userBillingRef, processPayloadForFirestore(billingPayload));
-                batch.update(userCustomerRef, processPayloadForFirestore(customerPayload));
+                batch.update(doc(db, `users/${user.uid}/billings`, billingId), processPayloadForFirestore(billingPayload));
+                batch.update(doc(db, `users/${user.uid}/customers`, customerId), processPayloadForFirestore(customerPayload));
                 if (nextBillingId && nextBillingPayload) batch.update(doc(db, `users/${user.uid}/billings`, nextBillingId), processPayloadForFirestore(nextBillingPayload));
-
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/billings`, billingId), processPayloadForFirestore(billingPayload));
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customerId), processPayloadForFirestore(customerPayload));
-                    if (nextBillingId && nextBillingPayload) batch.update(doc(db, `users/${MASTER_USER_UID}/billings`, nextBillingId), processPayloadForFirestore(nextBillingPayload));
-                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
                 if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
-
-                if (user.uid !== MASTER_USER_UID) {
-                     await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload, targetUserId: MASTER_USER_UID });
-                     await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload, targetUserId: MASTER_USER_UID });
-                     if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload, targetUserId: MASTER_USER_UID });
-                }
             }
             showNotification('Cobrança atualizada com sucesso!');
         } catch (error) {
@@ -811,19 +777,10 @@ const App: React.FC = () => {
                 const batch = writeBatch(db);
                 batch.delete(doc(db, `users/${user.uid}/billings`, billingId));
                 batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), processPayloadForFirestore(updatedCustomerPayload));
-
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.delete(doc(db, `users/${MASTER_USER_UID}/billings`, billingId));
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, updatedCustomer.id), processPayloadForFirestore(updatedCustomerPayload));
-                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
-                if (user.uid !== MASTER_USER_UID) {
-                     await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {}, targetUserId: MASTER_USER_UID });
-                     await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload, targetUserId: MASTER_USER_UID });
-                }
             }
             showNotification('Cobrança excluída! O relógio do equipamento foi revertido.', 'success');
         } catch (error) {
@@ -854,17 +811,9 @@ const App: React.FC = () => {
             const { id, ...payload } = newExpense;
             const firestorePayload = processPayloadForFirestore(payload);
             if(isOnline) {
-                const batch = writeBatch(db);
-                batch.set(doc(db, `users/${user.uid}/expenses`, id), firestorePayload);
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.set(doc(db, `users/${MASTER_USER_UID}/expenses`, id), firestorePayload);
-                }
-                await batch.commit();
+                await setDoc(doc(db, `users/${user.uid}/expenses`, id), firestorePayload);
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
-                if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense, targetUserId: MASTER_USER_UID });
-                }
             }
             showNotification('Despesa adicionada com sucesso!');
         } catch (error) {
@@ -884,17 +833,9 @@ const App: React.FC = () => {
 
         try {
             if(isOnline) {
-                const batch = writeBatch(db);
-                batch.delete(doc(db, `users/${user.uid}/expenses`, expenseId));
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.delete(doc(db, `users/${MASTER_USER_UID}/expenses`, expenseId));
-                }
-                await batch.commit();
+                await deleteDoc(doc(db, `users/${user.uid}/expenses`, expenseId));
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
-                 if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {}, targetUserId: MASTER_USER_UID });
-                }
             }
             showNotification('Despesa excluída com sucesso!');
         } catch (error) {
@@ -950,21 +891,16 @@ const App: React.FC = () => {
             if (isOnline) {
                 const batch = writeBatch(db);
                 batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), customerPayload);
-                if (user.uid !== MASTER_USER_UID) batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, updatedCustomer.id), customerPayload);
-
                 if (debtPayment) {
                     const { id: dpId, ...dpPayload } = debtPayment;
                     const firestoreDpPayload = processPayloadForFirestore(dpPayload);
                     batch.set(doc(db, `users/${user.uid}/debtPayments`, dpId), firestoreDpPayload);
-                    if (user.uid !== MASTER_USER_UID) batch.set(doc(db, `users/${MASTER_USER_UID}/debtPayments`, dpId), firestoreDpPayload);
                 }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: customerPayload });
-                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: customerPayload, targetUserId: MASTER_USER_UID });
                 if (debtPayment) {
                     await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: debtPayment });
-                    if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: debtPayment, targetUserId: MASTER_USER_UID });
                 }
             }
             
@@ -996,13 +932,9 @@ const App: React.FC = () => {
         try {
             const payload = { debtAmount: 0 };
             if (isOnline) {
-                const batch = writeBatch(db);
-                batch.update(doc(db, `users/${user.uid}/customers`, customer.id), payload);
-                if (user.uid !== MASTER_USER_UID) batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customer.id), payload);
-                await batch.commit();
+                await updateDoc(doc(db, `users/${user.uid}/customers`, customer.id), payload);
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
-                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload, targetUserId: MASTER_USER_UID });
             }
             showNotification(`Dívida de ${customer.name} foi perdoada.`, 'success');
         } catch (error) {
@@ -1028,13 +960,9 @@ const App: React.FC = () => {
             const { id, ...payload } = newWarning;
             const firestorePayload = processPayloadForFirestore(payload);
             if (isOnline) {
-                const batch = writeBatch(db);
-                batch.set(doc(db, `users/${user.uid}/warnings`, id), firestorePayload);
-                if (user.uid !== MASTER_USER_UID) batch.set(doc(db, `users/${MASTER_USER_UID}/warnings`, id), firestorePayload);
-                await batch.commit();
+                await setDoc(doc(db, `users/${user.uid}/warnings`, id), firestorePayload);
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
-                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning, targetUserId: MASTER_USER_UID });
             }
             showNotification("Aviso adicionado com sucesso!", "success");
         } catch (error) {
@@ -1052,13 +980,9 @@ const App: React.FC = () => {
         try {
             const payload = { isResolved: true };
             if (isOnline) {
-                const batch = writeBatch(db);
-                batch.update(doc(db, `users/${user.uid}/warnings`, warningId), payload);
-                if (user.uid !== MASTER_USER_UID) batch.update(doc(db, `users/${MASTER_USER_UID}/warnings`, warningId), payload);
-                await batch.commit();
+                await updateDoc(doc(db, `users/${user.uid}/warnings`, warningId), payload);
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
-                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload, targetUserId: MASTER_USER_UID });
             }
             showNotification("Aviso marcado como resolvido.", "success");
         } catch (error) {
@@ -1075,13 +999,9 @@ const App: React.FC = () => {
         
         try {
             if (isOnline) {
-                const batch = writeBatch(db);
-                batch.delete(doc(db, `users/${user.uid}/warnings`, warningId));
-                if (user.uid !== MASTER_USER_UID) batch.delete(doc(db, `users/${MASTER_USER_UID}/warnings`, warningId));
-                await batch.commit();
+                await deleteDoc(doc(db, `users/${user.uid}/warnings`, warningId));
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
-                if (user.uid !== MASTER_USER_UID) await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {}, targetUserId: MASTER_USER_UID });
             }
             showNotification("Aviso excluído.", "success");
         } catch (error) {
@@ -1118,18 +1038,10 @@ const App: React.FC = () => {
                 const batch = writeBatch(db);
                 batch.update(doc(db, `users/${user.uid}/billings`, billingId), firestoreBillingPayload);
                 batch.update(doc(db, `users/${user.uid}/customers`, customerId), firestoreCustomerPayload);
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/billings`, billingId), firestoreBillingPayload);
-                    batch.update(doc(db, `users/${MASTER_USER_UID}/customers`, customerId), firestoreCustomerPayload);
-                }
                 await batch.commit();
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
-                 if (user.uid !== MASTER_USER_UID) {
-                    await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload, targetUserId: MASTER_USER_UID });
-                    await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload, targetUserId: MASTER_USER_UID });
-                }
             }
             
             setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false });
@@ -1291,59 +1203,38 @@ const App: React.FC = () => {
                 const data = JSON.parse(event.target?.result as string);
                 
                 if (!data.customers || !Array.isArray(data.customers)) {
-                    throw new Error("Arquivo de backup inválido.");
+                    throw new Error("Arquivo de backup inválido. A coleção 'customers' é obrigatória.");
                 }
 
                 setIsSaving(true);
                 const batch = writeBatch(db);
                 const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
 
-                // 1. Get current user's documents to delete them
-                for (const col of collections) {
-                    const snapshot = await getDocs(collection(db, `users/${user.uid}/${col}`));
-                    snapshot.forEach(d => {
-                        batch.delete(d.ref);
-                        if (user.uid !== MASTER_USER_UID) {
-                            batch.delete(doc(db, `users/${MASTER_USER_UID}/${col}`, d.id));
-                        }
-                    });
-                }
-
-                // 2. Add new documents from backup file
                 for (const colName of collections) {
                     if(data[colName] && Array.isArray(data[colName])) {
-                        data[colName].forEach((item: any) => {
+                        for (const item of data[colName]) {
                             const { id, ...payload } = item;
-                            if (!id) {
-                                console.warn(`Item in ${colName} is missing an ID, skipping.`, item);
-                                return;
+                            if (!id || typeof id !== 'string') {
+                                console.warn(`Item in ${colName} is missing a valid ID, skipping.`, item);
+                                continue;
                             }
                             const firestorePayload = processPayloadForFirestore(payload);
-                            
-                            batch.set(doc(db, `users/${user.uid}/${colName}`, id), firestorePayload);
-                            if (user.uid !== MASTER_USER_UID) {
-                                batch.set(doc(db, `users/${MASTER_USER_UID}/${colName}`, id), firestorePayload);
-                            }
-                        });
+                            const docRef = doc(db, `users/${user.uid}/${colName}`, id);
+                            batch.set(docRef, firestorePayload, { merge: true });
+                        }
                     }
                 }
 
                 await batch.commit();
                 await clearOfflineQueue();
 
-                showNotification('Dados importados com sucesso! A página será recarregada.', 'success');
+                showNotification('Dados mesclados com sucesso! A página será recarregada.', 'success');
                 setTimeout(() => window.location.reload(), 2000);
             } catch (error) {
-                console.error("Erro ao importar dados: ", error);
-                let errorMessage = 'Ocorreu um erro ao importar os dados.';
+                console.error("Erro ao mesclar dados: ", error);
+                let errorMessage = 'Ocorreu um erro ao mesclar os dados.';
                 if (error instanceof Error) {
-                    if (error.message.includes("permissions")) {
-                        errorMessage = "Erro de permissão ao importar. A operação foi bloqueada.";
-                    } else if (error.message.includes("invalid")) {
-                        errorMessage = "O arquivo de backup parece ser inválido ou corrompido.";
-                    } else {
-                        errorMessage = error.message;
-                    }
+                    errorMessage = error.message.includes("permissions") ? "Erro de permissão ao importar." : "O arquivo de backup parece ser inválido.";
                 }
                 showNotification(errorMessage, 'error');
             } finally {
@@ -1364,25 +1255,12 @@ const App: React.FC = () => {
             const batch = writeBatch(db);
             const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
     
-            // Get all of the current user's documents to build a list of IDs to delete
-            const docsToDelete: { collection: string, id: string }[] = [];
             for (const col of collections) {
                 const snapshot = await getDocs(collection(db, `users/${user.uid}/${col}`));
                 snapshot.forEach(d => {
-                    docsToDelete.push({ collection: col, id: d.id });
+                    batch.delete(d.ref);
                 });
             }
-    
-            // Add delete operations for both the user's and the master's path
-            docsToDelete.forEach(docInfo => {
-                // Delete from current user's path
-                batch.delete(doc(db, `users/${user.uid}/${docInfo.collection}`, docInfo.id));
-                
-                // If not master, also delete the mirrored doc from master
-                if (user.uid !== MASTER_USER_UID) {
-                    batch.delete(doc(db, `users/${MASTER_USER_UID}/${docInfo.collection}`, docInfo.id));
-                }
-            });
     
             await batch.commit();
             await clearOfflineQueue();
@@ -1549,7 +1427,7 @@ const App: React.FC = () => {
             {saveLocationModalState.isOpen && saveLocationModalState.customer && <ActionModal isOpen={saveLocationModalState.isOpen} onClose={() => setSaveLocationModalState({ isOpen: false, customer: null })} onConfirm={() => handleSaveLocation(saveLocationModalState.customer!)} title="Salvar Localização" confirmText="Salvar"><p>Deseja salvar a sua localização atual como o endereço para <strong>{saveLocationModalState.customer.name}</strong>?</p></ActionModal>}
             {addPhoneModalState.isOpen && addPhoneModalState.customer && <AddPhoneModal isOpen={addPhoneModalState.isOpen} onClose={() => setAddPhoneModalState({ isOpen: false, customer: null })} onConfirm={handleAddPhone} customer={addPhoneModalState.customer} />}
             {isDeleteAllDataModalOpen && <ActionModal isOpen={isDeleteAllDataModalOpen} onClose={() => setIsDeleteAllDataModalOpen(false)} onConfirm={handleDeleteAllData} title="Apagar Todos os Dados" confirmText="Sim, Apagar Tudo"><p className="text-red-400">Esta ação é irreversível. Confirma que deseja apagar todos os dados da sua conta?</p></ActionModal>}
-            {finalizePaymentModalState.isOpen && finalizePaymentModalState.billing && equipmentForFinalization && <FinalizePaymentModal isOpen={finalizePaymentModalState.isOpen} onClose={() => setFinalizePaymentModalState({ isOpen: false, billing: null })} onConfirm={handleFinalizePendingPayment} billing={finalizePaymentModalState.billing} equipment={equipmentForFinalization} />}
+            {finalizePaymentModalState.isOpen && finalizePaymentModalState.billing && <FinalizePaymentModal isOpen={finalizePaymentModalState.isOpen} onClose={() => setFinalizePaymentModalState({ isOpen: false, billing: null })} onConfirm={handleFinalizePendingPayment} billing={finalizePaymentModalState.billing} />}
             {forgiveDebtModalState.isOpen && forgiveDebtModalState.customer && <ActionModal isOpen={forgiveDebtModalState.isOpen} onClose={() => setForgiveDebtModalState({ isOpen: false, customer: null })} onConfirm={() => handleForgiveDebt(forgiveDebtModalState.customer!)} title="Perdoar Dívida" confirmText="Sim, Perdoar"><p>Tem certeza que deseja zerar a dívida de <strong>{forgiveDebtModalState.customer.name}</strong> no valor de <strong>R$ {forgiveDebtModalState.customer.debtAmount.toFixed(2)}</strong>?</p></ActionModal>}
             {privacyPinModalState.isOpen && <PrivacyPinModal isOpen={privacyPinModalState.isOpen} mode={privacyPinModalState.mode} title={privacyPinModalState.title} error={privacyPinModalState.error} onConfirm={privacyPinModalState.onConfirm} onClose={() => setPrivacyPinModalState(prev => ({ ...prev, isOpen: false, error: '' }))} />}
 

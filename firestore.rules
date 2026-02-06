@@ -1,19 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // MASTER_USER_UID: QdGrK39t13bA7b5TAr4yqS9sH4A3
-    
     match /users/{userId}/{document=**} {
-      // REGRAS DE LEITURA (READ):
-      // 1. Um usuário pode ler seus próprios documentos.
-      // 2. O usuário mestre pode ler os documentos de QUALQUER usuário.
-      allow read: if request.auth != null && (request.auth.uid == userId || request.auth.uid == 'QdGrK39t13bA7b5TAr4yqS9sH4A3');
-
-      // REGRAS DE ESCRITA (WRITE):
-      // 1. Um usuário pode escrever em seus próprios documentos.
-      // 2. QUALQUER usuário autenticado pode escrever nos documentos do usuário MESTRE (para duplicação de dados).
-      allow write: if request.auth != null && (request.auth.uid == userId || userId == 'QdGrK39t13bA7b5TAr4yqS9sH4A3');
+      // Um usuário pode ler e escrever apenas em seus próprios documentos.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

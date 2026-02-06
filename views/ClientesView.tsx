@@ -384,7 +384,8 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                                     onFocusCustomer={onFocusCustomer}
                                     onLocationActions={onLocationActions}
                                     onWhatsAppActions={onWhatsAppActions}
-                                    onFinalizePendingPayment={onFinalizePendingPayment}
+                                    // FIX: Changed prop name from `onFinalizePendingPayment` to `onFinalizePayment` to match CustomerCardProps.
+                                    onFinalizePayment={onFinalizePendingPayment}
                                     areValuesHidden={areValuesHidden}
                                 />
                             );

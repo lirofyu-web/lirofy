@@ -24,38 +24,53 @@ const FinalizePaymentModal: React.FC<FinalizePaymentModalProps> = ({ isOpen, onC
 
   useEffect(() => {
     if (isOpen) {
-      const valorFinal = billing.valorTotal - (billing.valorBonus || 0);
+      const initialBonus = billing.valorBonus || 0;
+      const valorFinal = billing.valorTotal - initialBonus;
       setPaymentValues({
-        dinheiro: String(valorFinal > 0 ? valorFinal : ''),
-        pix: '',
-        bonus: String(billing.valorBonus || ''),
+        dinheiro: String(valorFinal > 0 ? valorFinal : '0'),
+        pix: '0',
+        bonus: String(initialBonus > 0 ? initialBonus : ''),
         negativo: '0'
       });
       setError('');
     }
   }, [isOpen, billing]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    const vTotal = billing.valorTotal; // Start with the gross total
-    const vBonus = safeParseFloat(paymentValues.bonus);
-    const vDinheiro = safeParseFloat(paymentValues.dinheiro);
-    const vPix = safeParseFloat(paymentValues.pix);
-    
-    const newNegativo = vTotal - vBonus - vDinheiro - vPix;
-    
-    setPaymentValues(prev => ({
-        ...prev,
-        negativo: newNegativo >= -0.01 ? String(parseFloat(newNegativo.toFixed(2))) : '0'
-    }));
+  const handlePaymentChange = useCallback((field: keyof typeof paymentValues, value: string) => {
+    setPaymentValues(prev => {
+        const newState = { ...prev, [field]: value };
+        
+        const vBonus = safeParseFloat(newState.bonus);
+        const totalAfterBonus = billing.valorTotal - vBonus;
 
-    if (newNegativo < -0.01) {
-        setError(`Valor excedido: R$ ${Math.abs(newNegativo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    } else {
-        setError('');
-    }
-  }, [paymentValues.dinheiro, paymentValues.pix, paymentValues.bonus, billing.valorTotal, isOpen]);
+        if (field === 'dinheiro') {
+            const vDinheiro = safeParseFloat(newState.dinheiro);
+            const vPix = totalAfterBonus - vDinheiro;
+            newState.pix = vPix >= 0 ? String(parseFloat(vPix.toFixed(2))) : '0';
+        } else if (field === 'pix') {
+            const vPix = safeParseFloat(newState.pix);
+            const vDinheiro = totalAfterBonus - vPix;
+            newState.dinheiro = vDinheiro >= 0 ? String(parseFloat(vDinheiro.toFixed(2))) : '0';
+        } else if (field === 'bonus') {
+            const vDinheiro = safeParseFloat(newState.dinheiro);
+            const vPix = totalAfterBonus - vDinheiro;
+            newState.pix = vPix >= 0 ? String(parseFloat(vPix.toFixed(2))) : '0';
+        }
+        
+        const finalDinheiro = safeParseFloat(newState.dinheiro);
+        const finalPix = safeParseFloat(newState.pix);
+        const finalNegativo = totalAfterBonus - finalDinheiro - finalPix;
+
+        if (finalNegativo < -0.01) {
+            setError(`Valor excedido: R$ ${Math.abs(finalNegativo).toFixed(2)}`);
+        } else {
+            setError('');
+        }
+        newState.negativo = finalNegativo >= -0.01 ? String(parseFloat(finalNegativo.toFixed(2))) : '0';
+        
+        return newState;
+    });
+  }, [billing.valorTotal]);
 
 
   const handleConfirm = useCallback(() => {
@@ -90,10 +105,6 @@ const FinalizePaymentModal: React.FC<FinalizePaymentModalProps> = ({ isOpen, onC
     
     onConfirm(updatedBilling);
   }, [error, paymentValues, billing, onConfirm]);
-
-  const handlePaymentChange = (field: keyof typeof paymentValues, value: string) => {
-    setPaymentValues(prev => ({ ...prev, [field]: value }));
-  };
 
   if (!isOpen) return null;
 
