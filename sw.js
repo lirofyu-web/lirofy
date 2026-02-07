@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'montanha-bilhar-cache-v72'; // Versão incrementada para forçar atualização
+const CACHE_NAME = 'montanha-bilhar-cache-v73'; // Versão incrementada para forçar atualização
 
 // Apenas o "casco" do aplicativo é pré-cacheado. O restante é cacheado sob demanda pelo manipulador de fetch.
 const urlsToCache = [
@@ -13,7 +13,9 @@ const urlsToCache = [
   '/firebase.ts',
   '/utils/offlineSync.ts',
   '/icon-192.svg',
-  '/icon-512.svg'
+  '/icon-512.svg',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
