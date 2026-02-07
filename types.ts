@@ -117,6 +117,13 @@ export interface DebtPayment {
   amountPaidPix?: number;
 }
 
+// FIX: Added the missing 'Adesivo' interface as it was not exported from types.ts, causing an error in AdesivosView.tsx.
+export interface Adesivo {
+  id: string;
+  numero: string;
+  imageUrl: string;
+}
+
 export interface Warning {
   id: string;
   customerId: string;

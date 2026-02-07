@@ -210,6 +210,9 @@ const App: React.FC = () => {
     
     // Saving state for UI feedback
     const [isSaving, setIsSaving] = useState(false);
+
+    // Back button handling
+    const backButtonPressedOnce = useRef(false);
     
     // --- Service Worker Registration ---
     useEffect(() => {
@@ -232,7 +235,41 @@ const App: React.FC = () => {
         setNotification({ message, type });
     }, []);
     
-    // --- Privacy Mode Handlers ---
+    // --- Back button exit confirmation ---
+    useEffect(() => {
+      const handleBackButton = (event: PopStateEvent) => {
+        // Only trigger on the main dashboard view
+        if (currentView !== 'DASHBOARD') {
+          return;
+        }
+
+        if (backButtonPressedOnce.current) {
+          // Second press, allow exit
+          return;
+        }
+
+        // First press
+        event.preventDefault(); // Prevent default back action
+        backButtonPressedOnce.current = true;
+        showNotification("Pressione 'voltar' novamente para sair.", 'success');
+
+        // Prevent the actual back navigation by pushing the current state back onto the history
+        history.pushState(null, '', location.href);
+
+        // Reset the flag after a timeout
+        setTimeout(() => {
+          backButtonPressedOnce.current = false;
+        }, 2000); // 2-second window for the second press
+      };
+
+      window.addEventListener('popstate', handleBackButton);
+
+      return () => {
+        window.removeEventListener('popstate', handleBackButton);
+      };
+    }, [currentView, showNotification]);
+
+    // --- Privacy & Kiosk Mode Handlers ---
     const openPinModal = useCallback((mode: 'create' | 'enter', title: string, onConfirm: (pin: string) => void) => {
         setPrivacyPinModalState({ isOpen: true, mode, title, onConfirm, error: '' });
     }, []);
@@ -301,7 +338,6 @@ const App: React.FC = () => {
     const handleDeactivatePrivacyMode = useCallback(() => {
         openPinModal('enter', 'Confirmar PIN para Desativar', handleRemovePin);
     }, [openPinModal, handleRemovePin]);
-
 
     // --- Offline & Sync Logic ---
     const syncData = useCallback(async () => {
@@ -1010,7 +1046,7 @@ const App: React.FC = () => {
             console.error(error);
         }
     }, [warnings, isOnline, user, showNotification]);
-    
+
     const handleFinalizePendingPayment = useCallback(async (updatedBilling: Billing) => {
         if (!user) return;
         setIsSaving(true);
@@ -1377,7 +1413,7 @@ const App: React.FC = () => {
             case 'CONFIGURACOES': return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} onDeleteAllData={() => setIsDeleteAllDataModalOpen(true)} onLogout={handleLogout} onSwitchAccount={handleSwitchAccount} onAddNewAccount={handleAddNewAccount} isPrivacyModeEnabled={isPrivacyModeEnabled} onActivatePrivacyMode={handleActivatePrivacyMode} onDeactivatePrivacyMode={handleDeactivatePrivacyMode} />;
             default: return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
         }
-    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode]);
+    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode, handleOpenDebtPaymentModal]);
     
     const equipmentForFinalization = useMemo(() => {
         const billing = finalizePaymentModalState.billing;
@@ -1399,8 +1435,16 @@ const App: React.FC = () => {
         <div className="flex h-full">
             <Sidebar user={user} currentView={currentView} setView={setView} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} onOpenScanner={() => setQrScannerModalOpen(true)} />
             <div className="flex-1 flex flex-col h-full">
-                 <MobileHeader title={viewTitles[currentView]} onMenuClick={() => setIsSidebarOpen(true)} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} isPrivacyModeEnabled={isPrivacyModeEnabled} isPrivacyUnlocked={isPrivacyUnlocked} onToggleLock={handleToggleLock} />
-                <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900 pb-24 md:pb-8 pt-4 md:pt-8">
+                 <MobileHeader 
+                    title={viewTitles[currentView]} 
+                    onMenuClick={() => setIsSidebarOpen(true)} 
+                    deferredPrompt={deferredPrompt} 
+                    onInstallPrompt={handleInstallPrompt} 
+                    isPrivacyModeEnabled={isPrivacyModeEnabled} 
+                    isPrivacyUnlocked={isPrivacyUnlocked} 
+                    onToggleLock={handleToggleLock}
+                 />
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-100 dark:bg-slate-900 pb-24 md:pb-8 pt-24 md:pt-8">
                     {activeView}
                 </main>
             </div>
