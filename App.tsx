@@ -32,6 +32,7 @@ import LoginView from './views/LoginView';
 import ReceiptSheet from './components/ReceiptSheet';
 import DebtReceiptSheet from './components/DebtReceiptSheet';
 import { sunmiPrinterService } from './utils/sunmiPrinter';
+import ActionFeedbackOverlay from './components/SuccessAnimationOverlay';
 
 
 // Modals
@@ -165,6 +166,7 @@ const App: React.FC = () => {
     const [notification, setNotification] = useState<NotificationState>(null);
     const [isSharing, setIsSharing] = useState(false);
     const [lastBackupTimestamp, setLastBackupTimestamp] = useState<string | null>(localStorage.getItem('lastBackupTimestamp'));
+    const [actionFeedbackState, setActionFeedbackState] = useState<{ isOpen: boolean; variant: 'success' | 'edit' | 'delete' | 'pending'; message: string; onEnd?: () => void }>({ isOpen: false, variant: 'success', message: '' });
 
     // Privacy Mode State
     const isPrivacyModeEnabled = useMemo(() => !!userProfile?.privacyPinHash, [userProfile]);
@@ -570,6 +572,13 @@ const App: React.FC = () => {
         return newObj;
     }, []);
     
+    const handleAnimationEnd = useCallback(() => {
+        if (actionFeedbackState.onEnd) {
+            actionFeedbackState.onEnd();
+        }
+        setActionFeedbackState({ isOpen: false, variant: 'success', message: '', onEnd: undefined });
+    }, [actionFeedbackState]);
+
     // --- Data Handlers (Add, Update, Delete) ---
     
     const handleAddCustomer = useCallback(async (customerData: Omit<Customer, 'id' | 'debtAmount' | 'lastVisitedAt'>) => {
@@ -594,7 +603,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
             }
-            showNotification('Cliente adicionado com sucesso!');
+            setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cliente Adicionado!' });
         } catch (error) {
             showNotification('Erro ao adicionar cliente. Alteração desfeita.', 'error');
             setCustomers(originalCustomers);
@@ -620,7 +629,7 @@ const App: React.FC = () => {
             } else {
                  await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
             }
-            showNotification('Cliente atualizado com sucesso!');
+            setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cliente Atualizado!' });
         } catch (error) {
             showNotification('Erro ao atualizar cliente. Alterações desfeitas.', 'error');
             setCustomers(originalCustomers);
@@ -644,7 +653,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerId, payload: {} });
             }
-            showNotification('Cliente excluído com sucesso!');
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cliente Excluído!' });
         } catch (error) {
             showNotification('Erro ao excluir cliente. Alteração desfeita.', 'error');
             setCustomers(originalCustomers);
@@ -702,9 +711,9 @@ const App: React.FC = () => {
             }
             
             if (billing.paymentMethod !== 'pending_payment') {
-                setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false });
+                setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cobrança Realizada!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false }) });
             } else {
-                showNotification('Cobrança salva com pagamento pendente.', 'success');
+                setActionFeedbackState({ isOpen: true, variant: 'pending', message: 'Pagamento Pendente' });
             }
         } catch (error) {
             showNotification('Erro ao salvar faturamento. Alterações desfeitas.', 'error');
@@ -775,7 +784,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
                 if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
             }
-            showNotification('Cobrança atualizada com sucesso!');
+            setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cobrança Atualizada!' });
         } catch (error) {
             showNotification('Erro ao atualizar cobrança.', 'error');
             setBillings(originalBillings);
@@ -818,7 +827,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
             }
-            showNotification('Cobrança excluída! O relógio do equipamento foi revertido.', 'success');
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cobrança Excluída!' });
         } catch (error) {
             showNotification('Erro ao excluir cobrança. As alterações foram desfeitas.', 'error');
             setBillings(originalBillings);
@@ -851,7 +860,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
             }
-            showNotification('Despesa adicionada com sucesso!');
+            setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Despesa Adicionada!' });
         } catch (error) {
             showNotification('Erro ao adicionar despesa.', 'error');
             setExpenses(originalExpenses);
@@ -873,7 +882,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
             }
-            showNotification('Despesa excluída com sucesso!');
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Despesa Excluída!' });
         } catch (error) {
             showNotification('Erro ao excluir despesa.', 'error');
             setExpenses(originalExpenses);
@@ -941,9 +950,9 @@ const App: React.FC = () => {
             }
             
             if (isPayingDebt && debtPayment) {
-                setDebtReceiptActionsModalState({ isOpen: true, debtPayment, customer: updatedCustomer });
+                setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Recebido!', onEnd: () => setDebtReceiptActionsModalState({ isOpen: true, debtPayment, customer: updatedCustomer }) });
             } else {
-                showNotification(`Dívida de R$ ${('amountToAdd' in details ? details.amountToAdd : 0).toFixed(2)} adicionada para ${customerToUpdate.name}.`);
+                setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Dívida Adicionada!' });
             }
         } catch (error) {
             showNotification('Erro ao processar dívida.', 'error');
@@ -972,7 +981,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
             }
-            showNotification(`Dívida de ${customer.name} foi perdoada.`, 'success');
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Dívida Perdoada!' });
         } catch (error) {
             setCustomers(originalCustomers);
             showNotification('Erro ao perdoar dívida.', 'error');
@@ -1000,7 +1009,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
             }
-            showNotification("Aviso adicionado com sucesso!", "success");
+            setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Aviso Adicionado!' });
         } catch (error) {
             setWarnings(originalWarnings);
             showNotification("Erro ao adicionar aviso.", "error");
@@ -1020,7 +1029,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
             }
-            showNotification("Aviso marcado como resolvido.", "success");
+            setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Aviso Resolvido!' });
         } catch (error) {
             setWarnings(originalWarnings);
             showNotification("Erro ao resolver aviso.", "error");
@@ -1039,7 +1048,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
             }
-            showNotification("Aviso excluído.", "success");
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Aviso Excluído!' });
         } catch (error) {
             setWarnings(originalWarnings);
             showNotification("Erro ao excluir aviso.", "error");
@@ -1080,7 +1089,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
             }
             
-            setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false });
+            setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Finalizado!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false }) });
         } catch (error) {
             showNotification('Erro ao finalizar pagamento.', 'error');
             setBillings(originalBillings);
@@ -1300,7 +1309,7 @@ const App: React.FC = () => {
     
             await batch.commit();
             await clearOfflineQueue();
-            showNotification("Todos os dados foram apagados com sucesso.", 'success');
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Todos os Dados Apagados' });
         } catch (error) {
             console.error("Erro ao apagar dados:", error);
             showNotification("Falha ao apagar os dados.", "error");
@@ -1475,6 +1484,7 @@ const App: React.FC = () => {
             {forgiveDebtModalState.isOpen && forgiveDebtModalState.customer && <ActionModal isOpen={forgiveDebtModalState.isOpen} onClose={() => setForgiveDebtModalState({ isOpen: false, customer: null })} onConfirm={() => handleForgiveDebt(forgiveDebtModalState.customer!)} title="Perdoar Dívida" confirmText="Sim, Perdoar"><p>Tem certeza que deseja zerar a dívida de <strong>{forgiveDebtModalState.customer.name}</strong> no valor de <strong>R$ {forgiveDebtModalState.customer.debtAmount.toFixed(2)}</strong>?</p></ActionModal>}
             {privacyPinModalState.isOpen && <PrivacyPinModal isOpen={privacyPinModalState.isOpen} mode={privacyPinModalState.mode} title={privacyPinModalState.title} error={privacyPinModalState.error} onConfirm={privacyPinModalState.onConfirm} onClose={() => setPrivacyPinModalState(prev => ({ ...prev, isOpen: false, error: '' }))} />}
 
+            {actionFeedbackState.isOpen && <ActionFeedbackOverlay isOpen={actionFeedbackState.isOpen} onEnd={handleAnimationEnd} variant={actionFeedbackState.variant} message={actionFeedbackState.message} />}
             {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillingModal} onEdit={handleOpenEditCustomerModal} onDelete={handleOpenDeleteModal} onPayDebt={handleOpenDebtPaymentModal} onHistory={handleOpenHistoryModal} onShare={handleOpenShareCustomerModal} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} />}
             {customerToPrint && <PrintPreviewOverlay customer={customerToPrint} onCancel={() => setCustomerToPrint(null)} />}
         </div>

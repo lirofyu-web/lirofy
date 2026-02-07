@@ -2,6 +2,7 @@
   "name": "Montanha Bilhar e Jukebox",
   "short_name": "Montanha",
   "description": "Gerenciamento de locação de mesas de bilhar, jukebox e gruas.",
+  "id": "/",
   "scope": "/",
   "start_url": "/",
   "display": "standalone",
@@ -11,45 +12,21 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icon-144.png",
-      "type": "image/png",
-      "sizes": "144x144",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "type": "image/png",
+      "src": "icon-192.svg",
       "sizes": "192x192",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-256.png",
-      "type": "image/png",
-      "sizes": "256x256",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-384.png",
-      "type": "image/png",
-      "sizes": "384x384",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "type": "image/png",
+      "src": "icon-512.svg",
       "sizes": "512x512",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "icon-512.png",
-      "type": "image/png",
+      "src": "icon-512.svg",
       "sizes": "512x512",
+      "type": "image/svg+xml",
       "purpose": "maskable"
     }
   ]
