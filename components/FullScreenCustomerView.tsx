@@ -33,6 +33,7 @@ interface FullScreenCustomerViewProps {
   billings: Billing[];
   debtPayments: DebtPayment[];
   onFinalizePendingPayment: (billing: Billing) => void;
+  onPendingPaymentAction: (customer: Customer, billing: Billing) => void;
 }
 
 type HistoryItem = {
@@ -88,7 +89,7 @@ const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label:
     </button>
 );
 
-const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, billings, debtPayments, onFinalizePendingPayment }) => {
+const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ customer, onClose, hasActiveWarning, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, billings, debtPayments, onFinalizePendingPayment, onPendingPaymentAction }) => {
   if (!customer) return null;
   
   const pendingBilling = useMemo(() => {
@@ -148,6 +149,22 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
         case 'jukebox': return <JukeboxIcon className="w-5 h-5 text-fuchsia-400" />;
         case 'grua': return <CraneIcon className="w-5 h-5 text-orange-400" />;
         default: return null;
+    }
+  };
+  
+  const handleBillingAction = () => {
+    if (!customer) return;
+    if (!pendingBilling) {
+        onBill(customer);
+        return;
+    }
+
+    const hasMultipleEquipment = customer.equipment && customer.equipment.length > 1;
+
+    if (hasMultipleEquipment) {
+        onPendingPaymentAction(customer, pendingBilling);
+    } else {
+        onFinalizePendingPayment(pendingBilling);
     }
   };
 
@@ -213,17 +230,14 @@ const FullScreenCustomerView: React.FC<FullScreenCustomerViewProps> = ({ custome
                  <div className="bg-slate-900/50 p-4 rounded-xl">
                     <h3 className="text-lg font-bold text-slate-300 mb-3">Ações Principais</h3>
                     <div className="grid grid-cols-3 gap-3">
-                       {pendingBilling ? (
-                            <ActionButton 
-                                onClick={() => onFinalizePendingPayment(pendingBilling)} 
-                                icon={<ReceiptIcon className="w-6 h-6" />} 
-                                label="Finalizar Pgto." 
-                                colorClass="bg-amber-600"
-                                title={`Finalizar pagamento pendente de ${pendingBilling.equipmentType === 'mesa' ? 'Mesa' : 'Jukebox'} ${pendingBilling.equipmentNumero}`}
-                            />
-                        ) : (
-                            <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-6 h-6" />} label="Faturar" colorClass="" isPrimary />
-                        )}
+                       <ActionButton 
+                            onClick={handleBillingAction} 
+                            icon={<ReceiptIcon className="w-6 h-6" />} 
+                            label={pendingBilling ? (customer.equipment && customer.equipment.length > 1 ? "Pgto. Pendente" : "Finalizar Pgto.") : "Faturar"}
+                            colorClass={pendingBilling ? "bg-amber-600" : ""}
+                            isPrimary={!pendingBilling}
+                            title={pendingBilling ? `Ações para pagamento pendente` : "Faturar novo equipamento"}
+                        />
                        <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-6 h-6" />} label="Editar" colorClass="bg-sky-600" />
                        <ActionButton onClick={() => onHistory(customer)} icon={<HistoryIcon className="w-6 h-6" />} label="Histórico" colorClass="bg-indigo-600" />
                        <ActionButton onClick={() => onPayDebt(customer)} icon={<CurrencyDollarIcon className="w-6 h-6" />} label="Pagar Dívida" colorClass="bg-amber-600" disabled={!hasDebt} />

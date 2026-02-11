@@ -29,7 +29,8 @@ interface CustomerCardProps {
   onShare: (customer: Customer) => void;
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
-  onFinalizePayment: (billing: Billing) => void;
+  onFinalizePendingPayment: (billing: Billing) => void;
+  onPendingPaymentAction: (customer: Customer, billing: Billing) => void;
   hasActiveWarning: boolean;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onFocusCustomer: (customer: Customer) => void;
@@ -65,7 +66,7 @@ const EquipmentDetailRow: React.FC<{ label: string; value: string | number | und
 };
 
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePayment, areValuesHidden }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePayment, onPendingPaymentAction, areValuesHidden }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const pendingBilling = useMemo(() => {
@@ -79,6 +80,21 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
     const hasDebt = customer.debtAmount > 0;
     const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
     const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
+
+    const handleBillingAction = () => {
+        if (!pendingBilling) {
+            onBill(customer);
+            return;
+        }
+
+        const hasMultipleEquipment = customer.equipment && customer.equipment.length > 1;
+
+        if (hasMultipleEquipment) {
+            onPendingPaymentAction(customer, pendingBilling);
+        } else {
+            onFinalizePayment(pendingBilling);
+        }
+    };
     
     const ActionButton: React.FC<{onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, disabled?: boolean, isPrimary?: boolean, title?: string}> = ({onClick, icon, label, colorClass, disabled, isPrimary, title}) => (
         <button
@@ -143,17 +159,14 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
                     </div>
                     
                     <div className="mt-4 flex flex-wrap gap-2">
-                        {pendingBilling ? (
-                            <ActionButton 
-                                onClick={() => onFinalizePayment(pendingBilling)} 
-                                icon={<ReceiptIcon className="w-5 h-5" />} 
-                                label="Finalizar Pgto." 
-                                colorClass="bg-amber-600"
-                                title={`Finalizar pagamento pendente de ${pendingBilling.equipmentType === 'mesa' ? 'Mesa' : 'Jukebox'} ${pendingBilling.equipmentNumero}`}
-                            />
-                        ) : (
-                            <ActionButton onClick={() => onBill(customer)} icon={<ReceiptIcon className="w-5 h-5" />} label="Faturar" colorClass="" isPrimary />
-                        )}
+                         <ActionButton 
+                            onClick={handleBillingAction} 
+                            icon={<ReceiptIcon className="w-5 h-5" />} 
+                            label={pendingBilling ? (customer.equipment && customer.equipment.length > 1 ? "Pgto. Pendente" : "Finalizar Pgto.") : "Faturar"}
+                            colorClass={pendingBilling ? "bg-amber-600" : ""}
+                            isPrimary={!pendingBilling}
+                            title={pendingBilling ? `Ações para pagamento pendente de ${pendingBilling.equipmentType === 'mesa' ? 'Mesa' : 'Jukebox'} ${pendingBilling.equipmentNumero}` : "Faturar novo equipamento"}
+                        />
                         <ActionButton onClick={() => onEdit(customer)} icon={<PencilIcon className="w-5 h-5" />} label="Editar" colorClass="bg-sky-600" title='Editar Cliente' />
                         <ActionButton 
                             onClick={() => onPayDebt(customer)} 

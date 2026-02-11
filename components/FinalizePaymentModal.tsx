@@ -37,40 +37,26 @@ const FinalizePaymentModal: React.FC<FinalizePaymentModalProps> = ({ isOpen, onC
   }, [isOpen, billing]);
 
   const handlePaymentChange = useCallback((field: keyof typeof paymentValues, value: string) => {
-    setPaymentValues(prev => {
-        const newState = { ...prev, [field]: value };
-        
-        const vBonus = safeParseFloat(newState.bonus);
-        const totalAfterBonus = billing.valorTotal - vBonus;
+    setPaymentValues(prev => ({ ...prev, [field]: value }));
+  }, []);
+  
+  useEffect(() => {
+    const vBonus = safeParseFloat(paymentValues.bonus);
+    const totalDevido = billing.valorTotal - vBonus;
+    
+    const vDinheiro = safeParseFloat(paymentValues.dinheiro);
+    const vPix = safeParseFloat(paymentValues.pix);
+    const vNegativo = safeParseFloat(paymentValues.negativo);
 
-        if (field === 'dinheiro') {
-            const vDinheiro = safeParseFloat(newState.dinheiro);
-            const vPix = totalAfterBonus - vDinheiro;
-            newState.pix = vPix >= 0 ? String(parseFloat(vPix.toFixed(2))) : '0';
-        } else if (field === 'pix') {
-            const vPix = safeParseFloat(newState.pix);
-            const vDinheiro = totalAfterBonus - vPix;
-            newState.dinheiro = vDinheiro >= 0 ? String(parseFloat(vDinheiro.toFixed(2))) : '0';
-        } else if (field === 'bonus') {
-            const vDinheiro = safeParseFloat(newState.dinheiro);
-            const vPix = totalAfterBonus - vDinheiro;
-            newState.pix = vPix >= 0 ? String(parseFloat(vPix.toFixed(2))) : '0';
-        }
-        
-        const finalDinheiro = safeParseFloat(newState.dinheiro);
-        const finalPix = safeParseFloat(newState.pix);
-        const finalNegativo = totalAfterBonus - finalDinheiro - finalPix;
+    const totalDeclarado = vDinheiro + vPix + vNegativo;
+    const difference = totalDeclarado - totalDevido;
 
-        if (finalNegativo < -0.01) {
-            setError(`Valor excedido: R$ ${Math.abs(finalNegativo).toFixed(2)}`);
-        } else {
-            setError('');
-        }
-        newState.negativo = finalNegativo >= -0.01 ? String(parseFloat(finalNegativo.toFixed(2))) : '0';
-        
-        return newState;
-    });
-  }, [billing.valorTotal]);
+    if (Math.abs(difference) > 0.01) { // Tolera 1 centavo
+        setError(`A soma dos pagamentos (R$ ${totalDeclarado.toFixed(2)}) não corresponde ao total devido (R$ ${totalDevido.toFixed(2)}).`);
+    } else {
+        setError('');
+    }
+  }, [paymentValues, billing.valorTotal]);
 
 
   const handleConfirm = useCallback(() => {
@@ -131,7 +117,7 @@ const FinalizePaymentModal: React.FC<FinalizePaymentModalProps> = ({ isOpen, onC
                 </div>
                  <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Deixar Negativo (R$)</label>
-                  <input type="text" value={paymentValues.negativo} readOnly className="w-full bg-slate-600 cursor-not-allowed border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none" />
+                  <input type="text" inputMode="decimal" value={paymentValues.negativo} onChange={(e) => handlePaymentChange('negativo', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-lime-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Valor em Dinheiro (R$)</label>

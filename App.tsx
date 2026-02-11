@@ -54,6 +54,7 @@ import AddPhoneModal from './components/AddPhoneModal';
 import SyncStatusIndicator from './components/SyncStatusIndicator';
 import FinalizePaymentModal from './components/FinalizePaymentModal';
 import PrivacyPinModal from './components/PrivacyPinModal';
+import PendingPaymentActionModal from './components/PendingPaymentActionModal';
 
 
 type NotificationState = {
@@ -206,6 +207,7 @@ const App: React.FC = () => {
     const [isGeolocating, setIsGeolocating] = useState(false);
     const [finalizePaymentModalState, setFinalizePaymentModalState] = useState<{ isOpen: boolean; billing: Billing | null; }>({ isOpen: false, billing: null });
     const [forgiveDebtModalState, setForgiveDebtModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
+    const [pendingPaymentActionModalState, setPendingPaymentActionModalState] = useState<{ isOpen: boolean; customer: Customer | null; pendingBilling: Billing | null; }>({ isOpen: false, customer: null, pendingBilling: null });
     
     const [focusedCustomer, setFocusedCustomer] = useState<Customer | null>(null);
     const [customerToPrint, setCustomerToPrint] = useState<Customer | null>(null);
@@ -1413,7 +1415,7 @@ const App: React.FC = () => {
     const activeView = useMemo(() => {
         switch (currentView) {
             case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
-            case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} areValuesHidden={areValuesHidden} />;
+            case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} areValuesHidden={areValuesHidden} onPendingPaymentAction={(customer, billing) => setPendingPaymentActionModalState({ isOpen: true, customer, pendingBilling: billing })} />;
             case 'COBRANCAS': return <CobrancasView billings={billings} customers={customers} debtPayments={debtPayments} onShowActions={(billing) => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false })} onEditBilling={handleOpenEditBillingModal} onDeleteBilling={handleDeleteBilling} onFinalizePayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPayDebtCustomer={handleOpenDebtPaymentModal} areValuesHidden={areValuesHidden} />;
             case 'EQUIPAMENTOS': return <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setLabelGenerationModalState({ isOpen: true })} onGenerateLabels={() => {}} />;
             case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} areValuesHidden={areValuesHidden} />;
@@ -1422,7 +1424,7 @@ const App: React.FC = () => {
             case 'CONFIGURACOES': return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} onDeleteAllData={() => setIsDeleteAllDataModalOpen(true)} onLogout={handleLogout} onSwitchAccount={handleSwitchAccount} onAddNewAccount={handleAddNewAccount} isPrivacyModeEnabled={isPrivacyModeEnabled} onActivatePrivacyMode={handleActivatePrivacyMode} onDeactivatePrivacyMode={handleDeactivatePrivacyMode} />;
             default: return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
         }
-    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode, handleOpenDebtPaymentModal]);
+    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode]);
     
     const equipmentForFinalization = useMemo(() => {
         const billing = finalizePaymentModalState.billing;
@@ -1482,10 +1484,28 @@ const App: React.FC = () => {
             {isDeleteAllDataModalOpen && <ActionModal isOpen={isDeleteAllDataModalOpen} onClose={() => setIsDeleteAllDataModalOpen(false)} onConfirm={handleDeleteAllData} title="Apagar Todos os Dados" confirmText="Sim, Apagar Tudo"><p className="text-red-400">Esta ação é irreversível. Confirma que deseja apagar todos os dados da sua conta?</p></ActionModal>}
             {finalizePaymentModalState.isOpen && finalizePaymentModalState.billing && <FinalizePaymentModal isOpen={finalizePaymentModalState.isOpen} onClose={() => setFinalizePaymentModalState({ isOpen: false, billing: null })} onConfirm={handleFinalizePendingPayment} billing={finalizePaymentModalState.billing} />}
             {forgiveDebtModalState.isOpen && forgiveDebtModalState.customer && <ActionModal isOpen={forgiveDebtModalState.isOpen} onClose={() => setForgiveDebtModalState({ isOpen: false, customer: null })} onConfirm={() => handleForgiveDebt(forgiveDebtModalState.customer!)} title="Perdoar Dívida" confirmText="Sim, Perdoar"><p>Tem certeza que deseja zerar a dívida de <strong>{forgiveDebtModalState.customer.name}</strong> no valor de <strong>R$ {forgiveDebtModalState.customer.debtAmount.toFixed(2)}</strong>?</p></ActionModal>}
+            {pendingPaymentActionModalState.isOpen && (
+                <PendingPaymentActionModal
+                    isOpen={pendingPaymentActionModalState.isOpen}
+                    onClose={() => setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null })}
+                    onBillNew={() => {
+                        if(pendingPaymentActionModalState.customer) {
+                            handleOpenBillingModal(pendingPaymentActionModalState.customer);
+                        }
+                        setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null });
+                    }}
+                    onContinuePending={() => {
+                        if(pendingPaymentActionModalState.pendingBilling) {
+                            setFinalizePaymentModalState({ isOpen: true, billing: pendingPaymentActionModalState.pendingBilling });
+                        }
+                        setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null });
+                    }}
+                />
+            )}
             {privacyPinModalState.isOpen && <PrivacyPinModal isOpen={privacyPinModalState.isOpen} mode={privacyPinModalState.mode} title={privacyPinModalState.title} error={privacyPinModalState.error} onConfirm={privacyPinModalState.onConfirm} onClose={() => setPrivacyPinModalState(prev => ({ ...prev, isOpen: false, error: '' }))} />}
 
             {actionFeedbackState.isOpen && <ActionFeedbackOverlay isOpen={actionFeedbackState.isOpen} onEnd={handleAnimationEnd} variant={actionFeedbackState.variant} message={actionFeedbackState.message} />}
-            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillingModal} onEdit={handleOpenEditCustomerModal} onDelete={handleOpenDeleteModal} onPayDebt={handleOpenDebtPaymentModal} onHistory={handleOpenHistoryModal} onShare={handleOpenShareCustomerModal} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} />}
+            {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillingModal} onEdit={handleOpenEditCustomerModal} onDelete={handleOpenDeleteModal} onPayDebt={handleOpenDebtPaymentModal} onHistory={handleOpenHistoryModal} onShare={handleOpenShareCustomerModal} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPendingPaymentAction={(customer, billing) => setPendingPaymentActionModalState({ isOpen: true, customer, pendingBilling: billing })} />}
             {customerToPrint && <PrintPreviewOverlay customer={customerToPrint} onCancel={() => setCustomerToPrint(null)} />}
         </div>
     );

@@ -34,6 +34,7 @@ interface ClientesViewProps {
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
   onFinalizePendingPayment: (billing: Billing) => void;
+  onPendingPaymentAction: (customer: Customer, billing: Billing) => void;
   areValuesHidden: boolean;
 }
 
@@ -66,22 +67,18 @@ const ClientesView: React.FC<ClientesViewProps> = ({
     onLocationActions,
     onWhatsAppActions,
     onFinalizePendingPayment,
+    onPendingPaymentAction,
     areValuesHidden,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
   const [viewingCity, setViewingCity] = useState<string | null>(null);
-  const citySectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // State for city search suggestions
   const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
-
-  // State for list virtualization
-  const [visibleCities, setVisibleCities] = useState<Set<string>>(new Set());
-  const observer = useRef<IntersectionObserver | null>(null);
 
   // Debounce search input for main filtering
   const debouncedSetSearch = useCallback(debounce(setDebouncedSearchQuery, 300), []);
@@ -171,33 +168,6 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   }, [filteredCustomers]);
 
   const sortedCities = useMemo(() => Object.keys(customersByCity).sort((a, b) => a.localeCompare(b)), [customersByCity]);
-  
-  // Intersection Observer for virtualization
-  useEffect(() => {
-    if (observer.current) observer.current.disconnect();
-
-    observer.current = new IntersectionObserver((entries) => {
-        setVisibleCities(prev => {
-            const newVisible = new Set(prev);
-            entries.forEach(entry => {
-                const city = entry.target.getAttribute('data-city');
-                if (city) {
-                    if (entry.isIntersecting) {
-                        newVisible.add(city);
-                    } else {
-                        // Keep recently viewed items for smoother scrolling
-                        // newVisible.delete(city); 
-                    }
-                }
-            });
-            return newVisible;
-        });
-    }, { rootMargin: '200px 0px' }); // Load content 200px before it enters viewport
-
-    return () => {
-        if (observer.current) observer.current.disconnect();
-    };
-  }, []);
   
   const cityStats = useMemo(() => {
     const stats: Record<string, { visited: number; notVisited: number }> = {};
@@ -302,123 +272,95 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         </div>
       </div>
 
-      {sortedCities.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Navegar por Cidade</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {sortedCities.map((city, index) => {
-                  const cityParts = city.split(', ');
-                  const cityName = cityParts[0];
-                  const stateAbbr = cityParts.length > 1 ? cityParts[1] : null;
-                  const isNeutralCard = index % 2 === 0;
+      <div className="space-y-6">
+        {sortedCities.map((city, index) => {
+          const cityCustomers = customersByCity[city];
+          const stats = cityStats[city];
+          
+          const isEven = index % 2 === 0;
+          const cardBgColor = isEven 
+              ? 'bg-lime-100 dark:bg-lime-900' 
+              : 'bg-cyan-100 dark:bg-cyan-900';
+          const cardBorderColor = isEven 
+              ? 'border-lime-200 dark:border-lime-700' 
+              : 'border-cyan-200 dark:border-cyan-700';
 
-                  return (
-                      <button
-                          key={city}
-                          onClick={() => handleCityCardClick(city)}
-                          className={`
-                              p-4 rounded-lg shadow-lg text-left hover:scale-105 transition-all duration-200 flex flex-col justify-between h-full
-                              ${isNeutralCard
-                                  ? 'bg-slate-800 text-white hover:bg-slate-700'
-                                  : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-[var(--color-primary-text)]'
-                              }
-                          `}
-                      >
-                           <div className="flex items-start gap-3">
-                               <LocationMarkerIcon className={`w-6 h-6 flex-shrink-0 mt-1 ${isNeutralCard ? 'text-slate-300' : 'opacity-80'}`} />
-                               <div className="flex-grow min-w-0">
-                                   <h3 className="font-bold text-base leading-tight break-words">{cityName}</h3>
-                                   {stateAbbr && <p className={`text-xs font-semibold ${isNeutralCard ? 'opacity-80 text-slate-400' : 'opacity-70'}`}>{stateAbbr}</p>}
-                               </div>
-                           </div>
-                          <p className={`text-sm mt-2 ${isNeutralCard ? 'text-slate-400' : 'opacity-70'}`}>{customersByCity[city].length} cliente(s)</p>
-                          <div className={`flex justify-between items-center text-xs font-semibold border-t pt-2 mt-2 ${isNeutralCard ? 'border-slate-600' : 'border-[var(--color-primary-text)]/30'}`}>
-                              <div className="flex items-center gap-1.5">
-                                  <GreenBilliardBallIcon className="w-3 h-3"/>
-                                  <span>{cityStats[city]?.visited || 0}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                  <RedBilliardBallIcon className="w-3 h-3"/>
-                                  <span>{cityStats[city]?.notVisited || 0}</span>
-                              </div>
-                          </div>
-                      </button>
-                  );
-              })}
-          </div>
-        </div>
-      )}
-      
-      <div className="space-y-8">
-        {sortedCities.length > 0 ? sortedCities.map(city => (
-            <section 
+          return (
+            <section
                 key={city}
-                ref={(el) => {
-                    if (el) {
-                        citySectionRefs.current[city] = el;
-                        observer.current?.observe(el);
-                    }
-                }}
-                data-city={city}
-                // Placeholder height for virtualization, adjust as needed
-                style={{ minHeight: visibleCities.has(city) ? 'auto' : '200px' }}
+                className={`${cardBgColor} ${cardBorderColor} p-4 rounded-lg shadow-lg border`}
             >
-                <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mb-4 border-b-2 border-slate-200 dark:border-slate-700 pb-2 capitalize">{city}</h2>
-                {visibleCities.has(city) ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {customersByCity[city].map(customer => {
-                            const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
-                            return (
-                                <CustomerCard
-                                    key={customer.id}
-                                    customer={customer}
-                                    billings={billings}
-                                    hasActiveWarning={hasActiveWarning}
-                                    onBill={onBillCustomer}
-                                    onEdit={onEditCustomer}
-                                    onDelete={onDeleteCustomer}
-                                    onPayDebt={onPayDebtCustomer}
-                                    onHistory={onHistoryCustomer}
-                                    onShare={onShareCustomer}
-                                    showNotification={showNotification}
-                                    onFocusCustomer={onFocusCustomer}
-                                    onLocationActions={onLocationActions}
-                                    onWhatsAppActions={onWhatsAppActions}
-                                    // FIX: Changed prop name from `onFinalizePendingPayment` to `onFinalizePayment` to match CustomerCardProps.
-                                    onFinalizePayment={onFinalizePendingPayment}
-                                    areValuesHidden={areValuesHidden}
-                                />
-                            );
-                        })}
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <LocationMarkerIcon className="w-6 h-6 text-slate-400" />
+                        {city} ({cityCustomers.length})
+                    </h2>
+                     <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5 text-green-500" title="Clientes visitados nos últimos 25 dias">
+                            <GreenBilliardBallIcon className="w-4 h-4" />
+                            <span className="font-bold">{stats.visited}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-red-500" title="Clientes com visita pendente">
+                            <RedBilliardBallIcon className="w-4 h-4" />
+                            <span className="font-bold">{stats.notVisited}</span>
+                        </div>
+                        <button onClick={() => handleCityCardClick(city)} className="text-sm font-semibold text-lime-600 dark:text-lime-400 hover:underline">
+                            Ver Todos &rarr;
+                        </button>
                     </div>
-                ) : null}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {cityCustomers.slice(0, 4).map(customer => {
+                        const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
+                        return (
+                            <CustomerCard
+                                key={customer.id}
+                                customer={customer}
+                                billings={billings}
+                                hasActiveWarning={hasActiveWarning}
+                                onBill={onBillCustomer}
+                                onEdit={onEditCustomer}
+                                onDelete={onDeleteCustomer}
+                                onPayDebt={onPayDebtCustomer}
+                                onHistory={onHistoryCustomer}
+                                onShare={onShareCustomer}
+                                showNotification={showNotification}
+                                onFocusCustomer={onFocusCustomer}
+                                onLocationActions={onLocationActions}
+                                onWhatsAppActions={onWhatsAppActions}
+                                onFinalizePendingPayment={onFinalizePendingPayment}
+                                onPendingPaymentAction={onPendingPaymentAction}
+                                areValuesHidden={areValuesHidden}
+                            />
+                        );
+                    })}
+                </div>
             </section>
-        )) : (
-            <p className="text-center py-10 text-slate-500 dark:text-slate-400">
-                Nenhum cliente encontrado para os filtros selecionados.
-            </p>
-        )}
+          );
+        })}
       </div>
-      
+
       {viewingCity && (
         <CityCustomersModal
-            city={viewingCity}
-            customers={customersByCity[viewingCity] || []}
-            warnings={warnings}
-            billings={billings}
-            onClose={() => setViewingCity(null)}
-            onBillCustomer={onBillCustomer}
-            onEditCustomer={onEditCustomer}
-            onDeleteCustomer={onDeleteCustomer}
-            onPayDebtCustomer={onPayDebtCustomer}
-            onHistoryCustomer={onHistoryCustomer}
-            onShareCustomer={onShareCustomer}
-            showNotification={showNotification}
-            onFocusCustomer={onFocusCustomer}
-            onLocationActions={onLocationActions}
-            onWhatsAppActions={onWhatsAppActions}
-            onFinalizePayment={onFinalizePendingPayment}
-            areValuesHidden={areValuesHidden}
+          city={viewingCity}
+          customers={customersByCity[viewingCity] || []}
+          warnings={warnings}
+          billings={billings}
+          onClose={() => setViewingCity(null)}
+          onBillCustomer={onBillCustomer}
+          onEditCustomer={onEditCustomer}
+          onDeleteCustomer={onDeleteCustomer}
+          onPayDebtCustomer={onPayDebtCustomer}
+          onHistoryCustomer={onHistoryCustomer}
+          onShareCustomer={onShareCustomer}
+          showNotification={showNotification}
+          onFocusCustomer={onFocusCustomer}
+          onLocationActions={onLocationActions}
+          onWhatsAppActions={onWhatsAppActions}
+          onFinalizePayment={onFinalizePendingPayment}
+          onPendingPaymentAction={onPendingPaymentAction}
+          areValuesHidden={areValuesHidden}
         />
       )}
     </>

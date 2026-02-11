@@ -245,14 +245,11 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             
             const valorTotalFirma = saldoBruto - aluguelValorNum;
             
+            // Since "Recebido em PIX" is read-only, we only need to calculate it when "Recebido em Espécie" changes.
             if (field === 'recebimentoEspecie') {
                 const recebimentoEspecieNum = safeParseFloat(value);
                 const pixCalculado = Math.max(0, valorTotalFirma - recebimentoEspecieNum);
                 newState.recebimentoPix = String(parseFloat(pixCalculado.toFixed(2)));
-            } else if (field === 'recebimentoPix') {
-                const recebimentoPixNum = safeParseFloat(value);
-                const especieCalculado = Math.max(0, valorTotalFirma - recebimentoPixNum);
-                newState.recebimentoEspecie = String(parseFloat(especieCalculado.toFixed(2)));
             }
         }
         
@@ -261,40 +258,28 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   }, [equipment]);
 
   const handlePaymentChange = useCallback((field: keyof PaymentState, value: string) => {
-    setPaymentValues(prev => {
-        const newState = { ...prev, [field]: value };
-        
-        const vBonus = safeParseFloat(newState.bonus);
-        const totalAfterBonus = valorTotalParaFirma - vBonus;
+    setPaymentValues(prev => ({ ...prev, [field]: value }));
+  }, []);
 
-        if (field === 'dinheiro') {
-            const vDinheiro = safeParseFloat(newState.dinheiro);
-            const vPix = totalAfterBonus - vDinheiro;
-            newState.pix = vPix >= 0 ? String(parseFloat(vPix.toFixed(2))) : '0';
-        } else if (field === 'pix') {
-            const vPix = safeParseFloat(newState.pix);
-            const vDinheiro = totalAfterBonus - vPix;
-            newState.dinheiro = vDinheiro >= 0 ? String(parseFloat(vDinheiro.toFixed(2))) : '0';
-        } else if (field === 'bonus') {
-            const vDinheiro = safeParseFloat(newState.dinheiro);
-            const vPix = totalAfterBonus - vDinheiro;
-            newState.pix = vPix >= 0 ? String(parseFloat(vPix.toFixed(2))) : '0';
-        }
-        
-        const finalDinheiro = safeParseFloat(newState.dinheiro);
-        const finalPix = safeParseFloat(newState.pix);
-        const finalNegativo = totalAfterBonus - finalDinheiro - finalPix;
+  useEffect(() => {
+    if (mesaStep < 2 && jukeboxStep < 2) return;
+    
+    const vTotal = valorTotalParaFirma;
+    const vBonus = safeParseFloat(paymentValues.bonus);
+    const vDinheiro = safeParseFloat(paymentValues.dinheiro);
+    const vPix = safeParseFloat(paymentValues.pix);
+    const vNegativo = safeParseFloat(paymentValues.negativo);
 
-        if (finalNegativo < -0.01) {
-            setError(`Valor excedido: R$ ${Math.abs(finalNegativo).toFixed(2)}`);
-        } else {
-            setError(null);
-        }
-        newState.negativo = finalNegativo >= -0.01 ? String(parseFloat(finalNegativo.toFixed(2))) : '0';
+    const totalDeclarado = vDinheiro + vPix + vNegativo;
+    const totalDevido = vTotal - vBonus;
+    const difference = totalDeclarado - totalDevido;
 
-        return newState;
-    });
-  }, [valorTotalParaFirma]);
+    if (Math.abs(difference) > 0.01) { // Tolera 1 centavo
+        setError(`A soma dos pagamentos (R$ ${totalDeclarado.toFixed(2)}) não corresponde ao total devido (R$ ${totalDevido.toFixed(2)}).`);
+    } else {
+        setError(null);
+    }
+  }, [paymentValues, valorTotalParaFirma, mesaStep, jukeboxStep]);
 
   const generateBillingObject = useCallback((): Billing | null => {
     const relogioAtual = safeParseFloat(formState.relogioAtual);
@@ -337,12 +322,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const valorPagoDinheiro = safeParseFloat(paymentValues.dinheiro);
         const valorPagoPix = safeParseFloat(paymentValues.pix);
         const valorBonus = safeParseFloat(paymentValues.bonus);
-
-        const totalParaFirma = calculation.valorTotal || 0;
-        const totalPago = valorPagoDinheiro + valorPagoPix;
-        const valorDebitoNegativoBruto = totalParaFirma - valorBonus - totalPago;
-        const valorDebitoNegativo = valorDebitoNegativoBruto > 0 ? parseFloat(valorDebitoNegativoBruto.toFixed(2)) : 0;
-
+        const valorDebitoNegativo = safeParseFloat(paymentValues.negativo);
+        
         const methodsUsed: ('dinheiro' | 'pix' | 'debito_negativo')[] = [];
         if (valorPagoDinheiro > 0) methodsUsed.push('dinheiro');
         if (valorPagoPix > 0) methodsUsed.push('pix');
@@ -549,7 +530,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           <PaymentField label="Bônus / Desconto (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
           <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
           <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-          <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
+          <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
       </div>
   );
 
@@ -592,7 +573,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       <div className="space-y-4">
           <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
           <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
           <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
@@ -665,7 +646,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   <PaymentField label="Desconto / Bônus (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
-                  <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
+                  <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
                 </div>
               )
           )}

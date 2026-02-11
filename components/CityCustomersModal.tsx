@@ -22,6 +22,7 @@ interface CityCustomersModalProps {
   onLocationActions: (customer: Customer) => void;
   onWhatsAppActions: (customer: Customer) => void;
   onFinalizePayment: (billing: Billing) => void;
+  onPendingPaymentAction: (customer: Customer, billing: Billing) => void;
   areValuesHidden: boolean;
 }
 
@@ -42,6 +43,7 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
   onLocationActions,
   onWhatsAppActions,
   onFinalizePayment,
+  onPendingPaymentAction,
   areValuesHidden,
 }) => {
 
@@ -90,7 +92,8 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
                   onFocusCustomer={handleFocus}
                   onLocationActions={onLocationActions}
                   onWhatsAppActions={onWhatsAppActions}
-                  onFinalizePayment={onFinalizePayment}
+                  onFinalizePendingPayment={onFinalizePayment}
+                  onPendingPaymentAction={onPendingPaymentAction}
                   areValuesHidden={areValuesHidden}
                 />
               );

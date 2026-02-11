@@ -147,7 +147,7 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
                         <div className="receipt-row pt-1">
                             <span className="label">Pagamento:</span>
                             <span className="filler"></span>
-                            <span className="value">{paymentMethodText[billing.paymentMethod]}</span>
+                            <span className="value">PAGO (&#160;) NAO PAGO (&#160;)</span>
                         </div>
                     )
                 )}
