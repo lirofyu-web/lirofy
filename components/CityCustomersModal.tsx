@@ -73,29 +73,30 @@ const CityCustomersModal: React.FC<CityCustomersModalProps> = ({
 
       <main className="overflow-y-auto h-full pb-16 -mx-4 px-4">
         {customers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="flex flex-wrap justify-center -m-3">
             {customers.map(customer => {
               const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
               return (
-                <CustomerCard
-                  key={customer.id}
-                  customer={customer}
-                  billings={billings}
-                  hasActiveWarning={hasActiveWarning}
-                  onBill={onBillCustomer}
-                  onEdit={onEditCustomer}
-                  onDelete={onDeleteCustomer}
-                  onPayDebt={onPayDebtCustomer}
-                  onHistory={onHistoryCustomer}
-                  onShare={onShareCustomer}
-                  showNotification={showNotification}
-                  onFocusCustomer={handleFocus}
-                  onLocationActions={onLocationActions}
-                  onWhatsAppActions={onWhatsAppActions}
-                  onFinalizePendingPayment={onFinalizePayment}
-                  onPendingPaymentAction={onPendingPaymentAction}
-                  areValuesHidden={areValuesHidden}
-                />
+                <div key={customer.id} className="w-full md:w-1/2 lg:w-1/3 p-3">
+                    <CustomerCard
+                      customer={customer}
+                      billings={billings}
+                      hasActiveWarning={hasActiveWarning}
+                      onBill={onBillCustomer}
+                      onEdit={onEditCustomer}
+                      onDelete={onDeleteCustomer}
+                      onPayDebt={onPayDebtCustomer}
+                      onHistory={onHistoryCustomer}
+                      onShare={onShareCustomer}
+                      showNotification={showNotification}
+                      onFocusCustomer={handleFocus}
+                      onLocationActions={onLocationActions}
+                      onWhatsAppActions={onWhatsAppActions}
+                      onFinalizePendingPayment={onFinalizePayment}
+                      onPendingPaymentAction={onPendingPaymentAction}
+                      areValuesHidden={areValuesHidden}
+                    />
+                </div>
               );
             })}
           </div>

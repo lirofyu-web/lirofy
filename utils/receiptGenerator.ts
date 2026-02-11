@@ -84,7 +84,7 @@ ${totalSection}
             if (billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0) parts.push(`- Negativo: R$ ${formatCurrency(billing.valorDebitoNegativo)}`);
             paymentDetails = `\nPAGAMENTO:\n${parts.join('\n')}`;
         } else {
-            paymentDetails = `\nPagamento: PAGO ( ) NAO PAGO ( )`;
+            paymentDetails = `\nPagamento: PAGO ( )\n           NAO PAGO ( )`;
         }
     }
 

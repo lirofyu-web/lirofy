@@ -291,7 +291,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                 className={`${cardBgColor} ${cardBorderColor} p-4 rounded-lg shadow-lg border`}
             >
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-red-600 dark:text-red-500 flex items-center gap-2">
                         <LocationMarkerIcon className="w-6 h-6 text-slate-400" />
                         {city} ({cityCustomers.length})
                     </h2>
@@ -310,29 +310,30 @@ const ClientesView: React.FC<ClientesViewProps> = ({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="flex flex-wrap justify-center -m-3">
                     {cityCustomers.slice(0, 4).map(customer => {
                         const hasActiveWarning = warnings.some(w => w.customerId === customer.id && !w.isResolved);
                         return (
-                            <CustomerCard
-                                key={customer.id}
-                                customer={customer}
-                                billings={billings}
-                                hasActiveWarning={hasActiveWarning}
-                                onBill={onBillCustomer}
-                                onEdit={onEditCustomer}
-                                onDelete={onDeleteCustomer}
-                                onPayDebt={onPayDebtCustomer}
-                                onHistory={onHistoryCustomer}
-                                onShare={onShareCustomer}
-                                showNotification={showNotification}
-                                onFocusCustomer={onFocusCustomer}
-                                onLocationActions={onLocationActions}
-                                onWhatsAppActions={onWhatsAppActions}
-                                onFinalizePendingPayment={onFinalizePendingPayment}
-                                onPendingPaymentAction={onPendingPaymentAction}
-                                areValuesHidden={areValuesHidden}
-                            />
+                            <div key={customer.id} className="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 p-3">
+                                <CustomerCard
+                                    customer={customer}
+                                    billings={billings}
+                                    hasActiveWarning={hasActiveWarning}
+                                    onBill={onBillCustomer}
+                                    onEdit={onEditCustomer}
+                                    onDelete={onDeleteCustomer}
+                                    onPayDebt={onPayDebtCustomer}
+                                    onHistory={onHistoryCustomer}
+                                    onShare={onShareCustomer}
+                                    showNotification={showNotification}
+                                    onFocusCustomer={onFocusCustomer}
+                                    onLocationActions={onLocationActions}
+                                    onWhatsAppActions={onWhatsAppActions}
+                                    onFinalizePendingPayment={onFinalizePendingPayment}
+                                    onPendingPaymentAction={onPendingPaymentAction}
+                                    areValuesHidden={areValuesHidden}
+                                />
+                            </div>
                         );
                     })}
                 </div>
