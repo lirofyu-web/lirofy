@@ -13,6 +13,7 @@ import { ListBulletIcon } from '../components/icons/ListBulletIcon';
 import { XIcon } from '../components/icons/XIcon';
 import { ArrowsPointingOutIcon } from '../components/icons/ArrowsPointingOutIcon';
 import { ArrowsPointingInIcon } from '../components/icons/ArrowsPointingInIcon';
+import { optimizeRoute } from '../utils/routeOptimizer';
 
 
 interface RotasViewProps {
@@ -121,15 +122,6 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     }
   }, []);
   
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the Earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-  
   const handleOptimizeRoute = useCallback(() => {
     if (!navigator.geolocation) {
       alert("Geolocalização não é suportada.");
@@ -141,34 +133,7 @@ const RotasView: React.FC<RotasViewProps> = ({ customers }) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        let currentLocation = { lat: latitude, lon: longitude };
-        
-        let remainingCustomers = [...geocodedCustomers];
-        const route: GeocodedCustomer[] = [];
-        
-        while(remainingCustomers.length > 0) {
-            let closestCustomer: GeocodedCustomer | null = null;
-            let minDistance = Infinity;
-            let closestIndex = -1;
-            
-            remainingCustomers.forEach((customer, index) => {
-                const distance = calculateDistance(currentLocation.lat, currentLocation.lon, customer.latitude, customer.longitude);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestCustomer = customer;
-                    closestIndex = index;
-                }
-            });
-            
-            if(closestCustomer) {
-                route.push(closestCustomer);
-                currentLocation = { lat: closestCustomer.latitude, lon: closestCustomer.longitude };
-                remainingCustomers.splice(closestIndex, 1);
-            } else {
-                break; // Should not happen
-            }
-        }
-        
+        const route = optimizeRoute(latitude, longitude, geocodedCustomers);
         setOptimizedRoute(route);
         setIsProcessingRoute(false);
       },

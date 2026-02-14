@@ -6,7 +6,7 @@ import ReactDOMServer from 'react-dom/server';
 import QRCode from 'qrcode';
 import { auth, db, processFirestoreDoc } from './firebase';
 
-import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser } from './types';
+import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser, Route } from './types';
 import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -33,6 +33,7 @@ import ReceiptSheet from './components/ReceiptSheet';
 import DebtReceiptSheet from './components/DebtReceiptSheet';
 import { sunmiPrinterService } from './utils/sunmiPrinter';
 import ActionFeedbackOverlay from './components/SuccessAnimationOverlay';
+import { optimizeRoute } from './utils/routeOptimizer';
 
 
 // Modals
@@ -55,6 +56,7 @@ import SyncStatusIndicator from './components/SyncStatusIndicator';
 import FinalizePaymentModal from './components/FinalizePaymentModal';
 import PrivacyPinModal from './components/PrivacyPinModal';
 import PendingPaymentActionModal from './components/PendingPaymentActionModal';
+import RouteCreationModal from './components/RouteCreationModal';
 
 
 type NotificationState = {
@@ -161,6 +163,7 @@ const App: React.FC = () => {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
     const [warnings, setWarnings] = useState<Warning[]>([]);
+    const [routes, setRoutes] = useState<Route[]>([]);
     
     const [currentView, setCurrentView] = useState<View>(() => (localStorage.getItem('lastActiveView') as View) || 'DASHBOARD');
     
@@ -208,6 +211,7 @@ const App: React.FC = () => {
     const [finalizePaymentModalState, setFinalizePaymentModalState] = useState<{ isOpen: boolean; billing: Billing | null; }>({ isOpen: false, billing: null });
     const [forgiveDebtModalState, setForgiveDebtModalState] = useState<{ isOpen: boolean; customer: Customer | null; }>({ isOpen: false, customer: null });
     const [pendingPaymentActionModalState, setPendingPaymentActionModalState] = useState<{ isOpen: boolean; customer: Customer | null; pendingBilling: Billing | null; }>({ isOpen: false, customer: null, pendingBilling: null });
+    const [isRouteCreationModalOpen, setIsRouteCreationModalOpen] = useState(false);
     
     const [focusedCustomer, setFocusedCustomer] = useState<Customer | null>(null);
     const [customerToPrint, setCustomerToPrint] = useState<Customer | null>(null);
@@ -525,16 +529,18 @@ const App: React.FC = () => {
             setExpenses([]);
             setDebtPayments([]);
             setWarnings([]);
+            setRoutes([]);
             return;
         }
     
-        const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+        const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings', 'routes'];
         const setters: Record<string, React.Dispatch<React.SetStateAction<any[]>>> = {
             customers: setCustomers,
             billings: setBillings,
             expenses: setExpenses,
             debtPayments: setDebtPayments,
             warnings: setWarnings,
+            routes: setRoutes,
         };
     
         const unsubscribers = collections.map(col => {
@@ -1107,6 +1113,84 @@ const App: React.FC = () => {
         onComplete();
     }, []);
 
+    const handleSaveRoute = useCallback(async (name: string, customerIds: string[]) => {
+        if (!user) return;
+        if (!name.trim()) {
+            showNotification("O nome da rota é obrigatório.", "error");
+            return;
+        }
+        if (customerIds.length === 0) {
+            showNotification("Selecione pelo menos um cliente para a rota.", "error");
+            return;
+        }
+        
+        setIsSaving(true);
+        setIsRouteCreationModalOpen(false);
+    
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+            });
+            
+            const { latitude, longitude } = position.coords;
+            
+            const customersToVisit = customers.filter(c => 
+                customerIds.includes(c.id) && c.latitude != null && c.longitude != null
+            ) as (Customer & { latitude: number; longitude: number; })[];
+            
+            const orderedCustomers = optimizeRoute(latitude, longitude, customersToVisit);
+            const orderedCustomerIds = orderedCustomers.map(c => c.id);
+            
+            const newRoute: Route = {
+                id: uuidv4(),
+                name,
+                customerIds: orderedCustomerIds,
+                createdAt: new Date(),
+            };
+    
+            const { id, ...payload } = newRoute;
+            const firestorePayload = processPayloadForFirestore(payload);
+            
+            if (isOnline) {
+                await setDoc(doc(db, `users/${user.uid}/routes`, id), firestorePayload);
+            } else {
+                await queueMutation({ action: 'add', collectionPath: 'routes', payload: newRoute });
+            }
+            
+            setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Rota Salva!' });
+    
+        } catch (error) {
+            console.error("Error creating route:", error);
+            let message = 'Erro ao criar a rota.';
+            if (error instanceof GeolocationPositionError && error.code === 1) {
+                message = 'Permissão de localização negada. A rota não pode ser otimizada.';
+            }
+            showNotification(message, "error");
+        } finally {
+            setIsSaving(false);
+        }
+    }, [user, customers, isOnline, showNotification, processPayloadForFirestore]);
+
+    const handleDeleteRoute = useCallback(async (routeId: string) => {
+        if (!user) return;
+        
+        const originalRoutes = routes;
+        setRoutes(prev => prev.filter(r => r.id !== routeId));
+        
+        try {
+            if (isOnline) {
+                await deleteDoc(doc(db, `users/${user.uid}/routes`, routeId));
+            } else {
+                await queueMutation({ action: 'delete', collectionPath: 'routes', docId: routeId, payload: {} });
+            }
+            setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Rota Excluída!' });
+        } catch (error) {
+            console.error("Error deleting route:", error);
+            showNotification("Erro ao excluir a rota.", "error");
+            setRoutes(originalRoutes);
+        }
+    }, [user, routes, isOnline, showNotification]);
+
     // --- Modal Triggers ---
     const handleOpenBillingModal = useCallback((customer: Customer) => {
         if (customer.equipment?.length === 1) {
@@ -1223,6 +1307,7 @@ const App: React.FC = () => {
             expenses,
             debtPayments,
             warnings,
+            routes,
         };
         const jsonString = JSON.stringify(dataToExport, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
@@ -1237,7 +1322,7 @@ const App: React.FC = () => {
         localStorage.setItem('lastBackupTimestamp', backupTimestamp);
         setLastBackupTimestamp(backupTimestamp);
         showNotification('Backup exportado com sucesso!', 'success');
-    }, [customers, billings, expenses, debtPayments, warnings, showNotification]);
+    }, [customers, billings, expenses, debtPayments, warnings, routes, showNotification]);
 
     const handleMergeData = useCallback(async (file: File) => {
         if (!user) {
@@ -1255,7 +1340,7 @@ const App: React.FC = () => {
 
                 setIsSaving(true);
                 const batch = writeBatch(db);
-                const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+                const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings', 'routes'];
 
                 for (const colName of collections) {
                     if(data[colName] && Array.isArray(data[colName])) {
@@ -1300,7 +1385,7 @@ const App: React.FC = () => {
         setIsDeleteAllDataModalOpen(false);
         try {
             const batch = writeBatch(db);
-            const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings'];
+            const collections = ['customers', 'billings', 'expenses', 'debtPayments', 'warnings', 'routes'];
     
             for (const col of collections) {
                 const snapshot = await getDocs(collection(db, `users/${user.uid}/${col}`));
@@ -1415,7 +1500,7 @@ const App: React.FC = () => {
     const activeView = useMemo(() => {
         switch (currentView) {
             case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
-            case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} areValuesHidden={areValuesHidden} onPendingPaymentAction={(customer, billing) => setPendingPaymentActionModalState({ isOpen: true, customer, pendingBilling: billing })} />;
+            case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} routes={routes} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} areValuesHidden={areValuesHidden} onPendingPaymentAction={(customer, billing) => setPendingPaymentActionModalState({ isOpen: true, customer, pendingBilling: billing })} onOpenRouteCreator={() => setIsRouteCreationModalOpen(true)} onSaveRoute={handleSaveRoute} onDeleteRoute={handleDeleteRoute} />;
             case 'COBRANCAS': return <CobrancasView billings={billings} customers={customers} debtPayments={debtPayments} onShowActions={(billing) => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false })} onEditBilling={handleOpenEditBillingModal} onDeleteBilling={handleDeleteBilling} onFinalizePayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPayDebtCustomer={handleOpenDebtPaymentModal} areValuesHidden={areValuesHidden} />;
             case 'EQUIPAMENTOS': return <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setLabelGenerationModalState({ isOpen: true })} onGenerateLabels={() => {}} />;
             case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} areValuesHidden={areValuesHidden} />;
@@ -1424,7 +1509,7 @@ const App: React.FC = () => {
             case 'CONFIGURACOES': return <ConfiguracoesView onExportData={handleExportData} onMergeData={handleMergeData} theme={theme} setTheme={setTheme} showNotification={showNotification} deferredPrompt={deferredPrompt} onInstallPrompt={handleInstallPrompt} onDeleteAllData={() => setIsDeleteAllDataModalOpen(true)} onLogout={handleLogout} onSwitchAccount={handleSwitchAccount} onAddNewAccount={handleAddNewAccount} isPrivacyModeEnabled={isPrivacyModeEnabled} onActivatePrivacyMode={handleActivatePrivacyMode} onDeactivatePrivacyMode={handleDeactivatePrivacyMode} />;
             default: return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} />;
         }
-    }, [currentView, customers, billings, expenses, debtPayments, warnings, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode]);
+    }, [currentView, customers, billings, expenses, debtPayments, warnings, routes, isSaving, showNotification, theme, deferredPrompt, lastBackupTimestamp, handleAddCustomer, handleAddExpense, handleDeleteExpense, handleAddWarning, handleResolveWarning, handleDeleteWarning, handleOpenBillingModal, handleOpenDeleteModal, handleOpenDebtPaymentModal, handleOpenEditCustomerModal, handleOpenEditBillingModal, handleOpenHistoryModal, handleOpenLocationActions, handleOpenShareCustomerModal, handleWhatsAppActions, handleExportData, handleMergeData, handleInstallPrompt, setTheme, setView, handleThermalPrint, handleDeleteBilling, handleLogout, handleSwitchAccount, handleAddNewAccount, areValuesHidden, isPrivacyModeEnabled, handleActivatePrivacyMode, handleDeactivatePrivacyMode, handleSaveRoute, handleDeleteRoute]);
     
     const equipmentForFinalization = useMemo(() => {
         const billing = finalizePaymentModalState.billing;
@@ -1503,6 +1588,7 @@ const App: React.FC = () => {
                 />
             )}
             {privacyPinModalState.isOpen && <PrivacyPinModal isOpen={privacyPinModalState.isOpen} mode={privacyPinModalState.mode} title={privacyPinModalState.title} error={privacyPinModalState.error} onConfirm={privacyPinModalState.onConfirm} onClose={() => setPrivacyPinModalState(prev => ({ ...prev, isOpen: false, error: '' }))} />}
+            {isRouteCreationModalOpen && <RouteCreationModal isOpen={isRouteCreationModalOpen} onClose={() => setIsRouteCreationModalOpen(false)} customers={customers} onConfirm={handleSaveRoute} isSaving={isSaving} />}
 
             {actionFeedbackState.isOpen && <ActionFeedbackOverlay isOpen={actionFeedbackState.isOpen} onEnd={handleAnimationEnd} variant={actionFeedbackState.variant} message={actionFeedbackState.message} />}
             {focusedCustomer && <FullScreenCustomerView customer={focusedCustomer} onClose={() => setFocusedCustomer(null)} hasActiveWarning={warnings.some(w => w.customerId === focusedCustomer.id && !w.isResolved)} onBill={handleOpenBillingModal} onEdit={handleOpenEditCustomerModal} onDelete={handleOpenDeleteModal} onPayDebt={handleOpenDebtPaymentModal} onHistory={handleOpenHistoryModal} onShare={handleOpenShareCustomerModal} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} billings={billings} debtPayments={debtPayments} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPendingPaymentAction={(customer, billing) => setPendingPaymentActionModalState({ isOpen: true, customer, pendingBilling: billing })} />}

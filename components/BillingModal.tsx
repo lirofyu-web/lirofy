@@ -208,18 +208,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   const valorTotalParaFirma = useMemo(() => calculation.valorTotal || 0, [calculation]);
   const valorBonus = useMemo(() => safeParseFloat(paymentValues.bonus), [paymentValues.bonus]);
   const valorFinalFirma = useMemo(() => valorTotalParaFirma - valorBonus, [valorTotalParaFirma, valorBonus]);
-
-  useEffect(() => {
-    if ((mesaStep === 2 || jukeboxStep === 2) && equipment.type !== 'grua') {
-      const valorFinal = valorTotalParaFirma - valorBonus;
-      setPaymentValues(prev => ({
-          ...prev,
-          dinheiro: String(valorFinal > 0 ? valorFinal : '0'),
-          pix: '0',
-          negativo: '0',
-      }));
-    }
-  }, [mesaStep, jukeboxStep, equipment.type, valorTotalParaFirma, valorBonus]);
   
   const handleFormChange = useCallback((field: keyof FormState, value: string) => {
     setFormState(prev => {
@@ -245,11 +233,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
             
             const valorTotalFirma = saldoBruto - aluguelValorNum;
             
-            // Since "Recebido em PIX" is read-only, we only need to calculate it when "Recebido em Espécie" changes.
             if (field === 'recebimentoEspecie') {
                 const recebimentoEspecieNum = safeParseFloat(value);
                 const pixCalculado = Math.max(0, valorTotalFirma - recebimentoEspecieNum);
                 newState.recebimentoPix = String(parseFloat(pixCalculado.toFixed(2)));
+            } else if (field === 'recebimentoPix') {
+                const recebimentoPixNum = safeParseFloat(value);
+                const especieCalculado = Math.max(0, valorTotalFirma - recebimentoPixNum);
+                newState.recebimentoEspecie = String(parseFloat(especieCalculado.toFixed(2)));
             }
         }
         
@@ -268,18 +259,20 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     const vBonus = safeParseFloat(paymentValues.bonus);
     const vDinheiro = safeParseFloat(paymentValues.dinheiro);
     const vPix = safeParseFloat(paymentValues.pix);
-    const vNegativo = safeParseFloat(paymentValues.negativo);
+    
+    const newNegativo = vTotal - vBonus - vDinheiro - vPix;
+    
+    setPaymentValues(prev => ({
+        ...prev,
+        negativo: newNegativo >= -0.01 ? String(parseFloat(newNegativo.toFixed(2))) : '0'
+    }));
 
-    const totalDeclarado = vDinheiro + vPix + vNegativo;
-    const totalDevido = vTotal - vBonus;
-    const difference = totalDeclarado - totalDevido;
-
-    if (Math.abs(difference) > 0.01) { // Tolera 1 centavo
-        setError(`A soma dos pagamentos (R$ ${totalDeclarado.toFixed(2)}) não corresponde ao total devido (R$ ${totalDevido.toFixed(2)}).`);
+    if (newNegativo < -0.01) {
+        setError(`Valor excedido: R$ ${Math.abs(newNegativo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     } else {
         setError(null);
     }
-  }, [paymentValues, valorTotalParaFirma, mesaStep, jukeboxStep]);
+  }, [paymentValues.dinheiro, paymentValues.pix, paymentValues.bonus, valorTotalParaFirma, mesaStep, jukeboxStep]);
 
   const generateBillingObject = useCallback((): Billing | null => {
     const relogioAtual = safeParseFloat(formState.relogioAtual);
@@ -322,8 +315,13 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const valorPagoDinheiro = safeParseFloat(paymentValues.dinheiro);
         const valorPagoPix = safeParseFloat(paymentValues.pix);
         const valorBonus = safeParseFloat(paymentValues.bonus);
-        const valorDebitoNegativo = safeParseFloat(paymentValues.negativo);
-        
+
+        // Recalculate debt here to avoid stale state issues from useEffect
+        const totalParaFirma = calculation.valorTotal || 0;
+        const totalPago = valorPagoDinheiro + valorPagoPix;
+        const valorDebitoNegativoBruto = totalParaFirma - valorBonus - totalPago;
+        const valorDebitoNegativo = valorDebitoNegativoBruto > 0 ? parseFloat(valorDebitoNegativoBruto.toFixed(2)) : 0;
+
         const methodsUsed: ('dinheiro' | 'pix' | 'debito_negativo')[] = [];
         if (valorPagoDinheiro > 0) methodsUsed.push('dinheiro');
         if (valorPagoPix > 0) methodsUsed.push('pix');
@@ -374,8 +372,19 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
   };
   
+  const goToPaymentStep = useCallback(() => {
+    const finalValue = valorTotalParaFirma - valorBonus;
+    setPaymentValues({
+        dinheiro: String(finalValue > 0 ? finalValue : '0'),
+        pix: '0',
+        negativo: '0',
+        bonus: paymentValues.bonus,
+    });
+  }, [valorTotalParaFirma, valorBonus, paymentValues.bonus]);
+  
   const handleGoToPayment = () => {
     if (validateAndProceed()) {
+        goToPaymentStep();
         setMesaStep(2);
     }
   };
@@ -395,7 +404,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       equipmentNumero: equipment.numero,
       relogioAnterior: equipment.relogioAnterior,
       relogioAtual: Math.round(safeParseFloat(formState.relogioAtual)),
-      settledAt: new Date(),
+      settledAt: new Date(), // Represents creation date for pending billings
       ...calculation,
       partidasJogadas: calculation.partidasJogadas || 0,
       valorTotal: totalFirma,
@@ -418,6 +427,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
   const handleJukeboxNextStep = () => {
       if (validateJukeboxStep1()) {
+          goToPaymentStep();
           setJukeboxStep(2);
       }
   };
@@ -442,9 +452,15 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
         const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
         const recebimentoPix = safeParseFloat(formState.recebimentoPix);
         const totalRecebido = recebimentoEspecie + recebimentoPix;
-        const baseValorTotalFirma = calculation.valorTotal || 0;
 
-        if (Math.abs(totalRecebido - baseValorTotalFirma) > 0.01) {
+        const saldo = safeParseFloat(formState.saldo);
+        let aluguelValor = safeParseFloat(formState.aluguelValor);
+        if (equipment.aluguelPercentual != null) {
+            aluguelValor = Math.round((saldo * (equipment.aluguelPercentual / 100)) * 100) / 100;
+        }
+        const baseValorTotalFirma = saldo - aluguelValor;
+
+        if (Math.abs(totalRecebido - baseValorTotalFirma) > 0.01) { // Tolera 1 centavo de diferença
             setError("O valor recebido (espécie + PIX) deve ser igual ao total calculado para a firma.");
             return;
         }
@@ -530,7 +546,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           <PaymentField label="Bônus / Desconto (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
           <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
           <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-          <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
+          <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
       </div>
   );
 
@@ -573,7 +589,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
       <div className="space-y-4">
           <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
           <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
+          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
           <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
           <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
@@ -646,7 +662,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                   <PaymentField label="Desconto / Bônus (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
                   <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
-                  <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} />
+                  <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
                 </div>
               )
           )}
@@ -700,7 +716,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
                             {gruaStep > 1 && <button onClick={handleGruaPrevStep} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">Voltar</button>}
                             {gruaStep === 1 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Avançar</button>}
                             {gruaStep === 2 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Confirmar e Continuar</button>}
-                            {gruaStep === 3 && <button onClick={handleFinalize} disabled={!!error} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
+                            {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
                         </>
                     ) : isJukebox ? (
                         <>

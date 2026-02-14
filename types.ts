@@ -142,3 +142,10 @@ export type SavedUser = {
   email: string;
   pass?: string; // base64 encoded password
 };
+
+export interface Route {
+  id: string;
+  name: string;
+  customerIds: string[]; // Ordered list
+  createdAt: Date;
+}

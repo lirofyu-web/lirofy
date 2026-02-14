@@ -66,7 +66,7 @@ const EquipmentDetailRow: React.FC<{ label: string; value: string | number | und
 };
 
 
-const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePayment, onPendingPaymentAction, areValuesHidden }) => {
+const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill, onEdit, onDelete, onPayDebt, onHistory, onShare, onLocationActions, onWhatsAppActions, hasActiveWarning, showNotification, onFocusCustomer, onFinalizePendingPayment, onPendingPaymentAction, areValuesHidden }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const pendingBilling = useMemo(() => {
@@ -92,7 +92,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
         if (hasMultipleEquipment) {
             onPendingPaymentAction(customer, pendingBilling);
         } else {
-            onFinalizePayment(pendingBilling);
+            onFinalizePendingPayment(pendingBilling);
         }
     };
     
