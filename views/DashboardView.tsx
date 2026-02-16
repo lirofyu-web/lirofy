@@ -1,6 +1,6 @@
 // views/DashboardView.tsx
 import React, { useMemo, useState, useCallback } from 'react';
-import { Customer, Billing, Expense, DebtPayment, Warning } from '../types';
+import { Customer, Billing, Expense, DebtPayment, Warning, Equipment } from '../types';
 import PageHeader from '../components/PageHeader';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { BilliardIcon } from '../components/icons/BilliardIcon';
@@ -14,6 +14,7 @@ import BackupReminder from '../components/BackupReminder';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
 import { LocationMarkerIcon } from '../components/icons/LocationMarkerIcon';
+import { ArrowsRightLeftIcon } from '../components/icons/ArrowsRightLeftIcon';
 
 
 interface DashboardViewProps {
@@ -28,6 +29,7 @@ interface DashboardViewProps {
   lastBackupDate: string | null;
   onNavigateToSettings: () => void;
   areValuesHidden: boolean;
+  deletedCustomersLog: { customer: Customer, deletedAt: Date }[];
 }
 
 // --- Sub-components (moved outside for performance and best practices) ---
@@ -374,10 +376,80 @@ const VisitationCard: React.FC<{
     );
 };
 
+const RentalChangesCard: React.FC<{
+  customers: Customer[];
+  deletedCustomersLog: { customer: Customer, deletedAt: Date }[];
+  currentDate: Date;
+}> = ({ customers, deletedCustomersLog, currentDate }) => {
+
+    const { newRentals, removedRentals } = useMemo(() => {
+        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+
+        const newRentals = customers.filter(c => {
+            if (!c.createdAt) return false;
+            const createdAt = new Date(c.createdAt);
+            return createdAt >= startOfMonth && createdAt <= endOfMonth;
+        });
+        
+        const removedRentals = deletedCustomersLog.filter(log => {
+            const deletedAt = new Date(log.deletedAt);
+            return deletedAt >= startOfMonth && deletedAt <= endOfMonth;
+        }).map(log => log.customer);
+
+        return { newRentals, removedRentals };
+    }, [customers, deletedCustomersLog, currentDate]);
+    
+    const getEquipmentSummary = (equipments: Equipment[]) => {
+        if (!equipments || equipments.length === 0) return 'Nenhum equipamento';
+        const counts = equipments.reduce((acc, eq) => {
+            const type = eq.type.charAt(0).toUpperCase() + eq.type.slice(1);
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        return Object.entries(counts).map(([type, count]) => `${count}x ${type}`).join(', ');
+    };
+
+    const ChangeList: React.FC<{items: Customer[]}> = ({ items }) => (
+        <ul className="space-y-2">
+            {items.map(customer => (
+                <li key={customer.id} className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-md border border-slate-200 dark:border-slate-700">
+                    <p className="font-semibold text-slate-800 dark:text-white truncate">{customer.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{getEquipmentSummary(customer.equipment)}</p>
+                </li>
+            ))}
+        </ul>
+    );
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full">
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <ArrowsRightLeftIcon className="w-6 h-6 text-slate-500" />
+                Movimentação de Locações
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                    <h4 className="font-bold text-green-500 dark:text-green-400 mb-2">Novas Locações ({newRentals.length})</h4>
+                    <div className="max-h-48 overflow-y-auto pr-2">
+                       {newRentals.length > 0 ? <ChangeList items={newRentals} /> : <p className="text-sm text-slate-400 italic">Nenhum cliente novo neste período.</p>}
+                    </div>
+                </div>
+                <div>
+                    <h4 className="font-bold text-red-500 dark:text-red-400 mb-2">Locações Retiradas ({removedRentals.length})</h4>
+                     <p className="text-xs text-slate-400 mb-2 -mt-2">Esta lista é temporária e reinicia ao recarregar a página.</p>
+                    <div className="max-h-48 overflow-y-auto pr-2">
+                       {removedRentals.length > 0 ? <ChangeList items={removedRentals} /> : <p className="text-sm text-slate-400 italic">Nenhum cliente removido neste período.</p>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- Main View Component ---
 
-const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings, areValuesHidden }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings, areValuesHidden, deletedCustomersLog }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [chartView, setChartView] = useState<ChartView>('total');
 
@@ -506,6 +578,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
                 
                 <div className="lg:col-span-2">
                     <VisitationCard customers={customers} currentDate={currentDate} areValuesHidden={areValuesHidden} />
+                </div>
+                
+                <div className="lg:col-span-6">
+                    <RentalChangesCard customers={customers} deletedCustomersLog={deletedCustomersLog} currentDate={currentDate} />
                 </div>
 
                 <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-2">
