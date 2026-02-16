@@ -49,6 +49,7 @@ interface ClientesViewProps {
 
 type EquipmentFilter = 'all' | 'mesa' | 'jukebox' | 'grua';
 type ViewMode = 'cidades' | 'rotas';
+type VisitFilter = 'all' | 'visited' | 'not_visited';
 
 // Debounce function to delay search filtering
 const debounce = (func: (...args: any[]) => void, delay: number) => {
@@ -102,6 +103,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentFilter>('all');
+  const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
   const [viewingCity, setViewingCity] = useState<string | null>(null);
 
   const searchWrapperRef = useRef<HTMLDivElement>(null);
@@ -112,6 +114,7 @@ const ClientesView: React.FC<ClientesViewProps> = ({
   }, [searchQuery, debouncedSetSearch]);
 
   const filteredCustomers = useMemo(() => {
+    const twentyFiveDaysInMs = 25 * 24 * 60 * 60 * 1000;
     return customers
         .filter(customer => {
             if (!debouncedSearchQuery) return true;
@@ -124,8 +127,15 @@ const ClientesView: React.FC<ClientesViewProps> = ({
         .filter(customer => {
             if (equipmentFilter === 'all') return true;
             return (customer.equipment || []).some(e => e.type === equipmentFilter);
+        })
+        .filter(customer => {
+            if (visitFilter === 'all') return true;
+            const visitIsPending = !customer.lastVisitedAt || (new Date().getTime() - new Date(customer.lastVisitedAt).getTime()) > twentyFiveDaysInMs;
+            if (visitFilter === 'visited') return !visitIsPending;
+            if (visitFilter === 'not_visited') return visitIsPending;
+            return true;
         });
-  }, [customers, debouncedSearchQuery, equipmentFilter]);
+  }, [customers, debouncedSearchQuery, equipmentFilter, visitFilter]);
 
   const customersByCity = useMemo(() => {
     const grouped = filteredCustomers.reduce((acc, customer) => {
@@ -183,6 +193,20 @@ const ClientesView: React.FC<ClientesViewProps> = ({
             <button onClick={() => setEquipmentFilter('mesa')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'mesa' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}><BilliardIcon className={`w-8 h-8 ${equipmentFilter === 'mesa' ? 'text-white' : 'text-cyan-600 dark:text-cyan-400'}`} /><span className="text-xs font-bold mt-1">Mesas</span></button>
             <button onClick={() => setEquipmentFilter('jukebox')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'jukebox' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}><JukeboxIcon className={`w-8 h-8 ${equipmentFilter === 'jukebox' ? 'text-white' : 'text-fuchsia-600 dark:text-fuchsia-400'}`} /><span className="text-xs font-bold mt-1">Jukebox</span></button>
             <button onClick={() => setEquipmentFilter('grua')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${equipmentFilter === 'grua' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}><CraneIcon className={`w-8 h-8 ${equipmentFilter === 'grua' ? 'text-white' : 'text-orange-600 dark:text-orange-400'}`} /><span className="text-xs font-bold mt-1">Gruas</span></button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 w-full pt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onClick={() => setVisitFilter('all')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${visitFilter === 'all' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <ListBulletIcon className={`w-8 h-8 ${visitFilter === 'all' ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span className="text-xs font-bold mt-1">Status (Todos)</span>
+            </button>
+            <button onClick={() => setVisitFilter('visited')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${visitFilter === 'visited' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <GreenBilliardBallIcon className={`w-8 h-8 ${visitFilter === 'visited' ? 'text-white' : 'text-green-500'}`} />
+                <span className="text-xs font-bold mt-1">Visitados</span>
+            </button>
+            <button onClick={() => setVisitFilter('not_visited')} className={`flex flex-col items-center p-2 rounded-lg transition-colors ${visitFilter === 'not_visited' ? 'bg-lime-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}>
+                <RedBilliardBallIcon className={`w-8 h-8 ${visitFilter === 'not_visited' ? 'text-white' : 'text-red-500'}`} />
+                <span className="text-xs font-bold mt-1">Não Visitados</span>
+            </button>
         </div>
       </div>
 

@@ -13,6 +13,7 @@ import WarningsReminders from '../components/WarningsReminders';
 import BackupReminder from '../components/BackupReminder';
 import { CalculatorIcon } from '../components/icons/CalculatorIcon';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
+import { LocationMarkerIcon } from '../components/icons/LocationMarkerIcon';
 
 
 interface DashboardViewProps {
@@ -128,7 +129,7 @@ const FinancialPerformanceCard: React.FC<{
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 lg:col-span-6 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80 h-full">
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <h3 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
@@ -231,6 +232,147 @@ const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor =
         <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
     </div>
 ));
+
+
+const StatCircle: React.FC<{ percentage: number; colorClass: string }> = ({ percentage, colorClass }) => {
+  const radius = 30;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative w-20 h-20">
+      <svg className="w-full h-full" viewBox="0 0 70 70">
+        <circle
+          className="text-slate-200 dark:text-slate-700"
+          strokeWidth="8"
+          stroke="currentColor"
+          fill="transparent"
+          r={radius}
+          cx="35"
+          cy="35"
+        />
+        <circle
+          className={colorClass}
+          strokeWidth="8"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          stroke="currentColor"
+          fill="transparent"
+          r={radius}
+          cx="35"
+          cy="35"
+          transform="rotate(-90 35 35)"
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-slate-700 dark:text-slate-200">
+        {`${Math.round(percentage)}%`}
+      </span>
+    </div>
+  );
+};
+
+const EquipmentVisitationStat: React.FC<{
+  label: string;
+  icon: React.ReactNode;
+  visited: number;
+  total: number;
+  colorClass: string;
+  areValuesHidden: boolean;
+}> = ({ label, icon, visited, total, colorClass, areValuesHidden }) => {
+  const percentage = total > 0 ? (visited / total) * 100 : 0;
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex-shrink-0">
+        <StatCircle percentage={areValuesHidden ? 50 : percentage} colorClass={colorClass} />
+      </div>
+      <div>
+        <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          {icon} {label}
+        </h4>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {areValuesHidden ? 'Visitados: ? / ?' : `Visitados: ${visited} / ${total}`}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+
+const VisitationCard: React.FC<{
+  customers: Customer[];
+  currentDate: Date;
+  areValuesHidden: boolean;
+}> = ({ customers, currentDate, areValuesHidden }) => {
+    const visitationStats = useMemo(() => {
+        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+
+        const stats = {
+            mesa: { total: 0, visited: 0 },
+            jukebox: { total: 0, visited: 0 },
+            grua: { total: 0, visited: 0 },
+        };
+
+        customers.forEach(customer => {
+            const equipmentTypes = new Set(customer.equipment.map(e => e.type));
+            
+            const wasVisitedInPeriod = customer.lastVisitedAt &&
+                                       new Date(customer.lastVisitedAt) >= startOfMonth &&
+                                       new Date(customer.lastVisitedAt) <= endOfMonth;
+
+            if (equipmentTypes.has('mesa')) {
+                stats.mesa.total++;
+                if (wasVisitedInPeriod) stats.mesa.visited++;
+            }
+            if (equipmentTypes.has('jukebox')) {
+                stats.jukebox.total++;
+                if (wasVisitedInPeriod) stats.jukebox.visited++;
+            }
+            if (equipmentTypes.has('grua')) {
+                stats.grua.total++;
+                if (wasVisitedInPeriod) stats.grua.visited++;
+            }
+        });
+
+        return stats;
+    }, [customers, currentDate]);
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 h-full flex flex-col">
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <LocationMarkerIcon className="w-6 h-6 text-green-500" />
+                Visitação no Período
+            </h3>
+            <div className="flex-grow flex flex-col justify-around gap-6">
+                <EquipmentVisitationStat
+                    label="Mesas de Sinuca"
+                    icon={<BilliardIcon className="w-5 h-5 text-cyan-500" />}
+                    visited={visitationStats.mesa.visited}
+                    total={visitationStats.mesa.total}
+                    colorClass="text-cyan-500"
+                    areValuesHidden={areValuesHidden}
+                />
+                <EquipmentVisitationStat
+                    label="Jukeboxes"
+                    icon={<JukeboxIcon className="w-5 h-5 text-fuchsia-500" />}
+                    visited={visitationStats.jukebox.visited}
+                    total={visitationStats.jukebox.total}
+                    colorClass="text-fuchsia-500"
+                    areValuesHidden={areValuesHidden}
+                />
+                <EquipmentVisitationStat
+                    label="Gruas de Pelúcia"
+                    icon={<CraneIcon className="w-5 h-5 text-orange-500" />}
+                    visited={visitationStats.grua.visited}
+                    total={visitationStats.grua.total}
+                    colorClass="text-orange-500"
+                    areValuesHidden={areValuesHidden}
+                />
+            </div>
+        </div>
+    );
+};
 
 
 // --- Main View Component ---
@@ -358,8 +500,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
-                <FinancialPerformanceCard stats={stats} chartView={chartView} onChartViewChange={setChartView} areValuesHidden={areValuesHidden} />
+                <div className="lg:col-span-4">
+                    <FinancialPerformanceCard stats={stats} chartView={chartView} onChartViewChange={setChartView} areValuesHidden={areValuesHidden} />
+                </div>
                 
+                <div className="lg:col-span-2">
+                    <VisitationCard customers={customers} currentDate={currentDate} areValuesHidden={areValuesHidden} />
+                </div>
+
                 <InfoCard title="Contas a Receber" icon={<CreditCardIcon className="w-6 h-6 text-amber-500" />} className="lg:col-span-2">
                     <InfoRow 
                         label="Total em Dívidas (Negativo)"
