@@ -125,10 +125,10 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 transition-transform duration-300 hover:scale-105 hover:shadow-xl" style={{ willChange: 'transform, box-shadow' }}>
                 <div className="p-3">
                     <div
-                        className="flex justify-between items-start cursor-pointer group"
+                        className="flex flex-wrap justify-between items-start gap-2 cursor-pointer group"
                         onClick={() => onFocusCustomer(customer)}
                     >
-                        <div>
+                        <div className="flex-grow">
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 break-words group-hover:text-lime-600 dark:group-hover:text-lime-400 transition-colors">
                                 {customer.name}
                                 {hasActiveWarning && (
@@ -139,7 +139,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, billings, onBill,
                             </h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 break-words">{customer.cidade} - Cobrador: {customer.linhaNumero}</p>
                         </div>
-                        <div className="flex-shrink-0 flex items-center gap-3">
+                        <div className="flex items-center flex-wrap justify-end gap-3">
                             {visitIsPending ? (
                                 <div title="Visita Pendente">
                                     <RedBilliardBallIcon className="w-4 h-4 text-red-500 pulse-indicator" />

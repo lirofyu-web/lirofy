@@ -136,9 +136,10 @@ const FinancialPerformanceCard: React.FC<{
                 <div>
                     <h3 className="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                         <ChartBarIcon className="w-6 h-6 text-indigo-500" />
-                        Desempenho Financeiro por Categoria
+                        <span className="hidden sm:inline">Desempenho Financeiro por Categoria</span>
+                        <span className="sm:hidden">Desempenho por Categoria</span>
                     </h3>
-                     <p className="text-sm text-slate-500 dark:text-slate-400">Análise de Faturamento Bruto vs. Saldo Líquido (Lucro).</p>
+                     <p className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">Análise de Faturamento Bruto vs. Saldo Líquido (Lucro).</p>
                 </div>
                  <div className="flex-shrink-0 bg-slate-100 dark:bg-slate-700/50 p-1 rounded-lg">
                     <button onClick={() => onChartViewChange('total')} className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${chartView === 'total' ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow' : 'text-slate-500 dark:text-slate-400'}`}>Total</button>
@@ -229,9 +230,9 @@ interface InfoRowProps {
     className?: string;
 }
 const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor = 'text-slate-600 dark:text-slate-300', className }) => (
-    <div className={`flex justify-between items-baseline ${className}`}>
+    <div className={`flex justify-between items-baseline gap-2 ${className}`}>
         <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-        <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
+        <dd className={`font-mono font-bold ${valueColor} flex-shrink-0 text-right`}>{value}</dd>
     </div>
 ));
 

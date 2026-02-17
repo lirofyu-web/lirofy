@@ -37,6 +37,7 @@ import { optimizeRoute } from './utils/routeOptimizer';
 
 
 // Modals
+// FIX: Corrected import path for BillingModal to resolve module resolution error. The duplicate file at the root was likely causing the issue.
 import BillingModal from './components/BillingModal';
 import EditCustomerModal from './components/EditCustomerModal';
 import DebtPaymentModal from './components/DebtPaymentModal';

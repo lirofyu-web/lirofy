@@ -143,7 +143,7 @@ const DespesasView: React.FC<DespesasViewProps> = ({ expenses, onAddExpense, onD
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
         {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseCard) : <p className="text-center py-10 text-slate-500 dark:text-slate-400">Nenhuma despesa registrada.</p>}
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center font-bold text-slate-900 dark:text-white">
+        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-baseline gap-x-4 font-bold text-slate-900 dark:text-white">
             <span className="text-lg">TOTAL DE DESPESAS</span>
             <span className="font-mono text-xl text-red-600 dark:text-red-400">
                 {areValuesHidden ? 'R$ •••,••' : `R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}

@@ -194,9 +194,9 @@ interface InfoRowProps {
     valueColor?: string;
 }
 const InfoRow: React.FC<InfoRowProps> = React.memo(({ label, value, valueColor = 'text-slate-700 dark:text-slate-300' }) => (
-    <div className="flex justify-between items-baseline">
+    <div className="flex justify-between items-baseline gap-2">
         <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-        <dd className={`font-mono font-bold ${valueColor}`}>{value}</dd>
+        <dd className={`font-mono font-bold ${valueColor} flex-shrink-0 text-right`}>{value}</dd>
     </div>
 ));
 

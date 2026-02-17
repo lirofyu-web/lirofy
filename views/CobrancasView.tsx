@@ -115,7 +115,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
                     </div>
                  )
             ) : <p className="text-center py-16 text-slate-500 dark:text-slate-400 italic">Nenhuma cobrança encontrada.</p>}
-            {billings.length > 0 && <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex justify-between font-bold text-lg"><span >TOTAL ARRECADADO</span><span className="font-mono text-lime-600 dark:text-lime-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span></div>}
+            {billings.length > 0 && <div className="mt-4 pt-4 border-t-2 border-slate-300 dark:border-slate-600 flex flex-wrap justify-between items-baseline gap-x-4 font-bold text-lg"><span>TOTAL ARRECADADO</span><span className="font-mono text-lime-600 dark:text-lime-400">{areValuesHidden ? 'R$ •••,••' : `R$ ${totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span></div>}
         </div>
 
         {/* Desktop View: Table */}

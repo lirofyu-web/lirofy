@@ -100,12 +100,6 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   
   const isMonthlyFee = equipment.type === 'mesa' && equipment.billingType === 'monthly';
 
-  const colorMap = {
-      mesa: 'text-cyan-400',
-      jukebox: 'text-fuchsia-400',
-      grua: 'text-orange-400',
-  };
-
   useEffect(() => {
     if (isOpen) {
       const initialState: FormState = {
@@ -372,19 +366,10 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
   };
   
-  const goToPaymentStep = useCallback(() => {
-    const finalValue = valorTotalParaFirma - valorBonus;
-    setPaymentValues({
-        dinheiro: String(finalValue > 0 ? finalValue : '0'),
-        pix: '0',
-        negativo: '0',
-        bonus: paymentValues.bonus,
-    });
-  }, [valorTotalParaFirma, valorBonus, paymentValues.bonus]);
-  
   const handleGoToPayment = () => {
     if (validateAndProceed()) {
-        goToPaymentStep();
+        const amountToPay = valorFinalFirma;
+        setPaymentValues(prev => ({ ...prev, dinheiro: amountToPay > 0 ? String(amountToPay) : '', pix: '', negativo: '0' }));
         setMesaStep(2);
     }
   };
@@ -427,7 +412,8 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
 
   const handleJukeboxNextStep = () => {
       if (validateJukeboxStep1()) {
-          goToPaymentStep();
+          const amountToPay = valorFinalFirma;
+          setPaymentValues(prev => ({ ...prev, dinheiro: amountToPay > 0 ? String(amountToPay) : '', pix: '', negativo: '0' }));
           setJukeboxStep(2);
       }
   };
@@ -449,19 +435,14 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
     }
 
     if (equipment.type === 'grua') {
+        // This validation is now in handleGruaNextStep, but we keep it here as a final safeguard
         const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
         const recebimentoPix = safeParseFloat(formState.recebimentoPix);
         const totalRecebido = recebimentoEspecie + recebimentoPix;
 
-        const saldo = safeParseFloat(formState.saldo);
-        let aluguelValor = safeParseFloat(formState.aluguelValor);
-        if (equipment.aluguelPercentual != null) {
-            aluguelValor = Math.round((saldo * (equipment.aluguelPercentual / 100)) * 100) / 100;
-        }
-        const baseValorTotalFirma = saldo - aluguelValor;
-
-        if (Math.abs(totalRecebido - baseValorTotalFirma) > 0.01) { // Tolera 1 centavo de diferença
-            setError("O valor recebido (espécie + PIX) deve ser igual ao total calculado para a firma.");
+        if (Math.abs(totalRecebido - valorTotalParaFirma) > 0.01) {
+            setError("O valor recebido (espécie + PIX) deve ser igual ao total da firma.");
+            setGruaStep(3); // Go back to payment step
             return;
         }
     } else if (error) {
@@ -474,14 +455,33 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
   
   const handleGruaNextStep = useCallback(() => {
     if (gruaStep === 1) {
-      if (!validateAndProceed()) return;
-      setGruaStep(2);
+        if (!validateAndProceed()) return;
+        setGruaStep(2); // Go to summary
     } else if (gruaStep === 2) {
-      setGruaStep(3);
+        // Pre-fill PIX payment when moving to payment step
+        const totalFirma = calculation.valorTotal || 0;
+        setFormState(prev => ({
+            ...prev,
+            recebimentoEspecie: '', // Cash field starts empty
+            recebimentoPix: String(totalFirma > 0 ? totalFirma.toFixed(2) : '0') // PIX is pre-filled
+        }));
+        setGruaStep(3); // Go to payment
+    } else if (gruaStep === 3) {
+        const recebimentoEspecie = safeParseFloat(formState.recebimentoEspecie);
+        const recebimentoPix = safeParseFloat(formState.recebimentoPix);
+        const totalRecebido = recebimentoEspecie + recebimentoPix;
+        
+        if (Math.abs(totalRecebido - valorTotalParaFirma) > 0.01) {
+            setError(`A soma do recebido (R$ ${totalRecebido.toFixed(2)}) não bate com o total da firma (R$ ${valorTotalParaFirma.toFixed(2)}).`);
+            return;
+        }
+        setError('');
+        setGruaStep(4); // Go to plush toys
     }
-  }, [gruaStep, validateAndProceed]);
+  }, [gruaStep, validateAndProceed, formState, calculation, valorTotalParaFirma]);
   
   const handleGruaPrevStep = useCallback(() => {
+    setError(''); // Clear errors when navigating back
     setGruaStep(prev => Math.max(1, prev - 1));
   }, []);
 
@@ -549,205 +549,197 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
           <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
       </div>
   );
-
-  const renderGruaStep1 = () => (
+  
+  const renderGruaStep1_Reading = () => (
     <div className="space-y-4">
       <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
       <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="text" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
-      <FormField label="Saldo Bruto (R$)" name="saldo" value={formState.saldo} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
-      {equipment.aluguelPercentual != null ? (
-        <>
-            <FormField label="Aluguel (%)" name="aluguelPercentual" value={formState.aluguelPercentual} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly/>
-            <FormField label="Aluguel Calculado (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
-        </>
-      ) : (
-        <FormField label="Aluguel Fixo (R$)" name="aluguelValor" value={formState.aluguelValor} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-      )}
-    </div>
-  );
-
-  const renderGruaStep2 = () => (
-    <div className="p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
-        <h4 className="text-lg font-bold text-white mb-3 text-center">Conferência para o Cliente</h4>
-        <div className="flex justify-between text-slate-300 text-base">
-            <span>Saldo Bruto:</span>
-            <span className="font-mono">R$ {(calculation.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        </div>
-        <div className="flex justify-between text-slate-300 text-base">
-            <span>Parte da Firma:</span>
-            <span className="font-mono text-amber-400">- R$ {(calculation.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        </div>
-        <hr className="border-dashed border-slate-600 my-2" />
-        <div className="flex justify-between font-bold text-xl text-lime-400">
-            <span>TOTAL PARA O CLIENTE:</span>
-            <span className="font-mono">R$ {(calculation.aluguelValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        </div>
     </div>
   );
   
-  const renderGruaStep3 = () => (
+  const renderGruaStep2_Summary = () => (
+    <div className="flex flex-col items-center justify-center text-center p-4">
+      <h3 className="text-xl text-slate-400 mb-2">Demonstrativo para o Cliente</h3>
+      <p className="text-2xl font-bold text-white">{customer.name}</p>
+      <p className="text-lg text-slate-300 mb-8">Grua Nº {equipment.numero}</p>
+      
+      <div className="w-full space-y-6">
+        <div className="bg-slate-900/50 p-4 rounded-lg">
+          <p className="text-lg text-slate-400">Saldo Bruto (Total Arrecadado)</p>
+          <p className="text-5xl font-mono font-black text-white">
+            R$ {(calculation.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+        
+        <div className="bg-slate-900/50 p-4 rounded-lg">
+          <p className="text-lg text-slate-400">Aluguel (Parte do Cliente)</p>
+          <p className="text-4xl font-mono font-bold text-amber-400">
+            - R$ {(calculation.aluguelValor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+  
+        <div className="bg-lime-900/50 p-6 rounded-lg border-2 border-lime-500">
+          <p className="text-xl font-bold text-lime-300">TOTAL DA FIRMA</p>
+          <p className="text-6xl font-mono font-black text-lime-400">
+            R$ {(calculation.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderGruaStep3_Payment = () => (
+    <div className="space-y-4">
+        <h4 className="text-md font-bold text-lime-400">Recebimento</h4>
+        <div className="p-4 bg-slate-900/50 rounded-lg text-center">
+            <p className="text-slate-400 text-sm">Total para a Firma</p>
+            <p className="text-lime-400 font-mono font-bold text-2xl">R$ {valorTotalParaFirma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+        <FormField label="Recebimento em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+        <FormField label="Recebimento em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+    </div>
+  );
+
+  const renderGruaStep4_Plush = () => (
+    <div className="space-y-4">
+        <h4 className="text-md font-bold text-lime-400">Controle de Pelúcias</h4>
+        <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+        <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
+        <FormField label="Reposição de Pelúcias" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
+    </div>
+  );
+
+  const renderMesaStep1 = () => (
       <div className="space-y-4">
-          <h4 className="text-md font-bold text-lime-400">Detalhes Finais</h4>
-          <FormField label="Recebido em Espécie (R$)" name="recebimentoEspecie" value={formState.recebimentoEspecie} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Recebido em PIX (R$)" name="recebimentoPix" value={formState.recebimentoPix} type="text" inputMode="decimal" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <div className="col-span-2 pt-2"><hr className="border-slate-700" /></div>
-          <FormField label="Qtd. Pelúcias (Capacidade)" name="quantidadePelucia" value={formState.quantidadePelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Sobra de Pelúcias" name="sobraPelucia" value={formState.sobraPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />
-          <FormField label="Reposição (Automático)" name="reposicaoPelucia" value={formState.reposicaoPelucia} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} readOnly />
+        <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
+        <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="text" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus />
+        {!isMonthlyFee && <FormField label="Partidas de Desconto" name="descontoPartidas" value={formState.descontoPartidas} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />}
+        {formState.relogioAtual && !isReadingInvalid && (
+            <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
+                <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Rateio</h4>
+                {isMonthlyFee ? (
+                     <div className="flex justify-between font-bold text-lg text-lime-400">
+                        <span>MENSALIDADE FIXA:</span>
+                        <span className="font-mono">R$ {(calculation.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex justify-between font-bold text-lg text-white">
+                            <span>VALOR BRUTO TOTAL:</span>
+                            <span className="font-mono">R$ {(calculation.valorBruto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <hr className="border-dashed border-slate-600 my-2" />
+                        <div className="flex justify-between text-slate-300">
+                            <span>Partidas Jogadas:</span>
+                            <span className="font-mono">{calculation.partidasJogadas || 0}</span>
+                        </div>
+                         <div className="flex justify-between text-slate-300">
+                            <span>Partidas Cobradas:</span>
+                            <span className="font-mono">{calculation.partidasCobradas || 0}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300">
+                            <span>Parte Cliente ({equipment.parteCliente}%):</span>
+                            <span className="font-mono">R$ {(calculation.parteCliente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lime-400">
+                            <span>Parte Firma ({equipment.parteFirma}%):</span>
+                            <span className="font-mono">R$ {(calculation.parteFirma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                    </>
+                )}
+            </div>
+        )}
       </div>
   );
 
+  const renderMesaStep2 = () => (
+    <div className="space-y-4 animate-fade-in">
+        <div className="p-4 bg-slate-900/50 rounded-lg text-center">
+            <p className="text-slate-400 text-sm">Total para a Firma</p>
+            <p className="text-lime-400 font-mono font-bold text-2xl">R$ {valorFinalFirma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+        <PaymentField label="Bônus / Desconto (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
+        <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
+        <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
+        <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
+    </div>
+  );
+
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 md:p-4">
-      <div className="bg-slate-800 w-full h-full animate-fade-in-up flex flex-col md:max-w-md md:h-auto md:max-h-[90vh] md:rounded-lg md:shadow-2xl md:border md:border-slate-700">
-        <div className="p-6 border-b border-slate-700 flex-shrink-0 flex justify-between items-start">
-          <div>
-            <h2 className="text-2xl font-bold text-white">
-              Faturamento: <span className={`${colorMap[equipment.type]} capitalize`}>{equipment.type}</span> {equipment.numero}
-            </h2>
-            <p className="text-slate-400 break-words">Cliente: {customer.name}</p>
-          </div>
-           <button onClick={onClose} className="p-2 -mr-2 text-slate-400 hover:text-white">
-            <XIcon className="w-6 h-6" />
-          </button>
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="billing-modal-title"
+    >
+      <div className={`bg-slate-800 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700 animate-fade-in-up max-h-[90vh] flex flex-col ${isGrua && gruaStep === 2 ? 'max-w-3xl' : 'max-w-lg'}`}>
+        <div className="p-6 border-b border-slate-700 flex justify-between items-start">
+            <div>
+                <h2 id="billing-modal-title" className="text-2xl font-bold text-white capitalize">
+                    Faturamento {equipment.type} {isGrua ? `(Etapa ${gruaStep}/4)` : ''}
+                </h2>
+                <p className="text-slate-400 break-words">{customer.name} - {equipment.type} {equipment.numero}</p>
+            </div>
+             <button onClick={onClose} className="p-2 -mr-2 text-slate-400 hover:text-white"><XIcon className="w-6 h-6"/></button>
         </div>
         
-        <div className="p-6 space-y-6 overflow-y-auto flex-grow">
-          {isGrua ? (
-            <>
-              {gruaStep === 1 && renderGruaStep1()}
-              {gruaStep === 2 && renderGruaStep2()}
-              {gruaStep === 3 && renderGruaStep3()}
-            </>
-          ) : isJukebox ? (
-             <>
-              {jukeboxStep === 1 && renderJukeboxStep1()}
-              {jukeboxStep === 2 && renderJukeboxStep2()}
-            </>
-          ) : (
-             mesaStep === 1 ? (
-                <div className="space-y-4">
-                  <h4 className="text-md font-bold text-lime-400">Leitura Anterior: {equipment.relogioAnterior}</h4>
-                  <FormField label="Leitura Atual" name="relogioAtual" value={formState.relogioAtual} type="text" inputMode="numeric" equipmentId={equipment.id} isReadingInvalid={isReadingInvalid} onChange={(field, val) => handleFormChange(field, val)} autoFocus/>
-                  {equipment.type === 'mesa' && !isMonthlyFee && <FormField label="Desconto (Partidas)" name="descontoPartidas" value={formState.descontoPartidas} type="text" inputMode="numeric" equipmentId={equipment.id} onChange={(field, val) => handleFormChange(field, val)} />}
-                  
-                  {equipment.type === 'mesa' && !isMonthlyFee && !isReadingInvalid && formState.relogioAtual && (
-                    <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
-                      <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Cálculo</h4>
-                      <div className="flex justify-between text-slate-300"><span>Leitura Anterior:</span><span className="font-mono">{equipment.relogioAnterior}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Leitura Atual:</span><span className="font-mono">{Math.round(safeParseFloat(formState.relogioAtual))}</span></div>
-                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Total de Fichas:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Desconto (Fichas):</span><span className="font-mono text-amber-400">-{calculation.descontoPartidas || 0}</span></div>
-                      <div className="flex justify-between font-semibold text-white"><span>Fichas Cobradas:</span><span className="font-mono">{calculation.partidasCobradas || 0}</span></div>
-                      <div className="flex justify-between text-slate-300"><span>Valor da Ficha:</span><span className="font-mono">R$ {(calculation.valorFicha || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                      <hr className="border-dashed border-slate-600 my-2" /><div className="flex justify-between font-bold text-lg text-white"><span>VALOR BRUTO TOTAL:</span><span className="font-mono">R$ {(calculation.valorBruto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                      <hr className="border-slate-700/50 my-2" /><div className="flex justify-between text-slate-300"><span>Parte Cliente ({equipment.parteCliente}%):</span><span className="font-mono">R$ {(calculation.parteCliente || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                      <div className="flex justify-between font-bold text-lime-400"><span>Parte Firma ({equipment.parteFirma}%):</span><span className="font-mono">R$ {(calculation.parteFirma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    </div>
-                  )}
-
-                  {equipment.type === 'mesa' && isMonthlyFee && !isReadingInvalid && formState.relogioAtual && (
-                    <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-lg space-y-2 text-sm animate-fade-in">
-                        <h4 className="text-md font-bold text-white mb-3 text-center">Resumo do Mês</h4>
-                        <div className="flex justify-between text-slate-300"><span>Partidas Jogadas no Período:</span><span className="font-mono">{calculation.partidasJogadas || 0}</span></div>
-                        <hr className="border-dashed border-slate-600 my-2" />
-                        <div className="flex justify-between font-bold text-lg text-lime-400"><span>VALOR MENSAL FIXO:</span><span className="font-mono">R$ {(calculation.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-                    </div>
-                  )}
-
-                </div>
-              ) : (
-                <div className="space-y-4 animate-fade-in">
-                  <h4 className="block text-md font-bold text-lime-400 mb-2">Observações e Pagamento Dividido</h4>
-                  <PaymentField label="Desconto / Bônus (R$)" name="bonus" value={paymentValues.bonus} onChange={handlePaymentChange} />
-                  <PaymentField label="Valor em PIX (R$)" name="pix" value={paymentValues.pix} onChange={handlePaymentChange} />
-                  <PaymentField label="Valor em Dinheiro (R$)" name="dinheiro" value={paymentValues.dinheiro} onChange={handlePaymentChange} />
-                  <PaymentField label="Deixar Negativo (R$)" name="negativo" value={paymentValues.negativo} onChange={handlePaymentChange} readOnly />
-                </div>
-              )
-          )}
-          
-          {error && (
-              <div className="bg-red-900/50 border border-red-700 text-red-300 text-sm p-3 rounded-md flex items-center gap-2">
-                  <AlertIcon className="w-5 h-5 flex-shrink-0" />
-                  <span>{error}</span>
-              </div>
-          )}
-        </div>
-
-        <div className="p-6 mt-auto bg-slate-800/50 flex flex-col gap-4 border-t border-slate-700 flex-shrink-0 md:rounded-b-lg">
-           <div className="text-right">
-                <p className="text-slate-400">Total para a Firma:
-                  {valorBonus > 0 && (
-                    <span className="font-mono text-base text-slate-400 block">
-                      (R$ {valorTotalParaFirma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - R$ {valorBonus.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                    </span>
-                  )}
-                  <span className="font-mono font-bold text-lime-400 text-lg">R$ {valorFinalFirma.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </p>
-            </div>
+        <div className={`p-6 overflow-y-auto ${isGrua && gruaStep === 2 ? 'flex-grow flex items-center justify-center' : ''}`}>
+            {error && <div className="mb-4 text-center text-sm p-3 rounded-md bg-red-900/50 text-red-300 flex items-center gap-2"><AlertIcon className="w-5 h-5"/>{error}</div>}
             
-            {showMesaStep2Layout ? (
-                 <div className="flex flex-col gap-3">
-                    <button 
-                        onClick={handleWaitForPayment} 
-                        className="w-full inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-3 px-4 rounded-md hover:bg-sky-500"
-                    >
-                        <CreditCardIcon className="w-5 h-5" />
-                        Aguardar Pagamento
-                    </button>
-                    <button 
-                        onClick={handleFinalize} 
-                        disabled={!!error}
-                        className="w-full bg-lime-500 text-white font-bold py-3 px-4 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed"
-                    >
-                        Finalizar Cobrança
-                    </button>
-                    <div className="flex gap-3">
-                        <button onClick={onClose} className="flex-1 bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500">Cancelar</button>
-                        <button onClick={() => setMesaStep(1)} className="flex-1 bg-slate-500 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-400">&larr; Voltar ao Cálculo</button>
-                    </div>
-                </div>
-            ) : (
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-500">Cancelar</button>
-                    {isGrua ? (
-                        <>
-                            {gruaStep > 1 && <button onClick={handleGruaPrevStep} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">Voltar</button>}
-                            {gruaStep === 1 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Avançar</button>}
-                            {gruaStep === 2 && <button onClick={handleGruaNextStep} className="bg-sky-600 text-white font-bold py-2 px-6 rounded-md hover:bg-sky-500">Confirmar e Continuar</button>}
-                            {gruaStep === 3 && <button onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600">Finalizar Cobrança</button>}
-                        </>
-                    ) : isJukebox ? (
-                        <>
-                            {jukeboxStep === 1 && <button onClick={handleJukeboxNextStep} className="flex-1 inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Ir para Pagamento &rarr;</button>}
-                            {jukeboxStep === 2 && (
-                                <>
-                                    <button onClick={() => setJukeboxStep(1)} className="bg-slate-500 text-white font-bold py-2 px-6 rounded-md hover:bg-slate-400">&larr; Voltar</button>
-                                    <button onClick={handleFinalize} disabled={!!error} className="flex-1 bg-lime-500 text-white font-bold py-2 px-6 rounded-md hover:bg-lime-600 disabled:bg-slate-500 disabled:cursor-not-allowed">Finalizar Cobrança</button>
-                                </>
-                            )}
-                        </>
-                    ) : ( // isMesa and step 1
-                        <>
-                            <button onClick={handleProvisionalAction} className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-500">
-                                Imprimir Via Cliente
-                            </button>
-                            <button onClick={handleGoToPayment} className="flex-1 inline-flex items-center justify-center gap-2 bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">
-                                Ir para Pagamento &rarr;
-                            </button>
-                        </>
-                    )}
-                </div>
+            {isGrua && (
+                <>
+                    {gruaStep === 1 && renderGruaStep1_Reading()}
+                    {gruaStep === 2 && renderGruaStep2_Summary()}
+                    {gruaStep === 3 && renderGruaStep3_Payment()}
+                    {gruaStep === 4 && renderGruaStep4_Plush()}
+                </>
             )}
-        </div>
 
+            {isJukebox && (
+                <>
+                    {jukeboxStep === 1 && renderJukeboxStep1()}
+                    {jukeboxStep === 2 && renderJukeboxStep2()}
+                </>
+            )}
+
+            {!isGrua && !isJukebox && (
+                <>
+                    {mesaStep === 1 && renderMesaStep1()}
+                    {mesaStep === 2 && renderMesaStep2()}
+                </>
+            )}
+
+        </div>
+        
+        <div className="p-6 bg-slate-800/50 rounded-b-lg flex flex-wrap justify-between items-center gap-3">
+             {showMesaStep2Layout ? (
+                <button onClick={() => setMesaStep(1)} className="bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500">Voltar</button>
+             ) : isJukebox && jukeboxStep === 2 ? (
+                <button onClick={() => setJukeboxStep(1)} className="bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500">Voltar</button>
+             ) : isGrua && gruaStep > 1 ? (
+                <button onClick={handleGruaPrevStep} className="bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-500">Voltar</button>
+             ) : <div />}
+             
+             <div className="flex flex-wrap gap-3 justify-end flex-grow">
+                {!isGrua && !isJukebox && mesaStep === 1 && !isMonthlyFee && <button type="button" onClick={handleProvisionalAction} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Recibo Provisório</button>}
+                {!isGrua && !isJukebox && mesaStep === 1 && <button type="button" onClick={handleGoToPayment} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 flex-grow">Ir para Pagamento &rarr;</button>}
+                
+                {showMesaStep2Layout && <button type="button" onClick={handleWaitForPayment} className="bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500">Pgto. Pendente</button>}
+                {showMesaStep2Layout && <button type="button" onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600">Finalizar</button>}
+
+                {isJukebox && jukeboxStep === 1 && <button type="button" onClick={handleJukeboxNextStep} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 flex-grow">Ir para Confirmação &rarr;</button>}
+                {isJukebox && jukeboxStep === 2 && <button type="button" onClick={handleWaitForPayment} className="bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500">Pgto. Pendente</button>}
+                {isJukebox && jukeboxStep === 2 && <button type="button" onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600">Finalizar</button>}
+
+                {isGrua && gruaStep < 4 && <button type="button" onClick={handleGruaNextStep} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 flex-grow">{gruaStep === 2 ? 'Continuar para Pagamento' : 'Avançar'} &rarr;</button>}
+                {isGrua && gruaStep === 4 && <button type="button" onClick={handleFinalize} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600">Finalizar</button>}
+             </div>
+        </div>
       </div>
-      <style>{`
+       <style>{`
         @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
-        @keyframes fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
-        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
       `}</style>
     </div>
   );
