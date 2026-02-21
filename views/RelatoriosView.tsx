@@ -744,13 +744,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ customers, billings, ex
           <button onClick={() => setIsCraneReportModalOpen(true)} disabled={areValuesHidden} title={areValuesHidden ? "Desative o Modo de Privacidade para imprimir" : "Imprimir Relatório de Gruas"} className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-orange-600 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-500 disabled:bg-slate-500 disabled:cursor-not-allowed"><PrinterIcon className="w-5 h-5"/> <span>Imprimir Relatório</span></button>
         </InfoCard>
         
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <InfoCard title="Resumo Geral de Receitas" icon={<CurrencyDollarIcon className="w-6 h-6 text-green-500" />}>
-                <InfoRow label="Total (Dinheiro)" value={areValuesHidden ? 'R$ •••,••' : `R$ ${(stats.revenueMesaDinheiro + stats.revenueJukeboxDinheiro + stats.revenueGruaEspecie).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-sky-600 dark:text-sky-400" />
-                <InfoRow label="Total (PIX)" value={areValuesHidden ? 'R$ •••,••' : `R$ ${(stats.revenueMesaPix + stats.revenueJukeboxPix + stats.revenueGruaPix).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-lime-600 dark:text-lime-400" />
-                <InfoRow label="Dívidas Recebidas" value={areValuesHidden ? 'R$ •••,••' : `R$ ${stats.totalDebtReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-emerald-500 dark:text-emerald-400" />
-                <InfoRow label="Total Arrecadado (Caixa)" value={areValuesHidden ? 'R$ •••,••' : `R$ ${(stats.revenueMesaDinheiro + stats.revenueMesaPix + stats.revenueJukeboxDinheiro + stats.revenueJukeboxPix + stats.revenueGruaEspecie + stats.revenueGruaPix + stats.totalDebtReceived).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-green-500 dark:text-green-300 font-bold text-lg" />
-            </InfoCard>
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8">
             <InfoCard title="Resumo: Dívidas Recebidas" icon={<CreditCardIcon className="w-6 h-6 text-emerald-500" />}>
                 <InfoRow label="Recebido (Dinheiro)" value={areValuesHidden ? 'R$ •••,••' : `R$ ${stats.debtReceivedDinheiro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-sky-600 dark:text-sky-400" />
                 <InfoRow label="Recebido (PIX)" value={areValuesHidden ? 'R$ •••,••' : `R$ ${stats.debtReceivedPix.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} valueColor="text-lime-600 dark:text-lime-400" />

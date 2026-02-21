@@ -274,7 +274,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                     const equipmentColor = colorMap[equip.type!] || 'text-slate-400';
                     return (
                         <div key={equip.id} className={`rounded-lg border overflow-hidden transition-all duration-300 ${isEditMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700'}`}>
-                            <button type="button" onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)} className={`w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500 ${isEditMode ? 'hover:bg-slate-700/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/20'}`}>
+                            <div role="button" tabIndex={0} onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)} onKeyDown={(e) => e.key === 'Enter' && setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)} className={`w-full flex justify-between items-center p-4 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500 ${isEditMode ? 'hover:bg-slate-700/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/20'}`}>
                                 <div className="flex items-center gap-3">
                                     <EquipmentIcon className={`w-5 h-5 ${equipmentColor}`} />
                                     <h4 className={`text-md font-bold capitalize ${isEditMode ? 'text-white' : 'text-slate-900 dark:text-white'}`}><span className={equipmentColor}>{equipmentTitle}</span>: <span className="font-normal text-slate-300">{equip.numero || '(Novo)'}</span></h4>
@@ -283,7 +283,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                                     <button type="button" onClick={(e) => { e.stopPropagation(); removeEquipment(index); }} className="text-slate-500 hover:text-red-500 p-1 rounded-full hover:bg-red-500/10"><TrashIcon className="w-5 h-5" /></button>
                                     <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform ${openEquipmentIndex === index ? 'rotate-180' : ''}`} />
                                 </div>
-                            </button>
+                            </div>
                             {openEquipmentIndex === index && (
                                 <div className={`p-4 border-t ${isEditMode ? 'border-slate-700 bg-slate-800/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20'}`}>
                                     {/* Equipment fields */}
@@ -297,7 +297,21 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                                             <FormField label="Número da Mesa" name="numero" value={String(equip.numero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
                                             <FormField label="Nº Relógio da Mesa" name="relogioNumero" value={String(equip.relogioNumero || '')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
                                             <FormField label="Leitura Anterior" name="relogioAnterior" type="number" inputMode="numeric" value={String(equip.relogioAnterior || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} />
-                                            {equip.billingType === 'monthly' ? <FormField label="Valor Mensal (R$)" name="monthlyFeeValue" type="text" inputMode="numeric" value={String(equip.monthlyFeeValue || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> : <> <FormField label="Valor da Ficha (R$)" name="valorFicha" type="text" inputMode="numeric" value={String(equip.valorFicha || '2')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte da Firma (%)" name="parteFirma" type="number" inputMode="numeric" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" inputMode="numeric" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> </> }
+                                            {equip.billingType === 'monthly' ? <FormField label="Valor Mensal (R$)" name="monthlyFeeValue" type="text" inputMode="numeric" value={String(equip.monthlyFeeValue || '0')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> : <> <div>
+                                                <label className={`block text-sm font-medium ${isEditMode ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'} mb-1`}>Valor da Ficha (R$)</label>
+                                                <select name="valorFicha" value={String(equip.valorFicha || '2')} onChange={e => handleEquipmentChange(index, e)} className={`w-full border rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-lime-500 ${isEditMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white'}`}>
+                                                    {["1.00", "1.50", "2.00", "2.50", "3.00", "3.50", "4.00", "4.50", "5.00"].includes(String(equip.valorFicha)) ? null : <option value={String(equip.valorFicha)}>{`R$ ${Number(equip.valorFicha).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</option>}
+                                                    <option value="1.00">R$ 1,00</option>
+                                                    <option value="1.50">R$ 1,50</option>
+                                                    <option value="2.00">R$ 2,00</option>
+                                                    <option value="2.50">R$ 2,50</option>
+                                                    <option value="3.00">R$ 3,00</option>
+                                                    <option value="3.50">R$ 3,50</option>
+                                                    <option value="4.00">R$ 4,00</option>
+                                                    <option value="4.50">R$ 4,50</option>
+                                                    <option value="5.00">R$ 5,00</option>
+                                                </select>
+                                            </div> <FormField label="Parte da Firma (%)" name="parteFirma" type="number" inputMode="numeric" value={String(equip.parteFirma || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> <FormField label="Parte do Cliente (%)" name="parteCliente" type="number" inputMode="numeric" value={String(equip.parteCliente || '50')} onChange={e => handleEquipmentChange(index, e)} isEditMode={isEditMode} /> </> }
                                         </div>
                                     ) : equip.type === 'jukebox' ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

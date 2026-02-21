@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { auth, db, processFirestoreDoc } from './firebase';
 
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser, Route } from './types';
-import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
+// import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
 import { v4 as uuidv4 } from 'uuid';
 
 import Sidebar from './components/Sidebar';
@@ -49,7 +49,7 @@ import DebtReceiptActionsModal from './components/DebtReceiptActionsModal';
 import ShareCustomerModal from './components/ShareCustomerModal';
 import LabelGenerationModal from './components/LabelGenerationModal';
 import EditBillingModal from './components/EditBillingModal';
-import QrScannerModal from './components/QrScannerModal';
+import QrScannerModal from './QrScannerModal';
 import ThermalPrintActionsModal from './components/ThermalPrintActionsModal';
 import LocationActionsModal from './components/LocationActionsModal';
 import AddPhoneModal from './components/AddPhoneModal';
@@ -113,7 +113,7 @@ const generatePrintableHtml = (title: string, content: string): string => {
         .text-sm { font-size: 16pt; line-height: 1.25rem; } /* Body size */
         .text-xs { font-size: 12pt; line-height: 1rem; } /* Footer size */
         .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
-        img { display: block; margin: 8px auto; border: 4px solid black; }
+
 
         /* Styles for dotted filler rows */
         .receipt-row {
@@ -224,21 +224,7 @@ const App: React.FC = () => {
     // Back button handling
     const backButtonPressedOnce = useRef(false);
     
-    // --- Service Worker Registration ---
-    useEffect(() => {
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const swUrl = new URL('sw.js', window.location.origin);
-                navigator.serviceWorker.register(swUrl)
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('ServiceWorker registration failed: ', error);
-                    });
-            });
-        }
-    }, []);
+
 
     // --- Handlers ---
     const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -357,7 +343,8 @@ const App: React.FC = () => {
         setSyncStatus('syncing');
         
         try {
-            const processedCount = await processSyncQueue(user?.uid || null);
+            // const processedCount = await processSyncQueue(user?.uid || null);
+            const processedCount = 0; // Temporarily disable offline sync
             if (processedCount > 0) {
                 showNotification(`${processedCount} ação(ões) offline foram sincronizadas!`, 'success');
             }
@@ -611,7 +598,8 @@ const App: React.FC = () => {
             if(isOnline) {
                 await setDoc(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
             } else {
-                await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
+                // await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cliente Adicionado!' });
         } catch (error) {
@@ -637,7 +625,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await updateDoc(doc(db, `users/${user.uid}/customers`, id), firestorePayload);
             } else {
-                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
+                 // await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
+                 throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cliente Atualizado!' });
         } catch (error) {
@@ -662,7 +651,8 @@ const App: React.FC = () => {
             if(isOnline) {
                 await deleteDoc(doc(db, `users/${user.uid}/customers`, customerToDelete.id));
             } else {
-                await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerToDelete.id, payload: {} });
+                // await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerToDelete.id, payload: {} });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cliente Excluído!' });
         } catch (error) {
@@ -718,8 +708,9 @@ const App: React.FC = () => {
                 batch.update(doc(db, `users/${user.uid}/customers`, customerId), firestoreCustomerPayload);
                 await batch.commit();
             } else {
-                await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing });
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                // await queueMutation({ action: 'add', collectionPath: 'billings', payload: billing });
+                // await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             
             if (billing.paymentMethod !== 'pending_payment') {
@@ -792,9 +783,10 @@ const App: React.FC = () => {
                 if (nextBillingId && nextBillingPayload) batch.update(doc(db, `users/${user.uid}/billings`, nextBillingId), processPayloadForFirestore(nextBillingPayload));
                 await batch.commit();
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
-                if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
+                // await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
+                // await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                // if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cobrança Atualizada!' });
         } catch (error) {
@@ -836,8 +828,9 @@ const App: React.FC = () => {
                 batch.update(doc(db, `users/${user.uid}/customers`, updatedCustomer.id), processPayloadForFirestore(updatedCustomerPayload));
                 await batch.commit();
             } else {
-                await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
+                // await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
+                // await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cobrança Excluída!' });
         } catch (error) {
@@ -870,7 +863,8 @@ const App: React.FC = () => {
             if(isOnline) {
                 await setDoc(doc(db, `users/${user.uid}/expenses`, id), firestorePayload);
             } else {
-                await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
+                // await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Despesa Adicionada!' });
         } catch (error) {
@@ -892,7 +886,8 @@ const App: React.FC = () => {
             if(isOnline) {
                 await deleteDoc(doc(db, `users/${user.uid}/expenses`, expenseId));
             } else {
-                await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
+                // await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Despesa Excluída!' });
         } catch (error) {
@@ -955,10 +950,11 @@ const App: React.FC = () => {
                 }
                 await batch.commit();
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: customerPayload });
-                if (debtPayment) {
-                    await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: debtPayment });
-                }
+                // await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: customerPayload });
+                // if (debtPayment) {
+                //     await queueMutation({ action: 'add', collectionPath: 'debtPayments', payload: debtPayment });
+                // }
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             
             if (isPayingDebt && debtPayment) {
@@ -991,7 +987,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await updateDoc(doc(db, `users/${user.uid}/customers`, customer.id), payload);
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
+                // await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Dívida Perdoada!' });
         } catch (error) {
@@ -1019,7 +1016,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await setDoc(doc(db, `users/${user.uid}/warnings`, id), firestorePayload);
             } else {
-                await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
+                // await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Aviso Adicionado!' });
         } catch (error) {
@@ -1039,7 +1037,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await updateDoc(doc(db, `users/${user.uid}/warnings`, warningId), payload);
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
+                // await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Aviso Resolvido!' });
         } catch (error) {
@@ -1058,7 +1057,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await deleteDoc(doc(db, `users/${user.uid}/warnings`, warningId));
             } else {
-                await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
+                // await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Aviso Excluído!' });
         } catch (error) {
@@ -1097,8 +1097,9 @@ const App: React.FC = () => {
                 batch.update(doc(db, `users/${user.uid}/customers`, customerId), firestoreCustomerPayload);
                 await batch.commit();
             } else {
-                await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
-                await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                // await queueMutation({ action: 'update', collectionPath: 'billings', docId: billingId, payload: billingPayload });
+                // await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Finalizado!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false }) });
@@ -1158,7 +1159,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await setDoc(doc(db, `users/${user.uid}/routes`, id), firestorePayload);
             } else {
-                await queueMutation({ action: 'add', collectionPath: 'routes', payload: newRoute });
+                // await queueMutation({ action: 'add', collectionPath: 'routes', payload: newRoute });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Rota Salva!' });
@@ -1185,7 +1187,8 @@ const App: React.FC = () => {
             if (isOnline) {
                 await deleteDoc(doc(db, `users/${user.uid}/routes`, routeId));
             } else {
-                await queueMutation({ action: 'delete', collectionPath: 'routes', docId: routeId, payload: {} });
+                // await queueMutation({ action: 'delete', collectionPath: 'routes', docId: routeId, payload: {} });
+                throw new Error('Offline sync disabled'); // Force online behavior for now
             }
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Rota Excluída!' });
         } catch (error) {
@@ -1362,7 +1365,7 @@ const App: React.FC = () => {
                 }
 
                 await batch.commit();
-                await clearOfflineQueue();
+                // await clearOfflineQueue();
 
                 showNotification('Dados mesclados com sucesso! A página será recarregada.', 'success');
                 setTimeout(() => window.location.reload(), 2000);
@@ -1399,7 +1402,7 @@ const App: React.FC = () => {
             }
     
             await batch.commit();
-            await clearOfflineQueue();
+            // await clearOfflineQueue();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Todos os Dados Apagados' });
         } catch (error) {
             console.error("Erro ao apagar dados:", error);
@@ -1506,7 +1509,7 @@ const App: React.FC = () => {
             case 'DASHBOARD': return <DashboardView billings={billings} expenses={expenses} customers={customers} debtPayments={debtPayments} warnings={warnings} onAddWarning={handleAddWarning} onResolveWarning={handleResolveWarning} onDeleteWarning={handleDeleteWarning} lastBackupDate={lastBackupTimestamp} onNavigateToSettings={() => setView('CONFIGURACOES')} areValuesHidden={areValuesHidden} deletedCustomersLog={deletedCustomersLog} />;
             case 'CLIENTES': return <ClientesView customers={customers} warnings={warnings} billings={billings} routes={routes} onAddCustomer={handleAddCustomer} isSaving={isSaving} showNotification={showNotification} onFocusCustomer={setFocusedCustomer} onBillCustomer={handleOpenBillingModal} onEditCustomer={handleOpenEditCustomerModal} onDeleteCustomer={handleOpenDeleteModal} onPayDebtCustomer={handleOpenDebtPaymentModal} onHistoryCustomer={handleOpenHistoryModal} onShareCustomer={handleOpenShareCustomerModal} onOpenScanner={() => setQrScannerModalOpen(true)} onLocationActions={handleOpenLocationActions} onWhatsAppActions={handleWhatsAppActions} onFinalizePendingPayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} areValuesHidden={areValuesHidden} onPendingPaymentAction={(customer, billing) => setPendingPaymentActionModalState({ isOpen: true, customer, pendingBilling: billing })} onOpenRouteCreator={() => setIsRouteCreationModalOpen(true)} onSaveRoute={handleSaveRoute} onDeleteRoute={handleDeleteRoute} />;
             case 'COBRANCAS': return <CobrancasView billings={billings} customers={customers} debtPayments={debtPayments} onShowActions={(billing) => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false })} onEditBilling={handleOpenEditBillingModal} onDeleteBilling={handleDeleteBilling} onFinalizePayment={(billing) => setFinalizePaymentModalState({ isOpen: true, billing })} onPayDebtCustomer={handleOpenDebtPaymentModal} areValuesHidden={areValuesHidden} />;
-            case 'EQUIPAMENTOS': return <EquipamentosView customers={customers} billings={billings} showNotification={showNotification} onOpenLabelGenerator={() => setLabelGenerationModalState({ isOpen: true })} onGenerateLabels={() => {}} />;
+            case 'EQUIPAMENTOS': return <EquipamentosView customers={customers} showNotification={showNotification} onOpenLabelGenerator={() => setLabelGenerationModalState({ isOpen: true })} />;
             case 'DESPESAS': return <DespesasView expenses={expenses} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} areValuesHidden={areValuesHidden} />;
             case 'ROTAS': return <RotasView customers={customers} />;
             case 'RELATORIOS': return <RelatoriosView customers={customers} billings={billings} expenses={expenses} debtPayments={debtPayments} onThermalPrint={handleThermalPrint} areValuesHidden={areValuesHidden} showNotification={showNotification} />;
