@@ -274,7 +274,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                     const equipmentColor = colorMap[equip.type!] || 'text-slate-400';
                     return (
                         <div key={equip.id} className={`rounded-lg border overflow-hidden transition-all duration-300 ${isEditMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700'}`}>
-                            <div role="button" tabIndex={0} onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)} onKeyDown={(e) => e.key === 'Enter' && setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)} className={`w-full flex justify-between items-center p-4 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500 ${isEditMode ? 'hover:bg-slate-700/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/20'}`}>
+                            <button type="button" onClick={() => setOpenEquipmentIndex(openEquipmentIndex === index ? null : index)} className={`w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-lime-500 ${isEditMode ? 'hover:bg-slate-700/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700/20'}`}>
                                 <div className="flex items-center gap-3">
                                     <EquipmentIcon className={`w-5 h-5 ${equipmentColor}`} />
                                     <h4 className={`text-md font-bold capitalize ${isEditMode ? 'text-white' : 'text-slate-900 dark:text-white'}`}><span className={equipmentColor}>{equipmentTitle}</span>: <span className="font-normal text-slate-300">{equip.numero || '(Novo)'}</span></h4>
@@ -283,7 +283,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customers, initialData, onS
                                     <button type="button" onClick={(e) => { e.stopPropagation(); removeEquipment(index); }} className="text-slate-500 hover:text-red-500 p-1 rounded-full hover:bg-red-500/10"><TrashIcon className="w-5 h-5" /></button>
                                     <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform ${openEquipmentIndex === index ? 'rotate-180' : ''}`} />
                                 </div>
-                            </div>
+                            </button>
                             {openEquipmentIndex === index && (
                                 <div className={`p-4 border-t ${isEditMode ? 'border-slate-700 bg-slate-800/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20'}`}>
                                     {/* Equipment fields */}

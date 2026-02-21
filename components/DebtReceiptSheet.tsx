@@ -19,7 +19,7 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
     return (
         <div className="font-bold text-sm">
             <div className="header text-center mb-4">
-                <img src="/logo.png" alt="Logotipo Montanha Bilhar & Jukebox" style={{ width: '180px', margin: '0 auto', display: 'block' }} />
+                <h3 className="font-bold text-lg">MONTANHA BILHAR & JUKEBOX</h3>
                 <p className="font-bold">COMPROVANTE DE PAGAMENTO DE DÍVIDA</p>
                 <p>--------------------------------</p>
             </div>
@@ -40,6 +40,7 @@ const DebtReceiptSheet: React.FC<DebtReceiptSheetProps> = ({ debtPayment, qrCode
                     <span className="value">{paymentMethodText[debtPayment.paymentMethod]}</span>
                 </div>
             </div>
+
             {qrCodeDataUrl ? (
                 <div className="text-center mt-4">
                     <p className="font-bold">Pague com PIX</p>

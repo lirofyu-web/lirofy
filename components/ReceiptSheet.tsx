@@ -123,7 +123,7 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
     return (
         <div className="font-bold text-sm">
             <div className="header text-center mb-4">
-                <img src="/logo.png" alt="Logotipo Montanha Bilhar & Jukebox" style={{ width: '180px', margin: '0 auto', display: 'block' }} />
+                <h3 className="font-black text-lg">MONTANHA BILHAR & JUKEBOX</h3>
                 <p className="font-bold">{isProvisional ? 'DEMONSTRATIVO DE COBRANÇA' : 'ACERTO DE CONTAS'}</p>
                 <p>--------------------------------</p>
             </div>
@@ -162,6 +162,7 @@ const ReceiptSheet: React.FC<ReceiptSheetProps> = ({ billing, isProvisional, qrC
                     </div>
                 )}
             </div>
+
             {qrCodeDataUrl ? (
                 <div className="text-center mt-4">
                     <p className="font-bold">Pague com PIX</p>
