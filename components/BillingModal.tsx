@@ -722,7 +722,7 @@ const BillingModal: React.FC<BillingModalProps> = ({ isOpen, onClose, onConfirm,
              ) : <div />}
              
              <div className="flex flex-wrap gap-3 justify-end flex-grow">
-                {!isGrua && !isJukebox && mesaStep === 1 && !isMonthlyFee && <button type="button" onClick={handleProvisionalAction} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Recibo Provisório</button>}
+                {!isGrua && !isJukebox && mesaStep === 1 && <button type="button" onClick={handleProvisionalAction} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500">Recibo Provisório</button>}
                 {!isGrua && !isJukebox && mesaStep === 1 && <button type="button" onClick={handleGoToPayment} className="bg-lime-500 text-white font-bold py-2 px-4 rounded-md hover:bg-lime-600 flex-grow">Ir para Pagamento &rarr;</button>}
                 
                 {showMesaStep2Layout && <button type="button" onClick={handleWaitForPayment} className="bg-amber-600 text-white font-bold py-2 px-4 rounded-md hover:bg-amber-500">Pgto. Pendente</button>}
