@@ -1,61 +1,77 @@
 let audioContext: AudioContext | null = null;
-let isAudioUnlocked = false;
+let successSoundBuffer: AudioBuffer | null = null;
 
 const createAudioContext = () => {
-    if (audioContext) return;
+    if (audioContext && audioContext.state !== 'closed') return;
     try {
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log(`[SoundPlayer] AudioContext created. Initial state: ${audioContext.state}`);
     } catch (e) {
-        console.error("Web Audio API is not supported in this browser.", e);
+        console.error("[SoundPlayer] Web Audio API is not supported in this browser.", e);
     }
 };
 
-// This function should be called from a user gesture, like a click or tap.
+const loadSuccessSound = async () => {
+    if (!audioContext) createAudioContext();
+    if (!audioContext || successSoundBuffer) return;
+
+    try {
+        const response = await fetch('/sounds/success.mp3');
+        const arrayBuffer = await response.arrayBuffer();
+        successSoundBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        console.log("[SoundPlayer] Success sound loaded and decoded.");
+    } catch (e) {
+        console.error("[SoundPlayer] Error loading or decoding audio file:", e);
+    }
+};
+
 export const unlockAudio = () => {
     if (!audioContext) createAudioContext();
-    if (isAudioUnlocked || !audioContext) return;
+    if (!audioContext) return;
     
     if (audioContext.state === 'suspended') {
+        console.log("[SoundPlayer] AudioContext is suspended. Attempting to resume...");
         audioContext.resume().then(() => {
-            isAudioUnlocked = true;
-            console.log("AudioContext resumed successfully.");
-        }).catch(e => console.error("Error resuming AudioContext:", e));
+            console.log(`[SoundPlayer] AudioContext resumed. New state: ${audioContext?.state}`);
+            // Load the sound after user interaction
+            loadSuccessSound();
+        }).catch(e => console.error("[SoundPlayer] Error resuming AudioContext:", e));
     } else {
-        isAudioUnlocked = true;
+        // If not suspended, we can probably load the sound right away.
+        loadSuccessSound();
     }
 };
 
-// Create context as soon as the module loads.
+// Pre-create the context
 createAudioContext();
 
 export const playSuccessSound = () => {
-  if (!audioContext) {
-    console.warn("AudioContext not available, cannot play sound.");
+  console.log("[SoundPlayer] playSuccessSound called.");
+  if (!audioContext || !successSoundBuffer) {
+    console.warn("[SoundPlayer] Audio resources not ready. Context or Buffer is null.");
+    // Attempt to load the sound again, in case it failed silently.
+    if(audioContext && !successSoundBuffer) loadSuccessSound();
     return;
-  }
-
-  // If audio is not unlocked, we can't play. Try to resume it.
-  if (!isAudioUnlocked || audioContext.state !== 'running') {
-      audioContext.resume();
   }
   
   if (audioContext.state !== 'running') {
-      console.warn(`AudioContext is in a '${audioContext.state}' state. Sound may not play.`);
+      console.warn(`[SoundPlayer] AudioContext not running. State: ${audioContext.state}. Cannot play sound.`);
       return;
   }
 
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+  try {
+    const source = audioContext.createBufferSource();
+    source.buffer = successSoundBuffer;
+    
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(0.8, audioContext.currentTime); // Set volume
 
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.2);
-
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.05);
-
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.2);
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    console.log("[SoundPlayer] Playing sound now.");
+    source.start(0);
+  } catch(e) {
+      console.error("[SoundPlayer] Error during sound playback:", e);
+  }
 };

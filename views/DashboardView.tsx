@@ -70,12 +70,14 @@ type CategoryData = {
     receitaPix: number;
 };
 
-const FinancialPerformanceCard: React.FC<{ 
-    stats: any, // Using 'any' for brevity, but should be a specific stats type
-    chartView: ChartView, 
-    onChartViewChange: (view: ChartView) => void,
+interface FinancialPerformanceCardProps {
+    stats: MonthlyStats;
+    chartView: ChartView;
+    onChartViewChange: (view: ChartView) => void;
     areValuesHidden: boolean;
-}> = React.memo(({ stats, chartView, onChartViewChange, areValuesHidden }) => {
+}
+
+const FinancialPerformanceCard: React.FC<FinancialPerformanceCardProps> = React.memo(({ stats, chartView, onChartViewChange, areValuesHidden }) => {
     
     const chartData: CategoryData[] = useMemo(() => [
         { 
@@ -450,6 +452,37 @@ const RentalChangesCard: React.FC<{
 
 // --- Main View Component ---
 
+// Add a specific type for the stats object to avoid using 'any'
+type MonthlyStats = {
+    revenueMesaDinheiro: number;
+    revenueMesaPix: number;
+    totalRevenueMesa: number;
+    expensesMesa: number;
+    balanceMesa: number;
+    revenueJukeboxDinheiro: number;
+    revenueJukeboxPix: number;
+    totalRevenueJukebox: number;
+    expensesJukebox: number;
+    balanceJukebox: number;
+    revenueGruaEspecie: number;
+    revenueGruaPix: number;
+    totalRevenueGrua: number;
+    expensesGrua: number;
+    balanceGrua: number;
+    totalOutstandingDebt: number;
+    totalDebtReceived: number;
+    mesaCount: number;
+    jukeboxCount: number;
+    gruaCount: number;
+    averageProfitMesa: number;
+    averageProfitJukebox: number;
+    averageProfitGrua: number;
+    averageRevenueMesa: number;
+    averageRevenueJukebox: number;
+    averageRevenueGrua: number;
+    totalExpenses: number;
+};
+
 const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, customers, debtPayments, warnings, onAddWarning, onResolveWarning, onDeleteWarning, lastBackupDate, onNavigateToSettings, areValuesHidden, deletedCustomersLog }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [chartView, setChartView] = useState<ChartView>('total');
@@ -462,7 +495,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ billings, expenses, custo
         setCurrentDate(prevDate => new Date(year, prevDate.getMonth(), 1));
     }, []);
 
-    const stats = useMemo(() => {
+    const stats: MonthlyStats = useMemo(() => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
 

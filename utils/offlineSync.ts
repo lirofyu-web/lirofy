@@ -1,5 +1,5 @@
 // utils/offlineSync.ts
-import { doc, setDoc, addDoc, updateDoc, deleteDoc, collection, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import { doc, setDoc, updateDoc, deleteDoc, collection, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 import { db } from '../firebase';
 
 const DB_NAME = 'montanha-gestao-db';
@@ -21,7 +21,7 @@ const getDb = (): Promise<IDBDatabase> => {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onerror = () => reject('Error opening IndexedDB');
+      request.onerror = (event) => reject(new Error(`IndexedDB error: ${(event.target as any).errorCode}`));
       request.onsuccess = () => resolve(request.result);
       request.onupgradeneeded = (event) => {
         const dbInstance = (event.target as any).result;
@@ -35,14 +35,20 @@ const getDb = (): Promise<IDBDatabase> => {
 };
 
 export const queueMutation = async (mutation: QueuedMutation): Promise<void> => {
-  const dbInstance = await getDb();
-  const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
-  const store = transaction.objectStore(STORE_NAME);
-  store.add(mutation);
+    const dbInstance = await getDb();
+    const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    
+    await new Promise<void>((resolve, reject) => {
+        const request = store.add(mutation);
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => reject(new Error(`Failed to queue mutation: ${(event.target as any).error}`));
+    });
 };
 
-// Helper to recursively process objects/arrays for Firestore compatibility.
-const processPayloadForFirestore = (data: any): any => {
+// NOTE: This helper is now the single source of truth.
+// Other files like App.tsx should import it from here to avoid duplication.
+export const processPayloadForFirestore = (data: any): any => {
     if (data === null || typeof data !== 'object') {
         return data; // Primitives are returned as is.
     }
@@ -50,16 +56,13 @@ const processPayloadForFirestore = (data: any): any => {
         return Timestamp.fromDate(data);
     }
     if (Array.isArray(data)) {
-        // Recursively process each item in the array.
         return data.map(item => processPayloadForFirestore(item));
     }
 
-    // It's an object, process its properties.
     const newObj: { [key: string]: any } = {};
     for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
             const value = data[key];
-            // Skip properties that are undefined.
             if (value !== undefined) {
                 newObj[key] = processPayloadForFirestore(value);
             }
@@ -93,41 +96,48 @@ export const processSyncQueue = async (currentUserId: string | null): Promise<nu
 
   if (mutations.length === 0) return 0;
 
+  // BUG FIX: Firestore batches have a 500-operation limit.
+  // Process the queue in chunks to avoid hitting this limit.
+  const chunkSize = 490; // A safe chunk size below the 500 limit.
+  
   try {
-    const batch = writeBatch(db);
+    for (let i = 0; i < mutations.length; i += chunkSize) {
+        const chunk = mutations.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
 
-    mutations.forEach((mutation) => {
-      const userIdForPath = mutation.targetUserId || currentUserId;
-      const collectionPath = `users/${userIdForPath}/${mutation.collectionPath}`;
-      let docRef;
-      
-      const cleanPayload = processPayloadForFirestore(mutation.payload);
+        chunk.forEach((mutation) => {
+          const userIdForPath = mutation.targetUserId || currentUserId;
+          const collectionPath = `users/${userIdForPath}/${mutation.collectionPath}`;
+          let docRef;
+          
+          const cleanPayload = processPayloadForFirestore(mutation.payload);
 
-      if (mutation.action === 'add') {
-        const docId = cleanPayload.id;
-        if (docId && typeof docId === 'string') {
-            docRef = doc(db, collectionPath, docId);
-            batch.set(docRef, cleanPayload);
-        } else {
-            docRef = doc(collection(db, collectionPath));
-            batch.set(docRef, cleanPayload);
-        }
-      } else if (mutation.action === 'update' && mutation.docId) {
-        docRef = doc(db, collectionPath, mutation.docId);
-        batch.update(docRef, cleanPayload);
-      } else if (mutation.action === 'delete' && mutation.docId) {
-        docRef = doc(db, collectionPath, mutation.docId);
-        batch.delete(docRef);
-      }
-    });
+          if (mutation.action === 'add') {
+            const docId = cleanPayload.id;
+            if (docId && typeof docId === 'string') {
+                docRef = doc(db, collectionPath, docId);
+                batch.set(docRef, cleanPayload);
+            } else {
+                docRef = doc(collection(db, collectionPath));
+                batch.set(docRef, cleanPayload);
+            }
+          } else if (mutation.action === 'update' && mutation.docId) {
+            docRef = doc(db, collectionPath, mutation.docId);
+            batch.update(docRef, cleanPayload);
+          } else if (mutation.action === 'delete' && mutation.docId) {
+            docRef = doc(db, collectionPath, mutation.docId);
+            batch.delete(docRef);
+          }
+        });
 
-    await batch.commit();
+        await batch.commit();
+    }
 
     await clearOfflineQueue();
     
     return mutations.length;
   } catch (error) {
-    console.error("Error processing sync queue:", error);
+    console.error("Error processing sync queue. The queue has not been cleared and will be retried.", error);
     throw error;
   }
 };

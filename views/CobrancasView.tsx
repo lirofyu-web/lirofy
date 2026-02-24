@@ -7,7 +7,7 @@ import { BilliardIcon } from '../components/icons/BilliardIcon';
 import { JukeboxIcon } from '../components/icons/JukeboxIcon';
 import { CraneIcon } from '../components/icons/CraneIcon';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
-import { TrashIcon } from './../components/icons/TrashIcon';
+import { TrashIcon } from '../components/icons/TrashIcon';
 import { PencilIcon } from '../components/icons/PencilIcon';
 import ActionModal from '../components/ActionModal';
 import { CurrencyDollarIcon } from '../components/icons/CurrencyDollarIcon';
@@ -68,9 +68,30 @@ const TabButton: React.FC<{label: string, active: boolean, onClick: () => void}>
     </button>
 );
 
+// --- Prop Interfaces for Sub-components ---
+interface BillingsListProps {
+    billings: Billing[];
+    onEdit: (billing: Billing) => void;
+    onDelete: (billing: Billing) => void;
+    onShowActions: (billing: Billing) => void;
+    totalBilled: number;
+    handleSort: (key: SortKey) => void;
+    renderSortArrow: (key: SortKey) => React.ReactNode;
+    getNetBilledAmount: (billing: Billing) => number;
+    areValuesHidden: boolean;
+}
+
+interface DebtorsListProps {
+    debtorCustomers: Customer[];
+    totalDebt: number;
+    onPrint: () => void;
+    onPayDebtCustomer: (customer: Customer) => void;
+    areValuesHidden: boolean;
+}
+
 // --- Sub-components for each tab ---
 
-const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions, totalBilled, handleSort, renderSortArrow, getNetBilledAmount, areValuesHidden }) => (
+const BillingsList: React.FC<BillingsListProps> = ({ billings, onEdit, onDelete, onShowActions, totalBilled, handleSort, renderSortArrow, getNetBilledAmount, areValuesHidden }) => (
     <>
         {/* Mobile View: Cards */}
         <div className="md:hidden space-y-4 mb-10">
@@ -188,7 +209,7 @@ const BillingsList: React.FC<any> = ({ billings, onEdit, onDelete, onShowActions
     </>
 );
 
-const DebtorsList: React.FC<any> = ({ debtorCustomers, totalDebt, onPrint, onPayDebtCustomer, areValuesHidden }) => (
+const DebtorsList: React.FC<DebtorsListProps> = ({ debtorCustomers, totalDebt, onPrint, onPayDebtCustomer, areValuesHidden }) => (
     <div className="bg-white/75 dark:bg-slate-800/75 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Clientes Devedores ({debtorCustomers.length})</h3>
@@ -491,7 +512,7 @@ const CobrancasView: React.FC<CobrancasViewProps> = ({
 
 
             {activeTab === 'billings' && <BillingsList billings={completedBillings} onEdit={onEditBilling} onDelete={setDeletingBilling} onShowActions={onShowActions} totalBilled={totalBilled} handleSort={handleSort} renderSortArrow={renderSortArrow} getNetBilledAmount={getNetBilledAmount} areValuesHidden={areValuesHidden} />}
-            {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} billings={billings} onPrint={handlePrintDebtors} onPayDebtCustomer={onPayDebtCustomer} areValuesHidden={areValuesHidden} />}
+            {activeTab === 'debtors' && <DebtorsList debtorCustomers={debtorCustomers} totalDebt={totalDebt} onPrint={handlePrintDebtors} onPayDebtCustomer={onPayDebtCustomer} areValuesHidden={areValuesHidden} />}
             
             {deletingBilling && <ActionModal isOpen={!!deletingBilling} onClose={() => setDeletingBilling(null)} onConfirm={handleConfirmDelete} title="Confirmar Exclusão" confirmText="Sim, Excluir"><p>Tem certeza que deseja excluir esta cobrança para <strong>{deletingBilling.customerName}</strong> no valor de <strong>R$ {deletingBilling.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>?</p><p className="mt-2 text-amber-500 dark:text-amber-300">Esta ação irá reverter a leitura do relógio do equipamento e, se aplicável, o valor da dívida do cliente.</p></ActionModal>}
         </>

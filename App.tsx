@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { auth, db, processFirestoreDoc } from './firebase';
 
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser, Route } from './types';
-import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
+import { queueMutation, processSyncQueue, clearOfflineQueue, processPayloadForFirestore } from './utils/offlineSync';
 import { v4 as uuidv4 } from 'uuid';
 
 import Sidebar from './components/Sidebar';
@@ -577,29 +577,6 @@ const App: React.FC = () => {
     
         return () => unsubscribers.forEach(unsub => unsub());
     }, [user, showNotification]);
-
-    const processPayloadForFirestore = useCallback((data: any): any => {
-        if (data === null || typeof data !== 'object') {
-            return data;
-        }
-        if (data instanceof Date) {
-            return Timestamp.fromDate(data);
-        }
-        if (Array.isArray(data)) {
-            return data.map(item => processPayloadForFirestore(item));
-        }
-    
-        const newObj: { [key: string]: any } = {};
-        for (const key in data) {
-            if (Object.prototype.hasOwnProperty.call(data, key)) {
-                const value = data[key];
-                if (value !== undefined) {
-                    newObj[key] = processPayloadForFirestore(value);
-                }
-            }
-        }
-        return newObj;
-    }, []);
     
     const handleAnimationEnd = useCallback(() => {
         if (actionFeedbackState.onEnd) {
@@ -641,7 +618,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, isOnline, user, showNotification]);
     
     const handleUpdateCustomer = useCallback(async (customer: Customer) => {
         if (!user) return;
@@ -668,7 +645,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, isOnline, user, showNotification]);
     
     const handleDeleteCustomer = useCallback(async (customerToDelete: Customer) => {
         if (!user) return;
@@ -758,7 +735,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
     
     const handleUpdateBilling = useCallback(async (billing: Billing) => {
         if (!user) return;
@@ -829,7 +806,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
 
     const handleDeleteBilling = useCallback(async (billingId: string) => {
         if (!user) return;
@@ -873,7 +850,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
 
     const handleAddExpense = useCallback(async (description: string, amount: number, category: Expense['category']) => {
         if (!user) return;
@@ -906,7 +883,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [expenses, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [expenses, isOnline, user, showNotification]);
 
     const handleDeleteExpense = useCallback(async (expenseId: string) => {
         if (!user) return;
@@ -1002,7 +979,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, isOnline, user, showNotification]);
 
 
     const handleForgiveDebt = useCallback(async (customer: Customer) => {
@@ -1058,7 +1035,7 @@ const App: React.FC = () => {
             showNotification("Erro ao adicionar aviso.", "error");
             console.error(error);
         }
-    }, [customers, warnings, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, warnings, isOnline, user, showNotification]);
 
     const handleResolveWarning = useCallback(async (warningId: string) => {
         if (!user) return;
@@ -1144,7 +1121,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
     
     const handleTriggerProvisionalReceiptAction = useCallback((billing: Billing, onComplete: () => void) => {
         setReceiptActionsModalState({ isOpen: true, billing, isProvisional: true });
@@ -1208,7 +1185,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [user, customers, isOnline, showNotification, processPayloadForFirestore]);
+    }, [user, customers, isOnline, showNotification]);
 
     const handleDeleteRoute = useCallback(async (routeId: string) => {
         if (!user) return;
@@ -1414,7 +1391,7 @@ const App: React.FC = () => {
             }
         };
         reader.readAsText(file);
-    }, [user, processPayloadForFirestore, showNotification]);
+    }, [user, showNotification]);
 
     const handleDeleteAllData = useCallback(async () => {
         if (!user) {
@@ -1477,7 +1454,7 @@ const App: React.FC = () => {
         } catch (error) {
             showNotification(error instanceof Error ? error.message : 'Falha na impressão térmica.', 'error');
         } finally {
-            setIsSaving(false);
+            setIsSharing(false);
         }
     }, [showNotification]);
 
@@ -1615,14 +1592,14 @@ const App: React.FC = () => {
                     isOpen={pendingPaymentActionModalState.isOpen}
                     onClose={() => setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null })}
                     onBillNew={() => {
-                        if(pendingPaymentActionalState.customer) {
-                            handleOpenBillingModal(pendingPaymentActionalState.customer);
+                        if(pendingPaymentActionModalState.customer) {
+                            handleOpenBillingModal(pendingPaymentActionModalState.customer);
                         }
                         setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null });
                     }}
                     onContinuePending={() => {
-                        if(pendingPaymentActionalState.pendingBilling) {
-                            setFinalizePaymentModalState({ isOpen: true, billing: pendingPaymentActionalState.pendingBilling });
+                        if(pendingPaymentActionModalState.pendingBilling) {
+                            setFinalizePaymentModalState({ isOpen: true, billing: pendingPaymentActionModalState.pendingBilling });
                         }
                         setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null });
                     }}
