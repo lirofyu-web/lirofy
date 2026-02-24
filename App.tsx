@@ -34,6 +34,7 @@ import DebtReceiptSheet from './components/DebtReceiptSheet';
 import { sunmiPrinterService } from './utils/sunmiPrinter';
 import ActionFeedbackOverlay from './components/SuccessAnimationOverlay';
 import { optimizeRoute } from './utils/routeOptimizer';
+import { playSuccessSound, unlockAudio } from './utils/soundPlayer';
 
 
 // Modals
@@ -224,6 +225,24 @@ const App: React.FC = () => {
     // Back button handling
     const backButtonPressedOnce = useRef(false);
     
+    // --- Audio Unlock Effect ---
+    useEffect(() => {
+        const unlock = () => {
+            unlockAudio();
+            // Remove the event listeners after the first interaction
+            window.removeEventListener('mousedown', unlock);
+            window.removeEventListener('touchstart', unlock);
+        };
+
+        window.addEventListener('mousedown', unlock);
+        window.addEventListener('touchstart', unlock);
+
+        return () => {
+            window.removeEventListener('mousedown', unlock);
+            window.removeEventListener('touchstart', unlock);
+        };
+    }, []);
+
     // --- Service Worker Registration ---
     useEffect(() => {
         if ('serviceWorker' in navigator) {
@@ -613,6 +632,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cliente Adicionado!' });
         } catch (error) {
             showNotification('Erro ao adicionar cliente. Alteração desfeita.', 'error');
@@ -639,6 +659,7 @@ const App: React.FC = () => {
             } else {
                  await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cliente Atualizado!' });
         } catch (error) {
             showNotification('Erro ao atualizar cliente. Alterações desfeitas.', 'error');
@@ -664,6 +685,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerToDelete.id, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cliente Excluído!' });
         } catch (error) {
             showNotification('Erro ao excluir cliente. Alteração desfeita.', 'error');
@@ -723,6 +745,7 @@ const App: React.FC = () => {
             }
             
             if (billing.paymentMethod !== 'pending_payment') {
+                playSuccessSound();
                 setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cobrança Realizada!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false }) });
             } else {
                 setActionFeedbackState({ isOpen: true, variant: 'pending', message: 'Pagamento Pendente' });
@@ -796,6 +819,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
                 if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cobrança Atualizada!' });
         } catch (error) {
             showNotification('Erro ao atualizar cobrança.', 'error');
@@ -839,6 +863,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cobrança Excluída!' });
         } catch (error) {
             showNotification('Erro ao excluir cobrança. As alterações foram desfeitas.', 'error');
@@ -872,6 +897,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Despesa Adicionada!' });
         } catch (error) {
             showNotification('Erro ao adicionar despesa.', 'error');
@@ -894,6 +920,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Despesa Excluída!' });
         } catch (error) {
             showNotification('Erro ao excluir despesa.', 'error');
@@ -962,8 +989,10 @@ const App: React.FC = () => {
             }
             
             if (isPayingDebt && debtPayment) {
+                playSuccessSound();
                 setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Recebido!', onEnd: () => setDebtReceiptActionsModalState({ isOpen: true, debtPayment, customer: updatedCustomer }) });
             } else {
+                playSuccessSound();
                 setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Dívida Adicionada!' });
             }
         } catch (error) {
@@ -993,6 +1022,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Dívida Perdoada!' });
         } catch (error) {
             setCustomers(originalCustomers);
@@ -1021,6 +1051,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Aviso Adicionado!' });
         } catch (error) {
             setWarnings(originalWarnings);
@@ -1041,6 +1072,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Aviso Resolvido!' });
         } catch (error) {
             setWarnings(originalWarnings);
@@ -1060,6 +1092,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Aviso Excluído!' });
         } catch (error) {
             setWarnings(originalWarnings);
@@ -1101,6 +1134,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
             }
             
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Finalizado!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false }) });
         } catch (error) {
             showNotification('Erro ao finalizar pagamento.', 'error');
@@ -1161,6 +1195,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'add', collectionPath: 'routes', payload: newRoute });
             }
             
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Rota Salva!' });
     
         } catch (error) {
@@ -1187,6 +1222,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'routes', docId: routeId, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Rota Excluída!' });
         } catch (error) {
             console.error("Error deleting route:", error);
@@ -1400,6 +1436,7 @@ const App: React.FC = () => {
     
             await batch.commit();
             await clearOfflineQueue();
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Todos os Dados Apagados' });
         } catch (error) {
             console.error("Erro ao apagar dados:", error);
@@ -1440,7 +1477,7 @@ const App: React.FC = () => {
         } catch (error) {
             showNotification(error instanceof Error ? error.message : 'Falha na impressão térmica.', 'error');
         } finally {
-            setIsSharing(false);
+            setIsSaving(false);
         }
     }, [showNotification]);
 
@@ -1578,14 +1615,14 @@ const App: React.FC = () => {
                     isOpen={pendingPaymentActionModalState.isOpen}
                     onClose={() => setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null })}
                     onBillNew={() => {
-                        if(pendingPaymentActionModalState.customer) {
-                            handleOpenBillingModal(pendingPaymentActionModalState.customer);
+                        if(pendingPaymentActionalState.customer) {
+                            handleOpenBillingModal(pendingPaymentActionalState.customer);
                         }
                         setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null });
                     }}
                     onContinuePending={() => {
-                        if(pendingPaymentActionModalState.pendingBilling) {
-                            setFinalizePaymentModalState({ isOpen: true, billing: pendingPaymentActionModalState.pendingBilling });
+                        if(pendingPaymentActionalState.pendingBilling) {
+                            setFinalizePaymentModalState({ isOpen: true, billing: pendingPaymentActionalState.pendingBilling });
                         }
                         setPendingPaymentActionModalState({ isOpen: false, customer: null, pendingBilling: null });
                     }}
