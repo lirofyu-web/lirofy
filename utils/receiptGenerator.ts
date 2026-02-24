@@ -3,19 +3,19 @@ import { Billing, DebtPayment, Equipment, Customer } from '../types';
 
 const formatCurrency = (value: number | undefined) => (value || 0).toFixed(2);
 const formatCurrencyFicha = (value: number | undefined) => (value || 0).toFixed(2); // Use 2 for consistency on text receipts
+const PIX_KEY = "43999581993";
+
+const PAYMENT_METHOD_TEXT = {
+    pix: 'PIX',
+    dinheiro: 'DINHEIRO',
+    debito_negativo: 'NEGATIVO',
+    misto: 'MISTO',
+};
 
 export function generateBillingText(billing: Billing, isProvisional: boolean): string {
     const isMesa = billing.equipmentType === 'mesa';
     const isGrua = billing.equipmentType === 'grua';
-    const pixKey = "43999581993";
     
-    const paymentMethodText = {
-        pix: 'PIX',
-        dinheiro: 'DINHEIRO',
-        debito_negativo: 'NEGATIVO',
-        misto: 'MISTO',
-    };
-
     let details = '';
 
     if (isGrua) {
@@ -37,12 +37,13 @@ ALUGUEL (PAGO AO CLIENTE): R$ ${formatCurrency(billing.aluguelValor)}
 *TOTAL (FIRMA): R$ ${formatCurrency(billing.valorTotal)}*
         `.trim();
     } else { // Mesa or Jukebox
+        const totalValue = (billing.valorTotal || 0) - (billing.valorBonus || 0);
         const totalSection = (billing.valorBonus && billing.valorBonus > 0)
           ? `Subtotal (Firma): R$ ${formatCurrency(billing.valorTotal)}\n` +
             `Desconto / Bonus: - R$ ${formatCurrency(billing.valorBonus)}\n` +
             `--------------------------------\n` +
-            `*TOTAL (FIRMA): R$ ${formatCurrency(billing.valorTotal - billing.valorBonus)}*`
-          : `*TOTAL (FIRMA): R$ ${formatCurrency(billing.valorTotal)}*`;
+            `*TOTAL (FIRMA): R$ ${formatCurrency(totalValue)}*`
+          : `*TOTAL (FIRMA): R$ ${formatCurrency(totalValue)}*`;
 
         if (isMesa && billing.billingType === 'monthly') {
             details = `
@@ -78,20 +79,21 @@ ${totalSection}
     let paymentDetails = '';
     if (!isProvisional && !isGrua) {
         if (billing.paymentMethod === 'misto') {
-            let parts = [];
-            if (billing.valorPagoDinheiro && billing.valorPagoDinheiro > 0) parts.push(`- Dinheiro: R$ ${formatCurrency(billing.valorPagoDinheiro)}`);
-            if (billing.valorPagoPix && billing.valorPagoPix > 0) parts.push(`- PIX: R$ ${formatCurrency(billing.valorPagoPix)}`);
-            if (billing.valorDebitoNegativo && billing.valorDebitoNegativo > 0) parts.push(`- Negativo: R$ ${formatCurrency(billing.valorDebitoNegativo)}`);
+            const parts = [
+                (billing.valorPagoDinheiro || 0) > 0 && `- Dinheiro: R$ ${formatCurrency(billing.valorPagoDinheiro)}`,
+                (billing.valorPagoPix || 0) > 0 && `- PIX: R$ ${formatCurrency(billing.valorPagoPix)}`,
+                (billing.valorDebitoNegativo || 0) > 0 && `- Negativo: R$ ${formatCurrency(billing.valorDebitoNegativo)}`
+            ].filter(Boolean);
             paymentDetails = `\nPAGAMENTO:\n${parts.join('\n')}`;
         } else {
-            paymentDetails = `\nPagamento: PAGO ( )\n           NAO PAGO ( )`;
+            paymentDetails = `\nPagamento: ${PAYMENT_METHOD_TEXT[billing.paymentMethod as keyof typeof PAYMENT_METHOD_TEXT] || 'N/A'}`;
         }
     }
 
     const provisionalFooter = isProvisional ? `
 --------------------------------
 *Pague com PIX!*
-Chave (Celular): ${pixKey}
+Chave (Celular): ${PIX_KEY}
 --------------------------------
 *** COMPROVANTE PARA CONFERENCIA ***
 *** SEM VALOR FISCAL ***` : '';
@@ -110,11 +112,6 @@ ${provisionalFooter}
 
 
 export function generateDebtText(debtPayment: DebtPayment): string {
-     const paymentMethodText = {
-        pix: 'PIX',
-        dinheiro: 'DINHEIRO',
-    };
-    const formatCurrency = (value: number) => (value || 0).toFixed(2);
     return `*MONTANHA BILHAR & JUKEBOX*
 COMPROVANTE DE PAGAMENTO DE DIVIDA
 --------------------------------
@@ -122,7 +119,7 @@ CLIENTE: ${debtPayment.customerName}
 DATA: ${new Date(debtPayment.paidAt).toLocaleString('pt-BR')}
 --------------------------------
 *VALOR PAGO: R$ ${formatCurrency(debtPayment.amountPaid)}*
-Pagamento: ${paymentMethodText[debtPayment.paymentMethod]}
+Pagamento: ${PAYMENT_METHOD_TEXT[debtPayment.paymentMethod as keyof typeof PAYMENT_METHOD_TEXT] || 'N/A'}
     `.trim();
 }
 

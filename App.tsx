@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { auth, db, processFirestoreDoc } from './firebase';
 
 import { Customer, Billing, Expense, DebtPayment, Equipment, Warning, View, Theme, UserProfile, SavedUser, Route } from './types';
-import { queueMutation, processSyncQueue, clearOfflineQueue } from './utils/offlineSync';
+import { queueMutation, processSyncQueue, clearOfflineQueue, processPayloadForFirestore } from './utils/offlineSync';
 import { v4 as uuidv4 } from 'uuid';
 
 import Sidebar from './components/Sidebar';
@@ -34,6 +34,7 @@ import DebtReceiptSheet from './components/DebtReceiptSheet';
 import { sunmiPrinterService } from './utils/sunmiPrinter';
 import ActionFeedbackOverlay from './components/SuccessAnimationOverlay';
 import { optimizeRoute } from './utils/routeOptimizer';
+import { playSuccessSound, unlockAudio } from './utils/soundPlayer';
 
 
 // Modals
@@ -224,6 +225,24 @@ const App: React.FC = () => {
     // Back button handling
     const backButtonPressedOnce = useRef(false);
     
+    // --- Audio Unlock Effect ---
+    useEffect(() => {
+        const unlock = () => {
+            unlockAudio();
+            // Remove the event listeners after the first interaction
+            window.removeEventListener('mousedown', unlock);
+            window.removeEventListener('touchstart', unlock);
+        };
+
+        window.addEventListener('mousedown', unlock);
+        window.addEventListener('touchstart', unlock);
+
+        return () => {
+            window.removeEventListener('mousedown', unlock);
+            window.removeEventListener('touchstart', unlock);
+        };
+    }, []);
+
     // --- Service Worker Registration ---
     useEffect(() => {
         if ('serviceWorker' in navigator) {
@@ -558,29 +577,6 @@ const App: React.FC = () => {
     
         return () => unsubscribers.forEach(unsub => unsub());
     }, [user, showNotification]);
-
-    const processPayloadForFirestore = useCallback((data: any): any => {
-        if (data === null || typeof data !== 'object') {
-            return data;
-        }
-        if (data instanceof Date) {
-            return Timestamp.fromDate(data);
-        }
-        if (Array.isArray(data)) {
-            return data.map(item => processPayloadForFirestore(item));
-        }
-    
-        const newObj: { [key: string]: any } = {};
-        for (const key in data) {
-            if (Object.prototype.hasOwnProperty.call(data, key)) {
-                const value = data[key];
-                if (value !== undefined) {
-                    newObj[key] = processPayloadForFirestore(value);
-                }
-            }
-        }
-        return newObj;
-    }, []);
     
     const handleAnimationEnd = useCallback(() => {
         if (actionFeedbackState.onEnd) {
@@ -613,6 +609,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'customers', payload: customerWithId });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cliente Adicionado!' });
         } catch (error) {
             showNotification('Erro ao adicionar cliente. Alteração desfeita.', 'error');
@@ -621,7 +618,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, isOnline, user, showNotification]);
     
     const handleUpdateCustomer = useCallback(async (customer: Customer) => {
         if (!user) return;
@@ -639,6 +636,7 @@ const App: React.FC = () => {
             } else {
                  await queueMutation({ action: 'update', collectionPath: 'customers', docId: id, payload: customerData });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cliente Atualizado!' });
         } catch (error) {
             showNotification('Erro ao atualizar cliente. Alterações desfeitas.', 'error');
@@ -647,7 +645,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, isOnline, user, showNotification]);
     
     const handleDeleteCustomer = useCallback(async (customerToDelete: Customer) => {
         if (!user) return;
@@ -664,6 +662,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'customers', docId: customerToDelete.id, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cliente Excluído!' });
         } catch (error) {
             showNotification('Erro ao excluir cliente. Alteração desfeita.', 'error');
@@ -723,6 +722,7 @@ const App: React.FC = () => {
             }
             
             if (billing.paymentMethod !== 'pending_payment') {
+                playSuccessSound();
                 setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Cobrança Realizada!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing, isProvisional: false }) });
             } else {
                 setActionFeedbackState({ isOpen: true, variant: 'pending', message: 'Pagamento Pendente' });
@@ -735,7 +735,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
     
     const handleUpdateBilling = useCallback(async (billing: Billing) => {
         if (!user) return;
@@ -796,6 +796,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
                 if (nextBillingId && nextBillingPayload) await queueMutation({ action: 'update', collectionPath: 'billings', docId: nextBillingId, payload: nextBillingPayload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Cobrança Atualizada!' });
         } catch (error) {
             showNotification('Erro ao atualizar cobrança.', 'error');
@@ -805,7 +806,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
 
     const handleDeleteBilling = useCallback(async (billingId: string) => {
         if (!user) return;
@@ -839,6 +840,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'delete', collectionPath: 'billings', docId: billingId, payload: {} });
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: updatedCustomer.id, payload: updatedCustomerPayload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Cobrança Excluída!' });
         } catch (error) {
             showNotification('Erro ao excluir cobrança. As alterações foram desfeitas.', 'error');
@@ -848,7 +850,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
 
     const handleAddExpense = useCallback(async (description: string, amount: number, category: Expense['category']) => {
         if (!user) return;
@@ -872,6 +874,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'expenses', payload: newExpense });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Despesa Adicionada!' });
         } catch (error) {
             showNotification('Erro ao adicionar despesa.', 'error');
@@ -880,7 +883,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [expenses, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [expenses, isOnline, user, showNotification]);
 
     const handleDeleteExpense = useCallback(async (expenseId: string) => {
         if (!user) return;
@@ -894,6 +897,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'expenses', docId: expenseId, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Despesa Excluída!' });
         } catch (error) {
             showNotification('Erro ao excluir despesa.', 'error');
@@ -962,8 +966,10 @@ const App: React.FC = () => {
             }
             
             if (isPayingDebt && debtPayment) {
+                playSuccessSound();
                 setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Recebido!', onEnd: () => setDebtReceiptActionsModalState({ isOpen: true, debtPayment, customer: updatedCustomer }) });
             } else {
+                playSuccessSound();
                 setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Dívida Adicionada!' });
             }
         } catch (error) {
@@ -973,7 +979,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, isOnline, user, showNotification]);
 
 
     const handleForgiveDebt = useCallback(async (customer: Customer) => {
@@ -993,6 +999,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customer.id, payload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Dívida Perdoada!' });
         } catch (error) {
             setCustomers(originalCustomers);
@@ -1021,13 +1028,14 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'add', collectionPath: 'warnings', payload: newWarning });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Aviso Adicionado!' });
         } catch (error) {
             setWarnings(originalWarnings);
             showNotification("Erro ao adicionar aviso.", "error");
             console.error(error);
         }
-    }, [customers, warnings, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [customers, warnings, isOnline, user, showNotification]);
 
     const handleResolveWarning = useCallback(async (warningId: string) => {
         if (!user) return;
@@ -1041,6 +1049,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'update', collectionPath: 'warnings', docId: warningId, payload });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'edit', message: 'Aviso Resolvido!' });
         } catch (error) {
             setWarnings(originalWarnings);
@@ -1060,6 +1069,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'warnings', docId: warningId, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Aviso Excluído!' });
         } catch (error) {
             setWarnings(originalWarnings);
@@ -1101,6 +1111,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'update', collectionPath: 'customers', docId: customerId, payload: customerPayload });
             }
             
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Pagamento Finalizado!', onEnd: () => setReceiptActionsModalState({ isOpen: true, billing: updatedBilling, isProvisional: false }) });
         } catch (error) {
             showNotification('Erro ao finalizar pagamento.', 'error');
@@ -1110,7 +1121,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [billings, customers, isOnline, user, processPayloadForFirestore, showNotification]);
+    }, [billings, customers, isOnline, user, showNotification]);
     
     const handleTriggerProvisionalReceiptAction = useCallback((billing: Billing, onComplete: () => void) => {
         setReceiptActionsModalState({ isOpen: true, billing, isProvisional: true });
@@ -1161,6 +1172,7 @@ const App: React.FC = () => {
                 await queueMutation({ action: 'add', collectionPath: 'routes', payload: newRoute });
             }
             
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'success', message: 'Rota Salva!' });
     
         } catch (error) {
@@ -1173,7 +1185,7 @@ const App: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [user, customers, isOnline, showNotification, processPayloadForFirestore]);
+    }, [user, customers, isOnline, showNotification]);
 
     const handleDeleteRoute = useCallback(async (routeId: string) => {
         if (!user) return;
@@ -1187,6 +1199,7 @@ const App: React.FC = () => {
             } else {
                 await queueMutation({ action: 'delete', collectionPath: 'routes', docId: routeId, payload: {} });
             }
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Rota Excluída!' });
         } catch (error) {
             console.error("Error deleting route:", error);
@@ -1378,7 +1391,7 @@ const App: React.FC = () => {
             }
         };
         reader.readAsText(file);
-    }, [user, processPayloadForFirestore, showNotification]);
+    }, [user, showNotification]);
 
     const handleDeleteAllData = useCallback(async () => {
         if (!user) {
@@ -1400,6 +1413,7 @@ const App: React.FC = () => {
     
             await batch.commit();
             await clearOfflineQueue();
+            playSuccessSound();
             setActionFeedbackState({ isOpen: true, variant: 'delete', message: 'Todos os Dados Apagados' });
         } catch (error) {
             console.error("Erro ao apagar dados:", error);
