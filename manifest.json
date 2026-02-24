@@ -4,7 +4,7 @@
   "description": "Gerenciamento de locação de mesas de bilhar, jukebox e gruas.",
   "id": "/",
   "scope": "/",
-  "start_url": "https://montanhabilharejukebox.vercel.app/",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0f172a",
